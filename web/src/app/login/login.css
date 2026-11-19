@@ -27,6 +27,11 @@
   color: var(--muted); transition: border-color 0.15s, box-shadow 0.15s;
 }
 .lg-field:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
+/* The field draws the box and the focus ring; the input inside stays bare (the shared input styles would add a
+   second box and ring inside it). */
+.lg .lg-field input, .lg .lg-field input:hover, .lg .lg-field input:focus, .lg .lg-field input:focus-visible {
+  border: 0; outline: none; box-shadow: none; background: transparent; padding: 0; min-height: 0;
+}
 .lg-field.has-error { border-color: var(--red-solid); }
 .lg-field input {
   flex: 1; min-width: 0; height: 50px; border: 0; outline: 0; background: transparent;
