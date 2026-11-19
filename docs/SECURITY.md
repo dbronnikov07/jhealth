@@ -60,8 +60,8 @@ A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API
 
 ## Still to do before real patients
 
-1. Set `WHATSAPP_APP_SECRET` (Meta app → App settings → Basic → App secret) on Vercel. Without it, the live site refuses every WhatsApp webhook (503), so nobody can fake one, but real messages are refused too.
-2. Rotate the keys that were pasted into a chat during development: the Adaption API key (Adaption → Settings → API keys) and the WhatsApp access token (temporary tokens expire by themselves; make a permanent System User token for the demo).
+1. Rotate the Adaption API key, which was pasted into a chat during development (Adaption → Settings → API keys), then save the new one with `bash scripts/set-secret.sh ADAPTION_API_KEY` from `web/` and redeploy.
+2. WhatsApp is not connected. The Meta account used during the build was disabled on 19 November, and all WhatsApp keys were removed from Vercel and the laptop the same day, so the site holds no Meta credentials. Without them the webhook refuses everything (verification 403, messages 503), and the demo phone carries the demo. To connect WhatsApp later, an adult owner sets it up under their own Meta business account (WhatsApp Business requires 18+), then saves `WHATSAPP_TOKEN` (a permanent System User token), `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN` and `WHATSAPP_APP_SECRET` with `scripts/set-secret.sh`.
 
 ## Known limits (prototype)
 
