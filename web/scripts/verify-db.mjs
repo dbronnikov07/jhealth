@@ -114,6 +114,15 @@ await db.query("select requeue_after_reply($1)", [fresh.id]);
 ok((await one("select count(*)::int n from messages where patient_id = $1 and status = 'queued'", [fresh.id])).n === 1,
    "a cancelled plan message is never re-sent after the patient replies");
 
+console.log("\ndemo phone");
+ok((await one("select channel from patients where id = $1", [fresh.id])).channel === "whatsapp", "patients use WhatsApp unless told otherwise");
+await rejects("update patients set channel = 'sms' where id = $1", [fresh.id], "only 'whatsapp' and 'demo' are channels");
+const demoP = await one("insert into patients (display_name, phone, condition, channel) values ('Demo Phone', '+14165550199', 'Total knee replacement', 'demo') returning id");
+await db.query("insert into messages (patient_id, direction, body, status) values ($1, 'out', 'hello', 'queued')", [demoP.id]);
+ok((await one("select channel from messages where patient_id = $1", [demoP.id])).channel === "demo", "a demo patient's messages are marked as demo-phone messages");
+ok((await one("select channel from messages where patient_id = $1 limit 1", [fresh.id])).channel === "whatsapp", "a WhatsApp patient's messages stay WhatsApp messages");
+ok((await one("select has_function_privilege('public', 'set_message_channel()', 'execute') as can")).can === false, "nobody but the database can run set_message_channel()");
+
 console.log("\nsecurity");
 const noRls = await rows("select relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and not relrowsecurity");
 ok(noRls.length === 0, `row level security is on for every table${noRls.length ? " (missing: " + noRls.map((r) => r.relname).join(", ") + ")" : ""}`);

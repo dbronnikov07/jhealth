@@ -1,9 +1,8 @@
 // The WhatsApp webhook. In Meta's app settings: Callback URL = https://<your app>/api/whatsapp,
 // Verify token = WHATSAPP_VERIFY_TOKEN, and subscribe to the "messages" field.
 import { after } from "next/server";
-import { coachReply } from "@/lib/coach/reply";
+import { deliverAndCoach } from "@/lib/whatsapp/after-inbound";
 import { handleWebhook } from "@/lib/whatsapp/inbound";
-import { processOutbox } from "@/lib/whatsapp/outbox";
 import { fromThisComputer, sameSecret } from "@/lib/auth-core";
 import { isValidSignature } from "@/lib/whatsapp/signature";
 
@@ -48,18 +47,6 @@ export async function POST(request: Request) {
 
   // If this throws (for example the database is down) we answer 500 and Meta retries later.
   const { patients, toCoach } = await handleWebhook(body);
-  after(async () => {
-    // Send what is ready now (safety replies, welcome, plans released by the 24-hour window) before the coach
-    // spends a few seconds thinking.
-    for (const id of patients) await processOutbox(id);
-    for (const { patientId, messageId } of toCoach) {
-      try {
-        await coachReply(patientId, messageId);
-      } catch (error) {
-        console.error("[coach] failed:", error);
-      }
-      await processOutbox(patientId);
-    }
-  });
+  after(() => deliverAndCoach(patients, toCoach));
   return new Response("OK", { status: 200 });
 }

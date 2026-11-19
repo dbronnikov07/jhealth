@@ -151,12 +151,15 @@ export async function listMessages(patientId: string, limit = 8) {
   );
 }
 
-/** The secret part of the patient's session link, for the doctor's "Patient's page" link. */
-export async function sessionToken(patientId: string) {
+/** The secret part of the patient's links ("Patient's page", "Demo phone") and how the coach reaches them. */
+export async function patientLink(patientId: string) {
   await requireDoctor();
   const db = await getDb();
-  const [row] = await db.query<{ session_token: string }>("select session_token from patients where id = $1", [patientId]);
-  return row?.session_token ?? null;
+  const [row] = await db.query<{ session_token: string; channel: "whatsapp" | "demo" }>(
+    "select session_token, channel from patients where id = $1",
+    [patientId],
+  );
+  return row ? { token: row.session_token, channel: row.channel } : null;
 }
 
 export async function openAlerts(patientId: string) {

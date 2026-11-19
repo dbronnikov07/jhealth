@@ -552,6 +552,9 @@ textarea { resize: vertical; min-height: 60px; }
   font-size: 15px; font-weight: 750; color: var(--muted);
   padding: 5px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
 }
+.patient a.pt-kicker { color: var(--accent); text-decoration: none; border-color: var(--accent-line); }
+.patient a.pt-kicker:hover { background: var(--accent-soft); }
+.patient a.pt-kicker:focus-visible { outline: none; box-shadow: var(--ring); }
 .patient h1 { font-size: clamp(32px, 7.6vw, 46px); line-height: 1.08; letter-spacing: -0.04em; }
 .patient .pt-sub { margin-top: -10px; font-size: 19px; color: var(--muted); }
 .patient .muted { color: var(--muted); }
@@ -797,3 +800,11 @@ textarea { resize: vertical; min-height: 60px; }
 @keyframes chip-in { from { transform: scale(0.8); } }
 @keyframes breathe { 50% { box-shadow: 0 0 0 7px rgb(61 220 132 / 0.08); } }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* The demo phone's QR code on a patient's record (hidden until asked for, so it is not shown on a projector). */
+.demo-phone-card p { margin: 0 0 12px; line-height: 1.5; }
+.qr-reveal summary { cursor: pointer; font-weight: 700; color: var(--accent); width: fit-content; }
+.qr-reveal summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
+.qr-reveal[open] summary { margin-bottom: 12px; }
+.qr-reveal .qr { display: block; border-radius: 10px; box-shadow: 0 0 0 1px var(--border); }
+.qr-reveal .qr + p { margin-top: 10px; }

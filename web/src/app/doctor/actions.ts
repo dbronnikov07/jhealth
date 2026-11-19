@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { assertUuid, requireDoctor } from "@/lib/auth";
 import { getDb, pgCode, pgMessage } from "@/lib/db";
+import { fictionalPhone } from "@/lib/demo-phone";
 import { normalizePhone } from "@/lib/format";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
@@ -14,21 +15,29 @@ export type FormState = { error: string | null; values?: Record<string, string> 
 export async function createPatient(_prev: FormState, form: FormData): Promise<FormState> {
   await requireDoctor();
   const name = String(form.get("name") ?? "").trim().slice(0, 120);
-  const phone = normalizePhone(String(form.get("phone") ?? ""));
+  const typed = String(form.get("phone") ?? "").slice(0, 40);
+  const demo = form.get("demo") === "on";
   const condition = String(form.get("condition") ?? "").trim().slice(0, 120);
   const side = String(form.get("side") ?? "");
-  const values = { name, phone: String(form.get("phone") ?? ""), condition, side };
+  const values = { name, phone: typed, condition, side, demo: demo ? "on" : "" };
   if (!name) return { error: "Enter the patient's name.", values };
+  const db = await getDb();
+  let phone = normalizePhone(typed);
+  if (demo && !typed.trim()) {
+    // The demo phone needs no real number: take a free fictional one (+1 416 555 0100 to 0199).
+    const taken = await db.query<{ phone: string }>("select phone from patients where phone like '+1416555%'");
+    phone = fictionalPhone(taken.map((r) => r.phone));
+    if (!phone) return { error: "All 100 fictional demo numbers are in use. Type a number instead.", values };
+  }
   if (!phone) return { error: "Enter the phone number with country code, for example +1 416 555 0123.", values };
   if (!condition) return { error: "Choose the condition.", values };
 
-  const db = await getDb();
   let id: string;
   try {
     // No doctor_id: the database links the patient to the default doctor.
     const [row] = await db.query<{ id: string }>(
-      "insert into patients (display_name, phone, condition, side) values ($1, $2, $3, $4) returning id",
-      [name, phone, condition, ["left", "right", "both"].includes(side) ? side : null],
+      "insert into patients (display_name, phone, condition, side, channel) values ($1, $2, $3, $4, $5) returning id",
+      [name, phone, condition, ["left", "right", "both"].includes(side) ? side : null, demo ? "demo" : "whatsapp"],
     );
     id = row.id;
   } catch (error) {

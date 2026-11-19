@@ -20,6 +20,7 @@ const PATHS = {
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0",
   alert: "M12 4l9 16H3L12 4zM12 10v4.5M12 17.5v.01",
   device: "M8 3h8a1.5 1.5 0 0 1 1.5 1.5v15A1.5 1.5 0 0 1 16 21H8a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 8 3zM11 18h2",
+  send: "M4.5 11.5L20 4l-6.5 16-2.6-6.4-6.4-2.1zM10.9 13.6L20 4",
 } as const;
 
 export type IconName = keyof typeof PATHS;

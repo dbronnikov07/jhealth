@@ -39,13 +39,30 @@ export function cloudConnection(raw: string): { url: string; ssl: false | "requi
   return { url: url.toString(), ssl: local ? false : "require" };
 }
 
+/**
+ * How JSON parameters reach Postgres. The app writes JSON as text it has already built (`JSON.stringify(...)` into
+ * `$n::jsonb`), which is what PGlite expects. The `postgres` driver would encode that text a second time, storing a
+ * JSON *string* instead of an object (buttons and labels silently lost on Supabase), so text is sent as it is.
+ */
+export const jsonbAsText = {
+  to: 3802,
+  from: [114, 3802],
+  serialize: (x: unknown) => (typeof x === "string" ? x : JSON.stringify(x)),
+  parse: (x: string) => JSON.parse(x),
+};
+
+/** The driver settings the app uses for a cloud database (also used by scripts/db-remote.mjs to check them). */
+export function postgresOptions(ssl: false | "require") {
+  // prepare: false is required by Supabase's transaction pooler (port 6543), which serverless hosts should use.
+  return { prepare: false, max: 5, idle_timeout: 20, ssl, types: { jsonbAsText } } as const;
+}
+
 async function connect(): Promise<Db> {
   const raw = databaseUrl();
   if (raw) {
     const { default: postgres } = await import("postgres");
     const { url, ssl } = cloudConnection(raw);
-    // prepare: false is required by Supabase's transaction pooler (port 6543), which serverless hosts should use.
-    const sql = postgres(url, { prepare: false, max: 5, idle_timeout: 20, ssl });
+    const sql = postgres(url, postgresOptions(ssl));
     return {
       mode: "supabase",
       query: async <T,>(text: string, params: unknown[] = []) =>

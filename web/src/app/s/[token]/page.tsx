@@ -29,8 +29,8 @@ export default async function SessionPage({
   const { token } = await params;
   if (!/^[0-9a-f]{64}$/.test(token)) notFound();
   const db = await getDb();
-  const [patient] = await db.query<{ id: string; first_name: string }>(
-    "select id, split_part(trim(display_name), ' ', 1) as first_name from patients where session_token = $1",
+  const [patient] = await db.query<{ id: string; first_name: string; channel: string }>(
+    "select id, split_part(trim(display_name), ' ', 1) as first_name, channel from patients where session_token = $1",
     [token],
   );
   if (!patient) notFound();
@@ -52,14 +52,18 @@ export default async function SessionPage({
     <main className="page patient">
       <header className="pt-head">
         <span className="brand"><Goniometer value={62} size={32} /><span className="wordmark">j<span>Health</span></span></span>
-        <span className="pt-kicker">Your home exercises</span>
+        {patient.channel === "demo" ? (
+          <a className="pt-kicker" href={`/s/${token}/phone`}>← Back to the chat</a>
+        ) : (
+          <span className="pt-kicker">Your home exercises</span>
+        )}
       </header>
       <h1>Hi {patient.first_name}, here is today&apos;s plan</h1>
       {items.length > 0 && (
         <p className="pt-sub">{items.length === 1 ? "1 exercise" : `${items.length} exercises`} from your physiotherapist. Take your time.</p>
       )}
       {items.length === 0 ? (
-        <p className="empty-plan muted"><Icon name="clipboard" size={30} /><span>Your physiotherapist has not set up your exercises yet. You will get a WhatsApp message when they do.</span></p>
+        <p className="empty-plan muted"><Icon name="clipboard" size={30} /><span>Your physiotherapist has not set up your exercises yet. You will get a message from the coach when they do.</span></p>
       ) : (
         <SessionApp token={token} items={items} source={source} step={!!source && query.step === "1"} />
       )}
@@ -67,7 +71,7 @@ export default async function SessionPage({
         <p><Icon name="lock" /> <span>Your video never leaves your phone: only the counts and scores are sent to your physiotherapist.</span></p>
         <p className="safety">
           <Icon name="hand" />
-          <span>If anything hurts, stop and press “It hurts” or tell the coach in WhatsApp. <strong>In an emergency, call 911.</strong></span>
+          <span>If anything hurts, stop and press “It hurts” or tell the coach in the chat. <strong>In an emergency, call 911.</strong></span>
         </p>
       </div>
     </main>

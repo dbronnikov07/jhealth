@@ -26,7 +26,7 @@ What protects patient data in jHealth, how it was tested, and what must be set b
 
 ## How it was tested
 
-`bash web/scripts/attack.sh` (with the dev server running) makes 37 attacks from "outside", using the headers a Cloudflare tunnel adds: the dashboard and patient records, encoded and case-changed paths, path traversal to `.env.local` and source files, forged and unsigned webhooks, an oversized body, the reminder trigger with a made-up secret, made-up and SQL-injected patient tokens. All 37 are refused. `npm run test:unit` includes the access rules (lockout, constant-time compare, what counts as "this computer").
+`bash web/scripts/attack.sh` (with the dev server running) makes 43 attacks from "outside", using the headers a Cloudflare tunnel adds: the dashboard and patient records, encoded and case-changed paths, path traversal to `.env.local` and source files, forged and unsigned webhooks, an oversized body, the reminder trigger with a made-up secret, made-up and SQL-injected patient tokens, and the demo phone (made-up keys, invented buttons, oversized bodies). All 43 are refused. Against the live site run it with `BASE=https://jhealth-beta.vercel.app DELAY=2`: Vercel's own firewall blocks this computer for a few minutes after the path-traversal probes, which is why they run last. `npm run test:unit` includes the access rules (lockout, constant-time compare, what counts as "this computer").
 
 A dashboard action was also replayed exactly as the browser sends it: it works from this computer, is refused through the tunnel (503), and posted to the public landing or privacy page from outside, Next.js refuses it ("Failed to find Server Action") and nothing is written.
 
@@ -41,6 +41,22 @@ https://jhealth-beta.vercel.app. Website on Vercel (functions in Montreal, `yul1
 - **The app refuses to start without its database** on Vercel, instead of falling back to an empty throwaway one.
 - **The database connection is encrypted** (TLS, checked from inside Postgres).
 - **Vercel's own firewall** noticed the burst of attacks from `scripts/attack.sh` and put this laptop's address behind a security checkpoint within seconds. Preview (non-production) addresses require a Vercel sign-in.
+
+## The demo phone (added 19 November)
+
+A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API `/api/demo-phone`).
+
+- Same key as the exercise page (64 random hex characters). Works only for patients the physiotherapist put on the demo channel; a WhatsApp patient's key gets 404 on both the page and the API (tested), so it cannot be used to write as them.
+- Every field is checked (`parseDemoRequest`, unit-tested): key format, text of 1 to 1,000 characters with control characters removed, buttons only from the coach's own list (titles come from our list, never from the request or the database). Bodies over 8 kB are refused (413).
+- 20 messages per patient per 10 minutes, 200 a day (429 after that, tested), counted in the database so it holds across Vercel's copies of the app. This also caps what the AI coach can spend.
+- The Start button's link is built from the key on the page, never taken from a message. React escapes all text.
+- The QR code on the dashboard is hidden until asked for, so it is not shown on a projector.
+
+## Two bugs found while testing (fixed)
+
+- **JSON stored as text on Supabase.** The cloud database driver encoded the app's JSON a second time, so on Supabase every message's details (reminder-time buttons, the "AI coach" label, Start-button flags) were stored as a plain string and lost. The local database never showed it. Fixed in `src/lib/db.ts`; `npm run cloud:check` now checks it against the real database with the app's own settings.
+- **The attack test sent half-messages.** macOS's built-in bash 3.2 split JSON bodies at their commas inside nested quotes, so several attacks sent a fragment (refused for the wrong reason). Bodies are now built once in plain assignments, and checked to be valid JSON. All 43 attacks pass with complete messages.
+- **A safety gap in quick replies (WhatsApp too).** After a pain report, tapping "No time" still offered a Start button. Now no tap can offer Start while a pain or red-flag alert is open.
 
 ## Still to do before real patients
 

@@ -110,11 +110,20 @@ export async function handleWebhook(body: WebhookBody): Promise<{ patients: stri
             await raiseSafetyAlert({ patientId: patient.id, level: "high_pain",
               reason: "pain as the reason for missing sessions", reply: HIGH_PAIN_REPLY, sourceMessageId: stored.id });
           } else {
+            // After a pain report, exercise is on hold until the physio reviews it: no Start button, whatever was tapped.
+            const [hold] = await db.query<{ n: number }>(
+              "select count(*)::int as n from alerts where patient_id = $1 and resolved_at is null and kind in ('pain', 'red_flag')",
+              [patient.id],
+            );
+            const onHold = hold.n > 0;
+            const reply = tapped.kind === "reply" && tapped.startButton && onHold
+              ? "Totally understandable. Your physiotherapist will check in about your pain first; until then, rest is the right call."
+              : tapped.reply;
             await db.query(
               "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
-              [patient.id, tapped.reply, JSON.stringify({ type: "quick_reply_answer", in_reply_to: stored.id,
+              [patient.id, reply, JSON.stringify({ type: "quick_reply_answer", in_reply_to: stored.id,
                 quick_replies: tapped.kind === "reply" ? tapped.buttons : undefined,
-                start_button: tapped.kind === "reply" ? tapped.startButton : undefined })],
+                start_button: tapped.kind === "reply" && !onHold ? tapped.startButton : undefined })],
             );
           }
           continue;

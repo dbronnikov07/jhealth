@@ -89,6 +89,18 @@ async function check() {
   say(views.length === 0, `every view obeys row level security${views.length ? ": not " + views.map((r) => r.relname).join(", ") : ""}`);
   const [tls] = await sql`select ssl from pg_stat_ssl where pid = pg_backend_pid()`;
   say(tls?.ssl === true, "this connection is encrypted (TLS)");
+  // The app's own driver settings, through the same pooler the website uses: JSON written as text must arrive as an
+  // object (a second encoding once turned every message's buttons and labels into a plain string).
+  const { postgresOptions } = await import("../src/lib/db.ts");
+  const appUrl = new URL(env.POSTGRES_URL || raw);
+  appUrl.search = "";
+  const app = postgres(appUrl.toString(), { ...postgresOptions("require"), max: 1 });
+  try {
+    const [r] = await app.unsafe("select jsonb_typeof($1::jsonb) as kind, ($1::jsonb)->>'type' as type", [JSON.stringify({ type: "coach_reply" })]);
+    say(r.kind === "object" && r.type === "coach_reply", `the app stores JSON as objects, not strings (got ${r.kind})`);
+  } finally {
+    await app.end();
+  }
   if (bad) process.exitCode = 1;
 }
 

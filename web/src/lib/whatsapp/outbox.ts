@@ -12,6 +12,7 @@ type Claimed = {
   phone: string | null;
   whatsapp_user_id: string | null;
   session_token: string;
+  channel: "whatsapp" | "demo";
 };
 
 /** The link the "Start session" button opens. */
@@ -22,11 +23,16 @@ export function sessionUrl(token: string): string | null {
 
 export async function processOutbox(patientId?: string) {
   const cfg = whatsappConfig();
-  if (!cfg) return { sent: 0, failed: 0, notConfigured: true };
-
   const db = await getDb();
+  if (!cfg) {
+    // Without WhatsApp only the demo phone can receive messages, so only claim a demo patient's queue.
+    if (!patientId) return { sent: 0, failed: 0, notConfigured: true };
+    const [p] = await db.query<{ channel: string }>("select channel from patients where id = $1", [patientId]);
+    if (p?.channel !== "demo") return { sent: 0, failed: 0, notConfigured: true };
+  }
+
   const claimed = await db.query<Claimed>(
-    `select m.id, m.kind, m.body, m.payload, p.phone, p.whatsapp_user_id, p.session_token
+    `select m.id, m.kind, m.body, m.payload, p.phone, p.whatsapp_user_id, p.session_token, p.channel
        from claim_outbox($1::uuid) m join patients p on p.id = m.patient_id
       order by m.created_at`,
     [patientId ?? null],
@@ -35,6 +41,19 @@ export async function processOutbox(patientId?: string) {
   let sent = 0;
   let failed = 0;
   for (const m of claimed) {
+    if (m.channel === "demo") {
+      // The demo phone (/s/<token>/phone) reads messages straight from the database: handing it over is the delivery.
+      await db.query(
+        "update messages set status = 'delivered', provider_id = $2, sent_at = now(), error = null, error_code = null where id = $1",
+        [m.id, `demo.${m.id}`],
+      );
+      sent++;
+      continue;
+    }
+    if (!cfg) {
+      await db.query("update messages set status = 'queued' where id = $1", [m.id]); // not ours to send
+      continue;
+    }
     const to = { phone: m.phone, userId: m.whatsapp_user_id };
     const url = sessionUrl(m.session_token);
     let providerId: string;

@@ -135,6 +135,19 @@ cd ~/jhealth/web && node scripts/fake-whatsapp.mjs text +14165550142 "sharp pain
 
 Tests: `npm run test:unit` (pain rule, message formats, signatures) and `npm run db:verify` (39 database checks).
 
+## The demo phone (backup for WhatsApp)
+
+If WhatsApp is unavailable (Meta account trouble, no signal on stage), the patient can chat with the coach on a page of our own site instead. Everything behind it is the same code: the pain rule, the reminder and "what got in the way?" buttons, the AI coach, the outbox and the dashboard. Only the last step differs: a message for a demo-phone patient is handed to the page instead of to Meta.
+
+**On stage:**
+
+1. Dashboard → **Add patient** → tick **Use the demo phone instead of WhatsApp**. Leave the phone number empty; a fictional +1 416 555 01xx number is used.
+2. Prescribe the plan. It appears on the demo phone at once, with the **Start session** button.
+3. Open it on a real phone: the patient's record has **Show the QR code**. Scan it, and the phone shows the chat full-screen; Start session opens the camera page, which has **← Back to the chat**. On a laptop, the **Demo phone** button opens it in a phone-shaped frame.
+4. Type, or tap one of the example messages: a question gets the AI coach (labelled "AI coach"), "Sharp pain in my knee, 8 out of 10" gets the safety reply and an alert on the dashboard.
+
+**Limits and safety:** the page and its API take the patient's 64-character key, the same as the exercise page, and refuse (404) any patient who is not on the demo phone, so they can never be used to write as a WhatsApp patient. Messages are limited to 1,000 characters; only the coach's own buttons can be tapped; each patient may send 20 messages per 10 minutes and 200 a day, which also caps what the AI can spend. Anyone who has the QR code can write as that patient, so show it only to your own phone. Code: `src/lib/demo-phone.ts`, `src/app/api/demo-phone/route.ts`, `src/app/s/[token]/phone/`; tests: `scripts/demo-phone.test.ts`, `npm run db:verify`, `scripts/attack.sh`.
+
 ## The AI coach (WhatsApp replies)
 
 Before this, a patient's ordinary message ("ok I'm ready", "can I do 3 sets?") got no answer. Now an AI writes the reply, using Adaption's hosted models (paid from the team's Adaption credits; no OpenAI bill).

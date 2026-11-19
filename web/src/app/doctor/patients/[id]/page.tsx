@@ -8,10 +8,12 @@ import { Sparkline } from "@/components/Sparkline";
 import { StatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/TopBar";
 import {
-  getActivePlan, getDoctor, getPatient, listExercises, listMemories, listMessages, openAlerts, recentSessions, sessionToken,
+  getActivePlan, getDoctor, getPatient, listExercises, listMemories, listMessages, openAlerts, patientLink, recentSessions,
 } from "@/lib/data";
 import { prettyPhone, timeAgo } from "@/lib/format";
+import { QrCode } from "@/components/QrCode";
 import { whatsappConfig } from "@/lib/whatsapp/client";
+import { sessionUrl } from "@/lib/whatsapp/outbox";
 import { addNote, resolveAlert, retryMessages } from "../../actions";
 import { PlanForm } from "./PlanForm";
 
@@ -42,11 +44,15 @@ export default async function PatientPage({
   const patient = await getPatient(id);
   if (!patient) notFound();
 
-  const [{ doctor, mode }, plan, exercises, sessions, memories, messages, alerts, token] = await Promise.all([
+  const [{ doctor, mode }, plan, exercises, sessions, memories, messages, alerts, link] = await Promise.all([
     getDoctor(), getActivePlan(id), listExercises(), recentSessions(id), listMemories(id), listMessages(id), openAlerts(id),
-    sessionToken(id),
+    patientLink(id),
   ]);
-  const whatsapp = whatsappConfig() !== null;
+  const token = link?.token ?? null;
+  const demo = link?.channel === "demo";
+  const phoneUrl = demo && token ? sessionUrl(token)?.concat("/phone") ?? null : null;
+  // The demo phone needs no WhatsApp: its messages are delivered as soon as they are queued.
+  const whatsapp = demo || whatsappConfig() !== null;
   const failedCount = messages.filter((m) => m.status === "failed").length;
   const trend = sessions.filter((s) => s.bend !== null).reverse().map((s) => ({ at: new Date(s.started_at), value: s.bend as number }));
 
@@ -60,8 +66,14 @@ export default async function PatientPage({
           <div className="row">
             <h1>{patient.display_name}</h1>
             {patient.is_simulated ? <span className="tag">Simulated</span> : <span className="tag real">Real</span>}
+            {demo && <span className="tag camera">Demo phone</span>}
             <StatusPill status={patient.status} />
             <span className="spacer" />
+            {demo && token && (
+              <a className="btn open-link" href={`/s/${token}/phone`} target="_blank" rel="noreferrer">
+                Demo phone <Icon name="external" size={16} />
+              </a>
+            )}
             {plan && token && (
               <a className="btn open-link" href={`/s/${token}`} target="_blank" rel="noreferrer">
                 Patient&apos;s page <Icon name="external" size={16} />
@@ -70,7 +82,7 @@ export default async function PatientPage({
           </div>
           <p className="facts">
             <span>{patient.condition}{patient.side ? `, ${patient.side} side` : ""}</span>
-            {patient.phone && <span>WhatsApp <span className="num">{prettyPhone(patient.phone)}</span></span>}
+            {patient.phone && <span>{demo ? "Demo phone" : "WhatsApp"} <span className="num">{prettyPhone(patient.phone)}</span></span>}
             <span><span className="num">{patient.sessions_total}</span> sessions</span>
           </p>
         </header>
@@ -213,9 +225,26 @@ export default async function PatientPage({
               </form>
             </section>
 
+            {demo && phoneUrl && (
+              <section className="card demo-phone-card">
+                <div className="card-head">
+                  <h2>Open the demo phone on a phone</h2>
+                </div>
+                <p className="muted small">
+                  This patient chats with the coach on this site instead of WhatsApp. Scan the code with the phone you will
+                  hold on stage; the Start button there opens the camera session.
+                </p>
+                <details className="qr-reveal">
+                  <summary>Show the QR code</summary>
+                  <QrCode text={phoneUrl} label="QR code that opens this patient's demo phone" />
+                  <p className="faint small">Anyone who scans it can write as this patient, so show it only to your own phone.</p>
+                </details>
+              </section>
+            )}
+
             <section className="card">
               <div className="card-head">
-                <h2>WhatsApp</h2>
+                <h2>{demo ? "Demo phone" : "WhatsApp"}</h2>
                 <span className="count">latest {messages.length}</span>
                 <span className="spacer" />
                 {failedCount > 0 && whatsapp && (
