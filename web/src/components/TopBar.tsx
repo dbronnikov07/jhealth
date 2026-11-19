@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
 
+import { imessageBridgeOnline } from "@/lib/data";
 import { whatsappConfig } from "@/lib/whatsapp/client";
 import { Goniometer } from "./Goniometer";
 
@@ -9,8 +10,9 @@ function initials(name: string): string {
   return words.slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
-export function TopBar({ doctor, mode }: { doctor?: { name: string; clinic: string | null }; mode: "supabase" | "local" }) {
+export async function TopBar({ doctor, mode }: { doctor?: { name: string; clinic: string | null }; mode: "supabase" | "local" }) {
   const whatsapp = whatsappConfig() !== null;
+  const imessage = await imessageBridgeOnline().catch(() => false);
   return (
     <header className="topbar">
       <Link href="/doctor" className="brand">
@@ -23,11 +25,16 @@ export function TopBar({ doctor, mode }: { doctor?: { name: string; clinic: stri
           <i aria-hidden /> {mode === "local" ? "Local database" : "Supabase"}
         </span>
         <span
-          className={`env ${whatsapp ? "on" : "off"}`}
-          title={whatsapp ? "Messages are sent through the WhatsApp Cloud API" : "Set WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID to send messages"}
+          className={`env ${imessage ? "on" : "off"}`}
+          title={imessage ? "The iMessage bridge on the Mac is running" : "Start the bridge on the Mac: npm run imessage:bridge"}
         >
-          <i aria-hidden /> <span>WhatsApp<span className="long">{whatsapp ? " connected" : " not connected"}</span></span>
+          <i aria-hidden /> <span>iMessage<span className="long">{imessage ? " connected" : " offline"}</span></span>
         </span>
+        {whatsapp && (
+          <span className="env on" title="Messages are sent through the WhatsApp Cloud API">
+            <i aria-hidden /> <span>WhatsApp<span className="long"> connected</span></span>
+          </span>
+        )}
         {doctor && (
           <span className="who">
             <span className="avatar" aria-hidden>{initials(doctor.name)}</span>

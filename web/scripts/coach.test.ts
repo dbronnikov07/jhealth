@@ -102,3 +102,10 @@ test("the patient's text is quoted inside the context, and the doctor's notes ar
 test("the fallback reply makes no promises", () => {
   assert.doesNotMatch(FALLBACK_REPLY, /will|soon|call you/i);
 });
+
+test("the coach's replies never contain long dashes", () => {
+  const out = parseCoachOutput(answer({ reply: "Thanks for telling me — I'll note it – your physio will see this." }), ctx);
+  assert.ok(out);
+  assert.equal(out.reply.includes("—") || out.reply.includes("–"), false);
+  assert.match(out.reply, /Thanks for telling me, I'll note it, your physio will see this\./);
+});

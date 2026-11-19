@@ -123,6 +123,24 @@ ok((await one("select channel from messages where patient_id = $1", [demoP.id]))
 ok((await one("select channel from messages where patient_id = $1 limit 1", [fresh.id])).channel === "whatsapp", "a WhatsApp patient's messages stay WhatsApp messages");
 ok((await one("select has_function_privilege('public', 'set_message_channel()', 'execute') as can")).can === false, "nobody but the database can run set_message_channel()");
 
+console.log("\niMessage");
+const im = await one("insert into patients (display_name, imessage_handle, channel, condition) values ('iMessage 0177', '+14165550177', 'imessage', 'Not assessed yet') returning id");
+ok(true, "a patient reachable only by iMessage is allowed");
+await rejects("insert into patients (display_name, imessage_handle, channel, condition) values ('Copy', '+14165550177', 'imessage', 'x')", [], "an iMessage address belongs to one patient");
+await rejects("insert into patients (display_name, channel, condition) values ('Nobody', 'imessage', 'x')", [], "a real patient must be reachable somehow");
+await db.query("insert into messages (patient_id, direction, body, status) values ($1, 'out', 'to iMessage', 'queued')", [im.id]);
+await db.query("insert into messages (patient_id, direction, body, status) values ($1, 'out', 'to the demo phone', 'queued')", [demoP.id]);
+const waLane = await rows("select m.id, p.channel from claim_outbox_channels(array['whatsapp', 'demo']) m join patients p on p.id = m.patient_id");
+ok(waLane.length > 0 && waLane.every((r) => r.channel !== "imessage"), `the WhatsApp/demo sender never takes iMessage messages (${waLane.length} taken)`);
+const imLane = await rows("select m.id, p.channel from claim_outbox_channels(array['imessage']) m join patients p on p.id = m.patient_id");
+ok(imLane.length === 1 && imLane[0].channel === "imessage", "the iMessage bridge takes only iMessage messages");
+await db.query("update messages set status = 'failed', error_code = 'window' where id = $1", [imLane[0].id]);
+await db.query("select requeue_after_reply($1)", [im.id]);
+ok((await one("select status from messages where id = $1", [imLane[0].id])).status === "queued", "a message held for the 24-hour rule goes out when the patient writes");
+ok((await one("select has_function_privilege('public', 'claim_outbox_channels(text[], uuid, int)', 'execute') as can")).can === false, "nobody but the server can call claim_outbox_channels()");
+const bridgeRls = await one("select relrowsecurity from pg_class where relname = 'bridge_status'");
+ok(bridgeRls.relrowsecurity === true, "row level security is on for the bridge status table");
+
 console.log("\nsecurity");
 const noRls = await rows("select relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and not relrowsecurity");
 ok(noRls.length === 0, `row level security is on for every table${noRls.length ? " (missing: " + noRls.map((r) => r.relname).join(", ") + ")" : ""}`);

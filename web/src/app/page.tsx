@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Goniometer } from "@/components/Goniometer";
 import { Icon } from "@/components/Icon";
+import { QrCode } from "@/components/QrCode";
+import { textUsLink } from "@/lib/imessage/format";
 import { HeroPhoto } from "./_landing/HeroPhoto";
 import "./landing.css";
 
@@ -34,7 +36,11 @@ const PATIENTS = [
   { name: "Priya S.", status: "Stalling", tone: "warn", days: 1, bend: "64°" },
 ] as const;
 
+// jHealth's iMessage address (the bot's own Apple ID). Without it, the page simply has no "Text jHealth" parts.
+const IMESSAGE = process.env.IMESSAGE_ADDRESS?.trim() || null;
+
 export default function Landing() {
+  const textUs = IMESSAGE ? textUsLink(IMESSAGE) : null;
   return (
     <div className="lp">
       <a className="lp-skip" href="#main">Skip to content</a>
@@ -67,8 +73,17 @@ export default function Landing() {
               loud. The physio sees the results the same day.
             </p>
             <div className="lp-actions">
-              <Link href="/doctor" className="lp-btn lp-btn-white">Open the physio dashboard <Icon name="arrow" size={18} /></Link>
-              <a href="#how" className="lp-btn lp-btn-glass">See how it works</a>
+              {textUs ? (
+                <>
+                  <a href={textUs} className="lp-btn lp-btn-white">Text jHealth on iMessage <Icon name="arrow" size={18} /></a>
+                  <Link href="/doctor" className="lp-btn lp-btn-glass">Physio dashboard</Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/doctor" className="lp-btn lp-btn-white">Open the physio dashboard <Icon name="arrow" size={18} /></Link>
+                  <a href="#how" className="lp-btn lp-btn-glass">See how it works</a>
+                </>
+              )}
             </div>
           </div>
 
@@ -108,6 +123,25 @@ export default function Landing() {
             </div>
           </dl>
         </section>
+
+        {textUs && IMESSAGE && (
+          <section className="lp-start" aria-labelledby="start-title">
+            <div className="lp-wrap">
+              <div className="lp-start-card">
+                <div className="lp-start-copy">
+                  <h2 id="start-title">Start in iMessage</h2>
+                  <p>Text jHealth like you would text a friend. The coach answers, sends your plan, and checks in every day at the time you pick.</p>
+                  <a href={textUs} className="lp-btn lp-btn-dark">Text jHealth <Icon name="arrow" size={18} /></a>
+                  <p className="lp-start-address">or send a message to <b>{IMESSAGE}</b></p>
+                </div>
+                <div className="lp-start-qr">
+                  <QrCode text={textUs} size={168} label="QR code: scan with your iPhone camera to text jHealth" />
+                  <span>Scan with your iPhone camera</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="lp-section" aria-labelledby="why-title">
           <div className="lp-wrap lp-why">

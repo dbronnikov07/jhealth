@@ -67,6 +67,15 @@ check "demo API, SQL injection token"     "400" "$(post /api/demo-phone "$J_DEMO
 check "demo API, invented button"         "400" "$(post /api/demo-phone "$J_DEMO_BUTTON")"
 check "demo API, oversized"               "413" "$(head -c 20000 /dev/zero | tr '\0' 'a' | curl -s -o /dev/null -m 60 -w '%{http_code}' "${OUT[@]}" -X POST -H 'Content-Type: application/json' --data-binary @- "$BASE/api/demo-phone")"
 
+echo "iMessage bridge door"
+J_IM_IN='{"action":"inbound","messages":[{"handle":"+14165550199","text":"hi","guid":"forged-1"}]}'
+J_IM_CLAIM='{"action":"claim"}'
+check "fake texts without the secret"     "401|503" "$(post /api/imessage "$J_IM_IN")"
+check "pull replies without the secret"   "401|503" "$(post /api/imessage "$J_IM_CLAIM")"
+check "pull replies with a made-up secret" "401|503" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer guess' --data-binary "$J_IM_CLAIM" "$BASE/api/imessage")"
+check "secret in the wrong scheme"        "401|503" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/json' -H 'Authorization: Basic Z3Vlc3M=' --data-binary "$J_IM_CLAIM" "$BASE/api/imessage")"
+check "GET on the bridge door"            "405|404" "$(code "${OUT[@]}" "$BASE/api/imessage")"
+
 echo "Headers"
 H=$(curl -s -D - -o /dev/null -m 60 "${OUT[@]}" "$BASE/")
 for h in "content-security-policy" "x-frame-options: DENY" "x-content-type-options: nosniff" "referrer-policy" "permissions-policy: camera=(self)"; do

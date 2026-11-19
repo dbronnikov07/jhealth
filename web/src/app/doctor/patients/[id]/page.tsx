@@ -14,6 +14,7 @@ import { prettyPhone, timeAgo } from "@/lib/format";
 import { QrCode } from "@/components/QrCode";
 import { whatsappConfig } from "@/lib/whatsapp/client";
 import { sessionUrl } from "@/lib/whatsapp/outbox";
+import { maskHandle } from "@/lib/imessage/format";
 import { addNote, resolveAlert, retryMessages } from "../../actions";
 import { PlanForm } from "./PlanForm";
 
@@ -50,9 +51,11 @@ export default async function PatientPage({
   ]);
   const token = link?.token ?? null;
   const demo = link?.channel === "demo";
+  const imessage = link?.channel === "imessage";
+  const channelName = demo ? "Demo phone" : imessage ? "iMessage" : "WhatsApp";
   const phoneUrl = demo && token ? sessionUrl(token)?.concat("/phone") ?? null : null;
   // The demo phone needs no WhatsApp: its messages are delivered as soon as they are queued.
-  const whatsapp = demo || whatsappConfig() !== null;
+  const whatsapp = demo || imessage || whatsappConfig() !== null;
   const failedCount = messages.filter((m) => m.status === "failed").length;
   const trend = sessions.filter((s) => s.bend !== null).reverse().map((s) => ({ at: new Date(s.started_at), value: s.bend as number }));
 
@@ -66,7 +69,7 @@ export default async function PatientPage({
           <div className="row">
             <h1>{patient.display_name}</h1>
             {patient.is_simulated ? <span className="tag">Simulated</span> : <span className="tag real">Real</span>}
-            {demo && <span className="tag camera">Demo phone</span>}
+            {(demo || imessage) && <span className="tag camera">{channelName}</span>}
             <StatusPill status={patient.status} />
             <span className="spacer" />
             {demo && token && (
@@ -82,7 +85,9 @@ export default async function PatientPage({
           </div>
           <p className="facts">
             <span>{patient.condition}{patient.side ? `, ${patient.side} side` : ""}</span>
-            {patient.phone && <span>{demo ? "Demo phone" : "WhatsApp"} <span className="num">{prettyPhone(patient.phone)}</span></span>}
+            {imessage && link?.imessageHandle ? (
+              <span>iMessage <span className="num">{link.imessageHandle.includes("@") ? maskHandle(link.imessageHandle) : prettyPhone(link.imessageHandle)}</span></span>
+            ) : patient.phone && <span>{channelName} <span className="num">{prettyPhone(patient.phone)}</span></span>}
             <span><span className="num">{patient.sessions_total}</span> sessions</span>
           </p>
         </header>
@@ -244,7 +249,7 @@ export default async function PatientPage({
 
             <section className="card">
               <div className="card-head">
-                <h2>{demo ? "Demo phone" : "WhatsApp"}</h2>
+                <h2>{channelName}</h2>
                 <span className="count">latest {messages.length}</span>
                 <span className="spacer" />
                 {failedCount > 0 && whatsapp && (

@@ -52,6 +52,15 @@ A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API
 - The Start button's link is built from the key on the page, never taken from a message. React escapes all text.
 - The QR code on the dashboard is hidden until asked for, so it is not shown on a projector.
 
+## The iMessage bridge (added 19 November)
+
+- **One door, one key.** The Mac bridge talks to `/api/imessage` only, with `Authorization: Bearer <IMESSAGE_BRIDGE_SECRET>` (64 random hex characters, constant-time compare, stored as sensitive on Vercel). Without the secret on the server the door is shut (503). Attacked: fake texts, pulling replies, a made-up secret, the wrong scheme, GET: all refused.
+- **The Mac is not exposed.** It only makes outgoing HTTPS calls; there is no tunnel and no open port.
+- **Its own Apple ID.** The bot uses a separate Apple ID, so nobody's personal messages pass through the bridge. Group chats are ignored.
+- **No cold messages.** The server only hands the bridge a message for someone who wrote in the last 24 hours; at most one send every 1.5 s and 300 a day. This keeps the Apple ID from being flagged as spam.
+- **Logs** show masked addresses (••• 0142) and message lengths, never the text.
+- **Input checks:** addresses normalised and validated, text stripped of control characters and capped, message ids validated, bodies over 64 kB refused. A reply like "2" only counts as an answer when the coach's last message offered numbered answers.
+
 ## Two bugs found while testing (fixed)
 
 - **JSON stored as text on Supabase.** The cloud database driver encoded the app's JSON a second time, so on Supabase every message's details (reminder-time buttons, the "AI coach" label, Start-button flags) were stored as a plain string and lost. The local database never showed it. Fixed in `src/lib/db.ts`; `npm run cloud:check` now checks it against the real database with the app's own settings.

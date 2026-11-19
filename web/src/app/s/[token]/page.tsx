@@ -8,7 +8,17 @@ import { Icon } from "@/components/Icon";
 import { getDb } from "@/lib/db";
 import { SessionApp, type PlanItem } from "./SessionApp";
 
-export const metadata: Metadata = { title: "Your exercises · jHealth", robots: { index: false, follow: false } };
+// What iMessage shows as the link preview when the coach texts this page. Nothing personal: the same for everyone.
+export const metadata: Metadata = {
+  title: "Your exercises · jHealth",
+  robots: { index: false, follow: false },
+  openGraph: {
+    title: "Today's exercises from your physio",
+    description: "Tap to start. Your phone camera counts every rep, and the video stays on your phone.",
+    images: [{ url: "/photos/og-session.jpg", width: 1200, height: 630, alt: "An older man doing a squat with jHealth's tracking on him" }],
+    siteName: "jHealth",
+  },
+};
 
 /** ?source=/test/clip.mp4 runs the session on a video file instead of the camera: for local testing, and as a
  *  stage fallback when ALLOW_TEST_VIDEO=1. Only files served by this app are accepted. */

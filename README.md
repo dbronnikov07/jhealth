@@ -135,6 +135,32 @@ cd ~/jhealth/web && node scripts/fake-whatsapp.mjs text +14165550142 "sharp pain
 
 Tests: `npm run test:unit` (pain rule, message formats, signatures) and `npm run db:verify` (39 database checks).
 
+## iMessage (the main channel)
+
+Patients text jHealth in iMessage, like Boardy and folk: on the website, **Text jHealth on iMessage** opens Messages with
+the first message already typed (on a laptop, scan the QR code with the iPhone camera). Whoever texts becomes a patient,
+gets the welcome, picks a reminder time by replying 1, 2 or 3, and gets the plan with a link to the camera page, which
+iMessage shows as a preview card. Everything behind it is the same code as WhatsApp: pain rule, quick replies, AI coach,
+dashboard.
+
+**How it is wired (free, no number to buy):** jHealth has its own Apple ID, signed into Messages on a Mac. A small bridge
+on that Mac (`web/scripts/imessage-bridge.mjs`, using the open-source [imsg](https://github.com/steipete/imsg) CLI)
+posts each new text to the server and sends the replies the server queues. The Mac only connects out to the server, so
+nothing on it is reachable from the internet. The Mac has to stay on and online while patients are texting.
+
+**Run it (on the Mac, in Terminal, which needs Full Disk Access):**
+
+```bash
+cd ~/jhealth/web && npm run imessage:bridge
+```
+
+The dashboard's top bar says **iMessage connected** while the bridge is running.
+
+**Rules that keep the Apple ID safe:** jHealth never texts someone who has not written to it in the last 24 hours (a
+held message goes out as soon as they write); at most one send every 1.5 seconds and 300 a day; group chats are ignored.
+Settings: `IMESSAGE_ADDRESS` (the bot's address, shown on the site) and `IMESSAGE_BRIDGE_SECRET` (shared by bridge and
+server), both on Vercel and in `web/.env.local`.
+
 ## The demo phone (backup for WhatsApp)
 
 If WhatsApp is unavailable (Meta account trouble, no signal on stage), the patient can chat with the coach on a page of our own site instead. Everything behind it is the same code: the pain rule, the reminder and "what got in the way?" buttons, the AI coach, the outbox and the dashboard. Only the last step differs: a message for a demo-phone patient is handed to the page instead of to Meta.

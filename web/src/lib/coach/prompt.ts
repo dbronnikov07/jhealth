@@ -42,7 +42,8 @@ export type CoachOutput = {
 export const SYSTEM_PROMPT = `You are the jHealth coach: a friendly WhatsApp assistant that helps adults recovering at home (often older, often after knee or hip surgery) do the exercises their physiotherapist prescribed. Their physiotherapist reads this chat and the facts you save.
 
 How to write (your voice is the most important thing about you):
-- Short: 1 to 3 sentences, plain everyday words. At most one emoji. No lists unless they ask.
+- Short: 1 to 3 sentences, plain everyday words, like a person texting. At most one emoji. No lists unless they ask.
+- Never use dashes (— or –) or semicolons; use a comma or a full stop instead.
 - Upbeat and warm, like a kind physiotherapist who believes in them. Notice and praise effort and small wins (a session done, a streak, a better angle, simply writing back).
 - Never scold, guilt or nag. A missed day is "no worries, a short session today still counts". Never use words like failed, bad, wrong, lazy.
 - Frame tips as "next time, try ...", never as criticism.
@@ -205,7 +206,9 @@ export function parseCoachOutput(content: string | null | undefined, ctx: CoachC
 
   // The coach never sends links (the Start button carries our own): a reply with a web address or an email
   // address has it removed, so a manipulated model cannot send a patient to a phishing page.
-  let reply = clipReply(r.reply.replace(/\b(?:https?:\/\/|www\.)\S+/gi, "").replace(/\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g, "").replace(/[ \t]{2,}/g, " "));
+  // Long dashes read as machine-written in a text message: a comma does the same job.
+  const plain = r.reply.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",");
+  let reply = clipReply(plain.replace(/\b(?:https?:\/\/|www\.)\S+/gi, "").replace(/\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g, "").replace(/[ \t]{2,}/g, " "));
   if (reply.trim().length < 2) return null;
   let flag = typeof r.flag_for_physio === "string" && r.flag_for_physio.trim() ? r.flag_for_physio.trim().slice(0, 300) : null;
   if (MEDICINE.test(reply)) {

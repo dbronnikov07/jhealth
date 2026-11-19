@@ -33,7 +33,7 @@ export async function processOutbox(patientId?: string) {
 
   const claimed = await db.query<Claimed>(
     `select m.id, m.kind, m.body, m.payload, p.phone, p.whatsapp_user_id, p.session_token, p.channel
-       from claim_outbox($1::uuid) m join patients p on p.id = m.patient_id
+       from claim_outbox_channels(array['whatsapp', 'demo'], $1::uuid) m join patients p on p.id = m.patient_id
       order by m.created_at`,
     [patientId ?? null],
   );

@@ -7,6 +7,8 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap
 const display = Outfit({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 export const metadata: Metadata = {
+  // Absolute addresses for link previews (iMessage, WhatsApp): the live site, or this computer in development.
+  metadataBase: new URL(process.env.PUBLIC_APP_URL || "http://localhost:3100"),
   title: "jHealth · Physio dashboard",
   description: "Prescribe home exercises and follow every patient's progress between visits.",
 };

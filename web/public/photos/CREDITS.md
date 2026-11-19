@@ -14,3 +14,4 @@ All photos are used under free licences that allow commercial use without paymen
 
 The tracking points drawn over hero-squat.webp on the landing page are the output of our own MediaPipe pose
 model run on that photo (heavy model, still-image mode): knee bend about 77 degrees.
+| og-session.jpg | Link preview: crop of hero-squat.webp with our tracking drawn on | Shvets Production | (as hero-squat.webp) |

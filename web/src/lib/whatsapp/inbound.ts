@@ -83,66 +83,89 @@ export async function handleWebhook(body: WebhookBody): Promise<{ patients: stri
           await db.query("update patients set whatsapp_user_id = $2 where id = $1", [patient.id, userId]);
         }
 
-        // Store the message. WhatsApp may deliver the same webhook more than once: the unique message id
-        // makes the second copy a no-op.
         const text = textOf(m);
-        // created_at is when we received it (precise ordering); WhatsApp's own whole-second time is kept in payload.
-        const [stored] = await db.query<{ id: string }>(
-          `insert into messages (patient_id, direction, kind, body, payload, status, provider_id)
-           values ($1, 'in', $2, $3, $4::jsonb, 'received', $5)
-           on conflict (provider_id) do nothing returning id`,
-          [patient.id, m.type === "text" ? "text" : "buttons", text,
-           JSON.stringify({ type: m.type, whatsapp_timestamp: m.timestamp ?? null }), m.id],
-        );
-        if (!stored) continue; // duplicate delivery
+        const result = await ingestMessage(db, {
+          patientId: patient.id, isNew, providerId: m.id, kind: m.type === "text" ? "text" : "buttons", text,
+          buttonId: m.interactive?.button_reply?.id ?? null,
+          payload: { type: m.type, whatsapp_timestamp: m.timestamp ?? null },
+        });
+        if (!result.stored) continue; // duplicate delivery
         touched.add(patient.id);
-
-        // The patient just wrote, so the 24-hour window is open: re-queue anything WhatsApp refused for that reason.
-        await db.query("select requeue_after_reply($1)", [patient.id]);
-
-        // A tapped quick-reply button (reminder time, "what got in the way?") is handled by code, not the AI.
-        const tapped = quickReplyAction(m.interactive?.button_reply?.id);
-        if (tapped && !isNew) {
-          if (tapped.kind === "set_time") {
-            await db.query("update patients set reminder_hour = $2 where id = $1", [patient.id, tapped.hour]);
-          }
-          if (tapped.kind === "pain") {
-            await raiseSafetyAlert({ patientId: patient.id, level: "high_pain",
-              reason: "pain as the reason for missing sessions", reply: HIGH_PAIN_REPLY, sourceMessageId: stored.id });
-          } else {
-            // After a pain report, exercise is on hold until the physio reviews it: no Start button, whatever was tapped.
-            const [hold] = await db.query<{ n: number }>(
-              "select count(*)::int as n from alerts where patient_id = $1 and resolved_at is null and kind in ('pain', 'red_flag')",
-              [patient.id],
-            );
-            const onHold = hold.n > 0;
-            const reply = tapped.kind === "reply" && tapped.startButton && onHold
-              ? "Totally understandable. Your physiotherapist will check in about your pain first; until then, rest is the right call."
-              : tapped.reply;
-            await db.query(
-              "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
-              [patient.id, reply, JSON.stringify({ type: "quick_reply_answer", in_reply_to: stored.id,
-                quick_replies: tapped.kind === "reply" ? tapped.buttons : undefined,
-                start_button: tapped.kind === "reply" && !onHold ? tapped.startButton : undefined })],
-            );
-          }
-          continue;
-        }
-
-        // The pain rule (code, not a language model) decides first. A message it flags never reaches the AI coach.
-        const safety = assessMessage(text);
-        if (safety) {
-          await raiseSafetyAlert({ patientId: patient.id, ...safety, sourceMessageId: stored.id });
-        } else if (isNew) {
-          await db.query(
-            "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
-            [patient.id, WELCOME, JSON.stringify({ type: "welcome", quick_replies: TIME_BUTTONS })],
-          );
-        } else {
-          toCoach.push({ patientId: patient.id, messageId: stored.id });
-        }
+        if (result.coachMessageId) toCoach.push({ patientId: patient.id, messageId: result.coachMessageId });
       }
     }
   }
   return { patients: [...touched], toCoach };
+}
+
+type Db = Awaited<ReturnType<typeof getDb>>;
+
+/**
+ * Everything that happens to one incoming patient message, whatever the channel (WhatsApp, iMessage, demo phone):
+ * store it once, reopen the reply window, handle a tapped quick reply in code, run the pain rule, welcome a new
+ * patient, or hand the message to the AI coach (returned as coachMessageId; the caller runs the coach later).
+ */
+export async function ingestMessage(db: Db, m: {
+  patientId: string; isNew: boolean; providerId: string; kind: "text" | "buttons"; text: string;
+  buttonId: string | null; payload: Record<string, unknown>;
+}): Promise<{ stored: boolean; coachMessageId: string | null }> {
+  const patient = { id: m.patientId };
+  const isNew = m.isNew;
+  const text = m.text;
+  // Store the message. A channel may deliver the same message more than once: the unique provider id
+  // makes the second copy a no-op.
+  // created_at is when we received it (precise ordering); WhatsApp's own whole-second time is kept in payload.
+  const [stored] = await db.query<{ id: string }>(
+    `insert into messages (patient_id, direction, kind, body, payload, status, provider_id)
+     values ($1, 'in', $2, $3, $4::jsonb, 'received', $5)
+     on conflict (provider_id) do nothing returning id`,
+    [patient.id, m.kind, text, JSON.stringify(m.payload), m.providerId],
+  );
+  if (!stored) return { stored: false, coachMessageId: null };
+
+  // The patient just wrote, so the 24-hour window is open: re-queue anything WhatsApp refused for that reason.
+  await db.query("select requeue_after_reply($1)", [patient.id]);
+
+  // A tapped quick-reply button (reminder time, "what got in the way?") is handled by code, not the AI.
+  const tapped = quickReplyAction(m.buttonId);
+  if (tapped && !isNew) {
+    if (tapped.kind === "set_time") {
+      await db.query("update patients set reminder_hour = $2 where id = $1", [patient.id, tapped.hour]);
+    }
+    if (tapped.kind === "pain") {
+      await raiseSafetyAlert({ patientId: patient.id, level: "high_pain",
+        reason: "pain as the reason for missing sessions", reply: HIGH_PAIN_REPLY, sourceMessageId: stored.id });
+    } else {
+      // After a pain report, exercise is on hold until the physio reviews it: no Start button, whatever was tapped.
+      const [hold] = await db.query<{ n: number }>(
+        "select count(*)::int as n from alerts where patient_id = $1 and resolved_at is null and kind in ('pain', 'red_flag')",
+        [patient.id],
+      );
+      const onHold = hold.n > 0;
+      const reply = tapped.kind === "reply" && tapped.startButton && onHold
+        ? "Totally understandable. Your physiotherapist will check in about your pain first; until then, rest is the right call."
+        : tapped.reply;
+      await db.query(
+        "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+        [patient.id, reply, JSON.stringify({ type: "quick_reply_answer", in_reply_to: stored.id,
+          quick_replies: tapped.kind === "reply" ? tapped.buttons : undefined,
+          start_button: tapped.kind === "reply" && !onHold ? tapped.startButton : undefined })],
+      );
+    }
+    return { stored: true, coachMessageId: null };
+  }
+
+  // The pain rule (code, not a language model) decides first. A message it flags never reaches the AI coach.
+  const safety = assessMessage(text);
+  if (safety) {
+    await raiseSafetyAlert({ patientId: patient.id, ...safety, sourceMessageId: stored.id });
+  } else if (isNew) {
+    await db.query(
+      "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+      [patient.id, WELCOME, JSON.stringify({ type: "welcome", quick_replies: TIME_BUTTONS })],
+    );
+  } else {
+    return { stored: true, coachMessageId: stored.id };
+  }
+  return { stored: true, coachMessageId: null };
 }

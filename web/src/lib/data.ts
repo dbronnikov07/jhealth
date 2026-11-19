@@ -155,11 +155,11 @@ export async function listMessages(patientId: string, limit = 8) {
 export async function patientLink(patientId: string) {
   await requireDoctor();
   const db = await getDb();
-  const [row] = await db.query<{ session_token: string; channel: "whatsapp" | "demo" }>(
-    "select session_token, channel from patients where id = $1",
+  const [row] = await db.query<{ session_token: string; channel: "whatsapp" | "demo" | "imessage"; imessage_handle: string | null }>(
+    "select session_token, channel, imessage_handle from patients where id = $1",
     [patientId],
   );
-  return row ? { token: row.session_token, channel: row.channel } : null;
+  return row ? { token: row.session_token, channel: row.channel, imessageHandle: row.imessage_handle } : null;
 }
 
 export async function openAlerts(patientId: string) {
@@ -169,4 +169,12 @@ export async function openAlerts(patientId: string) {
     "select id, kind, detail, created_at from alerts where patient_id = $1 and resolved_at is null order by created_at desc",
     [patientId],
   );
+}
+
+/** Is the iMessage bridge on the Mac running? It checks in every few seconds. */
+export async function imessageBridgeOnline(): Promise<boolean> {
+  await requireDoctor();
+  const db = await getDb();
+  const [row] = await db.query<{ fresh: boolean }>("select last_seen > now() - interval '30 seconds' as fresh from bridge_status where name = 'imessage'");
+  return row?.fresh === true;
 }

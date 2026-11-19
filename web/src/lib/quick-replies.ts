@@ -33,7 +33,7 @@ export function quickReplyAction(id: string | undefined | null): QuickReplyActio
   if (!id) return null;
   const time = HOURS[id];
   if (time) {
-    return { kind: "set_time", hour: time.hour, reply: `Perfect, I'll remind you ${time.words}. You can change it any time, just tell me. 🙂` };
+    return { kind: "set_time", hour: time.hour, reply: `Perfect, I'll remind you ${time.words}. You can change it any time, just tell me.` };
   }
   switch (id) {
     case "why_pain":
