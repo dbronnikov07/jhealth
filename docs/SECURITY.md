@@ -30,16 +30,28 @@ What protects patient data in jHealth, how it was tested, and what must be set b
 
 A dashboard action was also replayed exactly as the browser sends it: it works from this computer, is refused through the tunnel (503), and posted to the public landing or privacy page from outside, Next.js refuses it ("Failed to find Server Action") and nothing is written.
 
-## Before anyone outside this laptop can reach the app
+## The live deployment (Vercel + Supabase, 19 November 2026)
 
-1. Set `DASHBOARD_PASSWORD` to a long random password (at least 20 characters). Without it, the dashboard simply refuses outside visitors.
-2. Set `WHATSAPP_APP_SECRET` (Meta app → App settings → Basic → App secret). Without it, WhatsApp messages from Meta are refused through the tunnel.
-3. Set `CRON_SECRET` on Vercel if reminders run there.
-4. Rotate the keys that were pasted into a chat during development: the Adaption API key (Adaption → Settings → API keys) and the WhatsApp access token (temporary tokens expire by themselves; make a permanent System User token for the demo).
+https://jhealth-beta.vercel.app. Website on Vercel (functions in Montreal, `yul1`), database on Supabase's free plan in Canada (`ca-central-1`), created through Vercel's marketplace.
+
+- **Supabase's public web API is closed.** Supabase publishes every table, view and function through an automatic web API that anyone with the project's public key can call. Migration `20261120090000_lock_public_api.sql` removes every right the public roles had (and for anything created later). Then the API was attacked with both public keys and with none: reading all 12 tables and views, inserting a patient, running all 5 functions, 37 attempts in all. Every one was refused (401 or 404), and GraphQL is not enabled. `npm run cloud:check` re-checks this from the database side.
+- **Secrets** are stored on Vercel as *sensitive* (write-only: Vercel never displays them again) and in private files outside the project (`~/jhealth-cache/production-secrets.txt`, `~/jhealth-cache/production.env`, owner-only permissions). `DASHBOARD_PASSWORD` is 28 random characters; `CRON_SECRET` is 64 random hex characters. No value was printed or typed into a web page.
+- **The upload is an allow-list** (`web/.vercelignore`): source, public files, package and config files only. Never `.env*`, never the research test video.
+- **The lockout reads Vercel's own address header.** On Vercel, a `cf-connecting-ip` header is whatever the attacker typed; trusting it would have let a password guesser look like a new address on every try and never be locked out. Fixed and unit-tested.
+- **The app refuses to start without its database** on Vercel, instead of falling back to an empty throwaway one.
+- **The database connection is encrypted** (TLS, checked from inside Postgres).
+- **Vercel's own firewall** noticed the burst of attacks from `scripts/attack.sh` and put this laptop's address behind a security checkpoint within seconds. Preview (non-production) addresses require a Vercel sign-in.
+
+## Still to do before real patients
+
+1. Set `WHATSAPP_APP_SECRET` (Meta app → App settings → Basic → App secret) on Vercel. Without it, the live site refuses every WhatsApp webhook (503), so nobody can fake one, but real messages are refused too.
+2. Rotate the keys that were pasted into a chat during development: the Adaption API key (Adaption → Settings → API keys) and the WhatsApp access token (temporary tokens expire by themselves; make a permanent System User token for the demo).
 
 ## Known limits (prototype)
 
 - Scripts are allowed inline (`'unsafe-inline'`), which Next.js needs without per-request nonces; external scripts are still blocked.
-- The wrong-password lockout is kept in memory per server process; a serverless deployment would need a shared store.
+- The wrong-password lockout is kept in memory per server process. On Vercel several copies of the app can run at once, so an attacker gets roughly 10 guesses per copy per 15 minutes; against a 28-character random password that changes nothing in practice, but a shared store (for example a database table) would make it exact.
+- The database connection is encrypted but does not pin Supabase's certificate authority (`ssl: "require"`); adding Supabase's CA file would also rule out an impersonated database server.
+- Vercel's Supabase integration also stores Supabase's service-role key in the project's settings. The app never uses it, but anyone who can read the Vercel project's secrets could; keep the Vercel account protected with two-factor sign-in.
 - Anyone who has a patient's WhatsApp link can open that patient's exercise page (as with any magic link); it shows the plan, never other patients.
 - Clinical wording (safety replies, AI rules) is a draft until a physiotherapist reviews it.

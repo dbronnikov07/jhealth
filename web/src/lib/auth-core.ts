@@ -20,9 +20,16 @@ export function fromThisComputer(h: Headers): boolean {
   return chain.every((ip) => ip === "::1" || ip === "127.0.0.1" || ip === "::ffff:127.0.0.1");
 }
 
-/** The caller's address as seen by our server (behind Cloudflare or Vercel, from their headers). */
-export function clientAddress(h: Headers): string {
-  return h.get("cf-connecting-ip") ?? h.get("x-real-ip") ?? (h.get("x-forwarded-for") ?? "").split(",")[0].trim() ?? "unknown";
+/**
+ * The caller's address, read only from the header our own front door writes. Anyone can send any header, so a
+ * header the platform does not overwrite would let an attacker pick a new "address" for every password guess and
+ * never be locked out. On Vercel, Vercel overwrites x-real-ip / x-forwarded-for (a cf-connecting-ip sent there is
+ * the attacker's own text); through a Cloudflare tunnel, Cloudflare overwrites cf-connecting-ip.
+ */
+export function clientAddress(h: Headers, onVercel = Boolean(process.env.VERCEL)): string {
+  const first = (v: string | null) => (v ?? "").split(",")[0].trim();
+  if (onVercel) return first(h.get("x-real-ip")) || first(h.get("x-forwarded-for")) || "unknown";
+  return first(h.get("cf-connecting-ip")) || first(h.get("x-forwarded-for")) || "unknown";
 }
 
 /** Constant-time comparison: how long it takes does not reveal how much of a guess was right. */

@@ -1,7 +1,8 @@
 // Who may open the dashboard: the rules in lib/auth-core.ts, tested as an attacker would try them. Run: npm run test:unit
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dashboardAccess, fromThisComputer, resetFailures, sameSecret } from "../src/lib/auth-core.ts";
+import { clientAddress, dashboardAccess, fromThisComputer, resetFailures, sameSecret } from "../src/lib/auth-core.ts";
+import { cloudConnection, databaseUrl } from "../src/lib/db.ts";
 
 const H = (h: Record<string, string>) => new Headers(h);
 const local = { host: "localhost:3100", "x-forwarded-for": "::1" };
@@ -48,6 +49,22 @@ test("ten wrong passwords lock that address out for 15 minutes, even with the ri
   // another address is not affected; the lock ends after 15 minutes
   assert.equal(dashboardAccess(H({ ...attacker, "cf-connecting-ip": "192.0.2.67", authorization: basic(env.password) }), env, t0 + 20).ok, true);
   assert.equal(dashboardAccess(H({ ...attacker, authorization: basic(env.password) }), env, t0 + 16 * 60_000).ok, true);
+});
+
+test("on Vercel a made-up cf-connecting-ip cannot dodge the lockout", () => {
+  const spoofed = H({ "x-real-ip": "192.0.2.66", "x-forwarded-for": "192.0.2.66", "cf-connecting-ip": "10.9.9.9" });
+  assert.equal(clientAddress(spoofed, true), "192.0.2.66");     // Vercel's own header wins
+  assert.equal(clientAddress(H({ "cf-connecting-ip": "203.0.113.9", "x-forwarded-for": "::1" }), false), "203.0.113.9"); // tunnel
+  assert.equal(clientAddress(H({}), true), "unknown");
+});
+
+test("the cloud database URL keeps only the address and always uses TLS", () => {
+  const c = cloudConnection("postgres://u:p@aws-0-ca-central-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x&pgbouncer=true");
+  assert.equal(c.url, "postgres://u:p@aws-0-ca-central-1.pooler.supabase.com:6543/postgres");
+  assert.equal(c.ssl, "require");
+  assert.equal(cloudConnection("postgres://u:p@localhost:5432/db").ssl, false);
+  assert.equal(databaseUrl({ POSTGRES_URL: "postgres://x" }), "postgres://x");
+  assert.equal(databaseUrl({ DATABASE_URL: "", POSTGRES_URL: "" }), undefined);
 });
 
 test("secrets are compared in constant time and exactly", () => {

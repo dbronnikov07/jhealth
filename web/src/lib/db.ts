@@ -22,12 +22,30 @@ export function getDb(): Promise<Db> {
   return shared.__jhealthDb;
 }
 
+/** The cloud database address: DATABASE_URL, or POSTGRES_URL as Vercel's Supabase integration names it. */
+export function databaseUrl(env: Record<string, string | undefined> = process.env): string | undefined {
+  return env.DATABASE_URL || env.POSTGRES_URL || undefined;
+}
+
+/**
+ * Connection options for a cloud Postgres URL. Integration URLs carry extra parameters meant for other drivers
+ * (Prisma's `pgbouncer`, Supabase's `supa`); Postgres would reject them as unknown settings, so only the address
+ * is kept. Anything that is not this computer is reached over TLS only.
+ */
+export function cloudConnection(raw: string): { url: string; ssl: false | "require" } {
+  const url = new URL(raw);
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  url.search = "";
+  return { url: url.toString(), ssl: local ? false : "require" };
+}
+
 async function connect(): Promise<Db> {
-  const url = process.env.DATABASE_URL;
-  if (url) {
+  const raw = databaseUrl();
+  if (raw) {
     const { default: postgres } = await import("postgres");
+    const { url, ssl } = cloudConnection(raw);
     // prepare: false is required by Supabase's transaction pooler (port 6543), which serverless hosts should use.
-    const sql = postgres(url, { prepare: false, max: 5, idle_timeout: 20 });
+    const sql = postgres(url, { prepare: false, max: 5, idle_timeout: 20, ssl });
     return {
       mode: "supabase",
       query: async <T,>(text: string, params: unknown[] = []) =>
@@ -35,6 +53,8 @@ async function connect(): Promise<Db> {
     };
   }
 
+  // A hosted deployment must never silently fall back to an empty throwaway database.
+  if (process.env.VERCEL) throw new Error("DATABASE_URL (or POSTGRES_URL) is not set on this deployment");
   const { PGlite } = await import("@electric-sql/pglite");
   const dir = process.env.PGLITE_DIR ?? path.join(os.homedir(), "jhealth-cache", "pglite-dev");
   mkdirSync(dir, { recursive: true });

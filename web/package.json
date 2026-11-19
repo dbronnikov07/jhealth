@@ -11,7 +11,11 @@
     "mock:whatsapp": "node scripts/mock-whatsapp.mjs",
     "fake:whatsapp": "node scripts/fake-whatsapp.mjs",
     "reminders": "curl -s 'http://localhost:3100/api/cron/reminders?force=1' && echo",
-    "demo:reset": "node scripts/reset-demo.mjs"
+    "demo:reset": "node scripts/reset-demo.mjs",
+    "cloud:migrate": "node scripts/db-remote.mjs migrate",
+    "cloud:check": "node scripts/db-remote.mjs check",
+    "cloud:demo-reset": "node scripts/db-remote.mjs reset-demo",
+    "cloud:deploy": "BASE=http://localhost:3100 bash scripts/attack.sh && node --test scripts/auth.test.ts && vercel deploy --prod"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.16",

@@ -1,0 +1,13 @@
+# Upload only what the website needs to build (an allow-list): never keys (.env*), the research test video of a
+# real person (public/test), local logs or build output.
+/*
+!src
+!public
+!package.json
+!package-lock.json
+!next.config.ts
+!tsconfig.json
+!vercel.json
+public/test
+**/.env*
+**/.DS_Store

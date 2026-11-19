@@ -60,17 +60,17 @@ Then open http://localhost:3100. Without a `DATABASE_URL` the app runs a real Po
 - every fact the coach remembers can point to the message it came from;
 - row level security is on for every table with no public access, so the browser key can read nothing. Only the server reads the data.
 
-**Connect a real Supabase project** (free plan is enough):
+## The live site (nothing runs on the laptop)
 
-1. Create a project at supabase.com. Keep the database password somewhere safe.
-2. In the project, open **SQL Editor** and run, in this order, the contents of `supabase/migrations/20261118120000_core.sql`, then `supabase/migrations/20261118120100_prescribe_and_overview.sql`, then `supabase/seed.sql`.
-3. **Project Settings → Database → Connection string**, choose **Transaction pooler** (port 6543), and copy it.
-4. Copy `web/.env.example` to `web/.env.local` and paste the string into `DATABASE_URL`, with your database password in place of `[YOUR-PASSWORD]`. Set `DASHBOARD_PASSWORD` too. Never commit `.env.local` or paste these values into a chat.
-5. Restart `npm run dev`. The top bar now says Supabase, and the Table Editor in Supabase shows every row the dashboard writes.
+**https://jhealth-beta.vercel.app** (deployed 19 November 2026). The website runs on Vercel in Montreal; the database is Supabase's free plan in Canada (Central), created from inside Vercel, so there is one account (Vercel, signed in with GitHub). Patient data stays in Canada.
 
-Once the migrations have run on Supabase, do not edit those files again: put any change in a new file in `supabase/migrations/`.
+- **Dashboard:** https://jhealth-beta.vercel.app/doctor. Any user name; the password is `DASHBOARD_PASSWORD` in `~/jhealth-cache/production-secrets.txt` (also stored, encrypted, on Vercel).
+- **Secrets** live only on Vercel, marked sensitive (Vercel never shows them again), and in two private files outside the project: `~/jhealth-cache/production-secrets.txt` (dashboard password, reminder secret) and `~/jhealth-cache/production.env` (database address, from `vercel env pull`). Neither can be committed or uploaded.
+- **Deploy a change** (from `web/`, with the dev server running so the attack test can run first): `npm run cloud:deploy`. Only the files listed in `web/.vercelignore` are uploaded: never keys, never the research test video.
+- **Database changes:** add a new file to `supabase/migrations/`, then `npm run cloud:migrate` (applies only new files, then the seed). `npm run cloud:check` proves the database is still locked: row level security on every table, no rights at all for Supabase's public web API, every view obeying RLS, an encrypted connection.
+- **Demo morning:** `npm run cloud:demo-reset` replaces the 20 simulated patients with fresh ones dated from today. Real patients are kept.
 
-**Deploying** (for example to Vercel): set `DATABASE_URL` and `DASHBOARD_PASSWORD` in the host's settings. The dashboard refuses to open in production without a password, because it shows patient data.
+The local setup above still works the same and never touches the live database.
 
 **Not built yet:** the coach's AI replies (free-text questions in WhatsApp get no answer yet), and AI video drafts.
 
@@ -185,7 +185,7 @@ Competitor research (Sword, Hinge, Kaia, Kemtai, Exer, Physitrack, Medbridge, Li
 
 Run the reminders now (laptop): `npm run reminders` (from `web/`). On Vercel, `vercel.json` runs them once a day.
 
-**Demo morning:** the 20 simulated patients are created with dates relative to the day they were made, so their "this week" numbers drift. Stop the dev server, run `npm run demo:reset` (from `web/`), then `npm run dev`: they come back with today's dates. Real patients are kept.
+**Demo morning:** the 20 simulated patients are created with dates relative to the day they were made, so their "this week" numbers drift. On the live site: `npm run cloud:demo-reset` (from `web/`). On the laptop: stop the dev server, run `npm run demo:reset`, then `npm run dev`. Either way they come back with today's dates and real patients are kept.
 
 ## The model: how to run it
 
