@@ -2,7 +2,6 @@
 // drawn over him. The points are the output of our own MediaPipe pose model (heavy, still-image mode) run on this
 // very photo (ml: scratch run 19 Nov 2026, see public/photos/CREDITS.md): not a drawing, not a mock-up.
 import Image from "next/image";
-import { Icon } from "@/components/Icon";
 
 // Image pixels of the 1200 x 1800 photo. "l_" is the person's own left (on the right of the picture).
 const P = {
@@ -63,7 +62,6 @@ export function HeroPhoto() {
         </svg>
 
         <div className="hp-chip hp-rep">
-          <span className="hp-dot" aria-hidden />
           <span>Chair squat</span>
           <b className="num">6<span>/10</span></b>
         </div>
@@ -71,15 +69,8 @@ export function HeroPhoto() {
           <span>Knee bend</span>
           <b className="num">{KNEE_BEND}°</b>
         </div>
-        <div className="hp-cue">
-          <Icon name="speaker" size={18} />
-          <span>Good depth. Now stand up tall.</span>
-        </div>
+        <p className="hp-cue">Good depth. Now stand up tall.</p>
       </div>
-      <figcaption className="hp-caption">
-        <Icon name="lock" size={14} />
-        Real photo, real output: jHealth&apos;s pose model run on this picture. In a session, the video never leaves the phone.
-      </figcaption>
     </figure>
   );
 }

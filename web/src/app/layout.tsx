@@ -1,12 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Mono, Figtree } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 
-// Figtree: open, friendly and very legible at large sizes (the body face Sword Health uses; recommended for
-// healthcare). Atkinson Hyperlegible Mono, drawn for readers with low vision, sets every measured number
-// (degrees, reps, scores), so measurements read like an instrument.
-const sans = Figtree({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const mono = Atkinson_Hyperlegible_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap", adjustFontFallback: false });
+// Inter for reading, Outfit for headings and measured numbers (with tabular figures, so digits line up).
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const display = Outfit({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 export const metadata: Metadata = {
   title: "jHealth · Physio dashboard",
@@ -14,15 +12,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f4f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0f16" },
-  ],
+  themeColor: "#f2f4f7",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body>{children}</body>
     </html>
   );
