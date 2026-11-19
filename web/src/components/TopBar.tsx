@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { signOut } from "@/app/login/actions";
 
 import { whatsappConfig } from "@/lib/whatsapp/client";
 import { Goniometer } from "./Goniometer";
@@ -32,6 +33,11 @@ export function TopBar({ doctor, mode }: { doctor?: { name: string; clinic: stri
             <span className="avatar" aria-hidden>{initials(doctor.name)}</span>
             <span className="name">{doctor.name}{doctor.clinic && <span className="clinic"> · {doctor.clinic}</span>}</span>
           </span>
+        )}
+        {process.env.DASHBOARD_PASSWORD && (
+          <form action={signOut}>
+            <button type="submit" className="signout">Sign out</button>
+          </form>
         )}
       </div>
     </header>

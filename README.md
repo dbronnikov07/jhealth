@@ -64,7 +64,7 @@ Then open http://localhost:3100. Without a `DATABASE_URL` the app runs a real Po
 
 **https://jhealth-beta.vercel.app** (deployed 19 November 2026). The website runs on Vercel in Montreal; the database is Supabase's free plan in Canada (Central), created from inside Vercel, so there is one account (Vercel, signed in with GitHub). Patient data stays in Canada.
 
-- **Dashboard:** https://jhealth-beta.vercel.app/doctor. Any user name; the password is `DASHBOARD_PASSWORD` in `~/jhealth-cache/production-secrets.txt` (also stored, encrypted, on Vercel).
+- **Dashboard:** https://jhealth-beta.vercel.app/doctor opens our sign-in page. The password is `DASHBOARD_PASSWORD` in `~/jhealth-cache/production-secrets.txt` (also stored, encrypted, on Vercel); you stay signed in on that device for 12 hours, and **Sign out** is in the top bar.
 - **Secrets** live only on Vercel, marked sensitive (Vercel never shows them again), and in two private files outside the project: `~/jhealth-cache/production-secrets.txt` (dashboard password, reminder secret) and `~/jhealth-cache/production.env` (database address, from `vercel env pull`). Neither can be committed or uploaded.
 - **Deploy a change** (from `web/`, with the dev server running so the attack test can run first): `npm run cloud:deploy`. Only the files listed in `web/.vercelignore` are uploaded: never keys, never the research test video.
 - **Database changes:** add a new file to `supabase/migrations/`, then `npm run cloud:migrate` (applies only new files, then the seed). `npm run cloud:check` proves the database is still locked: row level security on every table, no rights at all for Supabase's public web API, every view obeying RLS, an encrypted connection.

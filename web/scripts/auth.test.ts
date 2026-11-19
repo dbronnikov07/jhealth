@@ -1,12 +1,11 @@
 // Who may open the dashboard: the rules in lib/auth-core.ts, tested as an attacker would try them. Run: npm run test:unit
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clientAddress, dashboardAccess, fromThisComputer, resetFailures, sameSecret } from "../src/lib/auth-core.ts";
+import { checkPassword, clientAddress, createSession, dashboardAccess, fromThisComputer, resetFailures, safeNext, sameSecret, sessionCookieName, validSession } from "../src/lib/auth-core.ts";
 import { cloudConnection, databaseUrl } from "../src/lib/db.ts";
 
 const H = (h: Record<string, string>) => new Headers(h);
 const local = { host: "localhost:3100", "x-forwarded-for": "::1" };
-const basic = (password: string) => `Basic ${btoa(`doctor:${password}`)}`;
 
 test("'this computer' means no tunnel, no proxy, a local host name", () => {
   assert.equal(fromThisComputer(H(local)), true);
@@ -23,32 +22,51 @@ test("no password set: only this computer, only in development", () => {
   assert.equal(dashboardAccess(H(local), { production: true }).ok, false);                       // never in production
 });
 
-test("password set: only the right password opens it, from anywhere", () => {
-  resetFailures();
+test("password set: only a valid signed session opens the dashboard, from anywhere", () => {
   const env = { password: "correct horse battery staple", production: true };
   const remote = { host: "jhealth.example", "x-forwarded-for": "198.51.100.7" };
-  assert.equal(dashboardAccess(H(remote), env).ok, false);                                          // no credentials
-  assert.equal(dashboardAccess(H({ ...remote, authorization: basic("wrong") }), env).ok, false);
-  assert.equal(dashboardAccess(H({ ...remote, authorization: basic("correct horse battery stapl") }), env).ok, false);
-  assert.equal(dashboardAccess(H({ ...remote, authorization: basic("correct horse battery staple!") }), env).ok, false);
-  assert.equal(dashboardAccess(H({ ...remote, authorization: "Basic !!!notbase64" }), env).ok, false);
-  assert.equal(dashboardAccess(H({ ...remote, authorization: `Basic ${btoa("no-colon")}` }), env).ok, false);
-  assert.equal(dashboardAccess(H({ ...remote, authorization: basic(env.password) }), env).ok, true);
-  assert.equal(dashboardAccess(H({ ...local, authorization: basic("wrong") }), env).ok, false);    // local is no exception
+  const cookie = (v: string) => ({ ...remote, cookie: `theme=dark; ${sessionCookieName(true)}=${v}` });
+  const t0 = 1_800_000_000_000;
+  const good = createSession(env.password, t0).value;
+  assert.equal(dashboardAccess(H(remote), env, t0).ok, false);                                       // no cookie
+  assert.equal(dashboardAccess(H(cookie(good)), env, t0 + 60_000).ok, true);                         // signed in
+  assert.equal(dashboardAccess(H({ ...remote, cookie: `jh_session=${good}` }), env, t0).ok, false);   // wrong cookie name in production
+  assert.equal(dashboardAccess(H(cookie(good)), env, t0 + 12 * 3600_000 + 1).ok, false);             // expired after 12 hours
+  assert.equal(dashboardAccess(H(cookie(good)), { ...env, password: "a new password" }, t0).ok, false); // password changed: everyone out
+  const [, expires, sig] = good.split(".");
+  assert.equal(dashboardAccess(H(cookie(`v1.${Number(expires) + 3600_000}.${sig}`)), env, t0).ok, false); // extended by hand
+  assert.equal(dashboardAccess(H(cookie(`v1.${expires}.${"A".repeat(43)}`)), env, t0).ok, false);       // forged signature
+  assert.equal(dashboardAccess(H(cookie(`v1.${t0 + 99 * 3600_000}.${sig}`)), env, t0).ok, false);       // far future
+  assert.equal(dashboardAccess(H(cookie("' or 1=1 --")), env, t0).ok, false);
+  assert.equal(dashboardAccess(H({ ...remote, authorization: `Basic ${btoa(`doctor:${env.password}`)}` }), env, t0).ok, false); // the old popup is gone
+  assert.equal(dashboardAccess(H({ ...local }), env, t0).ok, false);                                  // this computer is no exception
+  assert.equal(validSession(good, env.password, t0), true);
 });
 
-test("ten wrong passwords lock that address out for 15 minutes, even with the right one", () => {
+test("signing in: only the exact password; ten wrong ones lock that address out for 15 minutes", () => {
   resetFailures();
   const env = { password: "s3cret-pass", production: true };
   const attacker = { host: "jhealth.example", "cf-connecting-ip": "192.0.2.66" };
   const t0 = 1_000_000;
-  for (let i = 0; i < 10; i++) dashboardAccess(H({ ...attacker, authorization: basic(`guess${i}`) }), env, t0 + i);
-  const blocked = dashboardAccess(H({ ...attacker, authorization: basic(env.password) }), env, t0 + 20);
+  for (const guess of ["", "s3cret-pas", "s3cret-pass ", "S3CRET-PASS", "x".repeat(500)]) {
+    assert.equal(checkPassword(H({ host: "jhealth.example", "cf-connecting-ip": "192.0.2.1" }), guess, env, t0).ok, false);
+  }
+  assert.equal(checkPassword(H(attacker), env.password, env, t0).ok, true);
+  for (let i = 0; i < 10; i++) checkPassword(H(attacker), `guess${i}`, env, t0 + i);
+  const blocked = checkPassword(H(attacker), env.password, env, t0 + 20);
   assert.equal(blocked.ok, false);
   assert.equal(!blocked.ok && blocked.status, 429);
-  // another address is not affected; the lock ends after 15 minutes
-  assert.equal(dashboardAccess(H({ ...attacker, "cf-connecting-ip": "192.0.2.67", authorization: basic(env.password) }), env, t0 + 20).ok, true);
-  assert.equal(dashboardAccess(H({ ...attacker, authorization: basic(env.password) }), env, t0 + 16 * 60_000).ok, true);
+  assert.equal(checkPassword(H({ ...attacker, "cf-connecting-ip": "192.0.2.67" }), env.password, env, t0 + 20).ok, true); // others unaffected
+  assert.equal(checkPassword(H(attacker), env.password, env, t0 + 16 * 60_000).ok, true);                               // lock ends
+  assert.equal(checkPassword(H(attacker), env.password, { production: true }, t0).ok, false);                         // no password set
+});
+
+test("after signing in, only our own dashboard pages are allowed as the next page", () => {
+  assert.equal(safeNext("/doctor/patients/ad4f8668-0876-48c6-a11f-e4bbe7d09440?edit=1"), "/doctor/patients/ad4f8668-0876-48c6-a11f-e4bbe7d09440?edit=1");
+  assert.equal(safeNext("/doctor"), "/doctor");
+  for (const bad of ["//evil.example", "https://evil.example/doctor", "/doctor/../../evil", "/doctor/%2E%2E/%2e%2e/evil", "/doctorx", "/\\evil.example", "javascript:alert(1)", "/doctor\nSet-Cookie: x", undefined, 42]) {
+    assert.equal(safeNext(bad), "/doctor", String(bad));
+  }
 });
 
 test("on Vercel a made-up cf-connecting-ip cannot dodge the lockout", () => {

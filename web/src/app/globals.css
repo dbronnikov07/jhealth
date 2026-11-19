@@ -808,3 +808,11 @@ textarea { resize: vertical; min-height: 60px; }
 .qr-reveal[open] summary { margin-bottom: 12px; }
 .qr-reveal .qr { display: block; border-radius: 10px; box-shadow: 0 0 0 1px var(--border); }
 .qr-reveal .qr + p { margin-top: 10px; }
+
+/* Sign out, in the dashboard's top bar (only when sign-in is in use). */
+.topbar .signout {
+  min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(255 255 255 / 0.28);
+  background: transparent; color: #ffffff; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
+}
+.topbar .signout:hover { background: rgb(255 255 255 / 0.1); }
+.topbar .signout:focus-visible { outline: none; box-shadow: 0 0 0 3px rgb(149 166 255 / 0.6); }

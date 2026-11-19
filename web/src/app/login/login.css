@@ -1,0 +1,72 @@
+/* The dashboard sign-in page: the landing page's language (real photo, Figtree, pill button) in a quiet split layout. */
+.lg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 100dvh; background: var(--surface); }
+
+.lg-photo { position: relative; overflow: hidden; background: var(--ink-900); }
+.lg-photo img { object-fit: cover; object-position: 60% 40%; }
+.lg-photo::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgb(6 10 36 / 0) 40%, rgb(6 10 36 / 0.82) 100%);
+}
+.lg-photo-copy { position: absolute; left: 48px; right: 48px; bottom: 48px; z-index: 1; color: #ffffff; }
+.lg-quote { font-size: clamp(26px, 2.6vw, 36px); font-weight: 650; line-height: 1.15; letter-spacing: -0.03em; max-width: 18em; text-wrap: balance; }
+.lg-quote-sub { margin-top: 12px; font-size: 16px; line-height: 1.55; color: #d3d9f5; max-width: 30em; }
+
+.lg-panel { display: grid; place-items: center; padding: 48px 32px; }
+.lg-card { width: 100%; max-width: 400px; }
+.lg-brand { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 40px; font-size: 22px; font-weight: 750; letter-spacing: -0.03em; color: var(--text); text-decoration: none; }
+.lg-brand > span > span { color: var(--accent); }
+.lg-brand .gonio .arm { stroke-width: 2.4; }
+.lg h1 { font-size: 32px; font-weight: 650; line-height: 1.12; letter-spacing: -0.032em; }
+.lg-lede { margin-top: 12px; font-size: 16px; line-height: 1.55; color: var(--muted); }
+
+.lg-form { display: grid; margin-top: 32px; }
+.lg-form label { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.lg-field {
+  display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 0 6px 0 16px;
+  border: 1.5px solid var(--border-strong); border-radius: 16px; background: var(--surface);
+  color: var(--muted); transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lg-field:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
+.lg-field.has-error { border-color: var(--red-solid); }
+.lg-field input {
+  flex: 1; min-width: 0; height: 50px; border: 0; outline: 0; background: transparent;
+  font: inherit; font-size: 17px; color: var(--text); letter-spacing: 0.02em;
+}
+.lg-show {
+  flex: none; min-height: 40px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--surface-2);
+  font: inherit; font-size: 13.5px; font-weight: 650; color: var(--text); cursor: pointer;
+}
+.lg-show:hover { background: var(--surface-3); }
+.lg-show:focus-visible { outline: none; box-shadow: var(--ring); }
+.lg-hint { margin-top: 8px; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.lg-error { margin-top: 8px; font-size: 14px; font-weight: 600; color: var(--red); line-height: 1.45; }
+.lg-card > .lg-error { margin-top: 28px; padding: 12px 14px; border-radius: 12px; background: var(--red-soft); border: 1px solid var(--red-line); }
+.lg-submit {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 54px; margin-top: 22px; border: 0; border-radius: 999px;
+  background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 16.5px; font-weight: 650; cursor: pointer;
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--accent) 75%, transparent);
+  transition: background-color 0.15s, transform 0.15s;
+}
+.lg-submit:hover { background: var(--accent-hover); }
+.lg-submit:active { transform: scale(0.98); }
+.lg-submit:disabled { opacity: 0.7; cursor: progress; }
+.lg-submit:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.lg-notes { list-style: none; padding: 20px 0 0; margin: 32px 0 0; border-top: 1px solid var(--border); display: grid; gap: 10px; }
+.lg-notes li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.lg-notes .icon { flex: none; margin-top: 1px; color: var(--accent); }
+.lg-back { display: inline-block; margin-top: 28px; font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.lg-back:hover { color: var(--text); }
+.lg-back:focus-visible, .lg-brand:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 8px; }
+
+@media (max-width: 900px) {
+  .lg { grid-template-columns: minmax(0, 1fr); }
+  .lg-photo { display: none; }
+  .lg-panel { place-items: start center; padding: 40px 16px; }
+  .lg-brand { margin-bottom: 28px; }
+  .lg h1 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lg-submit, .lg-field { transition: none; }
+}

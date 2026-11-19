@@ -7,7 +7,7 @@ What protects patient data in jHealth, how it was tested, and what must be set b
 | Address | Who may use it | How it is protected |
 |---|---|---|
 | `/` (landing), `/privacy` | everyone | public by design; no patient data |
-| `/doctor/**` (dashboard) | the physiotherapist | `DASHBOARD_PASSWORD` (HTTP Basic, constant-time compare, 10 wrong tries = 15-minute lockout per address). Without a password: only this computer, only in development; through a tunnel or in production it refuses (503) |
+| `/doctor/**` (dashboard) | the physiotherapist | sign in on `/login` with `DASHBOARD_PASSWORD` (constant-time compare; 10 wrong tries = 15-minute lockout per address). The browser then holds a signed session cookie for 12 hours: `HttpOnly` (page scripts cannot read it), `Secure`, `SameSite=Lax`, `__Host-` prefix (this exact site only), signed with HMAC-SHA256 under a key derived from the password, so it cannot be forged or extended, and changing the password signs everyone out. After sign-in the page only returns to `/doctor` pages (no open redirect). Without a password: only this computer, only in development; through a tunnel or in production it refuses (503) |
 | Dashboard actions (add patient, save plan, notes, alerts, retry) | the physiotherapist | checked again **inside every action and every data read** (`web/src/lib/auth.ts`), as Next.js requires: actions are reachable by direct POST requests, so the gate in front is not enough on its own. Ids from the browser must be valid UUIDs; all text is length-limited |
 | `/s/<token>` (patient's page) and `/api/session*` | the patient | a 64-character random token (256 bits) in the WhatsApp link; no referrer is ever sent from these pages; not indexed by search engines |
 | `/api/whatsapp` | Meta only | every webhook must carry Meta's HMAC-SHA256 signature (`WHATSAPP_APP_SECRET`, constant-time). Without the secret set, unsigned webhooks are accepted only from this computer in development; never through a tunnel or in production. Bodies over 512 kB are refused |
@@ -66,6 +66,7 @@ A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API
 ## Known limits (prototype)
 
 - Scripts are allowed inline (`'unsafe-inline'`), which Next.js needs without per-request nonces; external scripts are still blocked.
+- Sign-out clears the cookie in that browser; a copied cookie stays valid until it expires (12 hours) or the password changes. Per-session revocation would need a sessions table.
 - The wrong-password lockout is kept in memory per server process. On Vercel several copies of the app can run at once, so an attacker gets roughly 10 guesses per copy per 15 minutes; against a 28-character random password that changes nothing in practice, but a shared store (for example a database table) would make it exact.
 - The database connection is encrypted but does not pin Supabase's certificate authority (`ssl: "require"`); adding Supabase's CA file would also rule out an impersonated database server.
 - Vercel's Supabase integration also stores Supabase's service-role key in the project's settings. The app never uses it, but anyone who can read the Vercel project's secrets could; keep the Vercel account protected with two-factor sign-in.

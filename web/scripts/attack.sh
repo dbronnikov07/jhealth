@@ -28,14 +28,18 @@ J_DEMO_SQL='{"token":"'"' or '1'='1"'","action":"list"}'
 J_DEMO_BUTTON='{"token":"'$TE'","action":"send","button":"drop_table"}'
 
 echo "Dashboard and private files from outside"
-check "dashboard home"                   "503|401" "$(code "${OUT[@]}" "$BASE/doctor")"
-check "a patient record"                 "503|401" "$(code "${OUT[@]}" "$BASE/doctor/patients/00000000-0000-4000-8000-000000000000")"
-check "new-patient form"                 "503|401" "$(code "${OUT[@]}" "$BASE/doctor/patients/new")"
+check "dashboard home"                   "503|401|303" "$(code "${OUT[@]}" "$BASE/doctor")"
+R=$(curl -s -o /dev/null -m 60 -w "%{redirect_url}" "${OUT[@]}" "$BASE/doctor"); R=${R#"$BASE"}   # another host stays in full and fails
+check "redirect goes only to our /login"  "none|/login\?.*" "${R:-none}"
+check "a patient record"                 "503|401|303" "$(code "${OUT[@]}" "$BASE/doctor/patients/00000000-0000-4000-8000-000000000000")"
+check "new-patient form"                 "503|401|303" "$(code "${OUT[@]}" "$BASE/doctor/patients/new")"
 check "research test video"              "503|401" "$(code "${OUT[@]}" "$BASE/test/squat_clip.mp4")"
-check "wrong password x1"                "401|503" "$(code "${OUT[@]}" -u doctor:guess "$BASE/doctor")"
-check "case trick /DOCTOR"               "404|503|401" "$(code "${OUT[@]}" "$BASE/DOCTOR")"
-check "encoded path /%64octor"           "404|503|401" "$(code "${OUT[@]}" "$BASE/%64octor")"
-check "trailing dot /doctor/."           "404|503|401|308" "$(code "${OUT[@]}" "$BASE/doctor/.")"
+check "old popup login (HTTP Basic)"     "303|503" "$(code "${OUT[@]}" -u doctor:guess "$BASE/doctor")"
+check "forged session cookie"            "303|503" "$(code "${OUT[@]}" -H "Cookie: __Host-jh_session=v1.9999999999999.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA; jh_session=v1.9999999999999.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" "$BASE/doctor")"
+check "sign-in page itself is public"    "200" "$(code "${OUT[@]}" "$BASE/login")"
+check "case trick /DOCTOR"               "404|503|401|303" "$(code "${OUT[@]}" "$BASE/DOCTOR")"
+check "encoded path /%64octor"           "404|503|401|303" "$(code "${OUT[@]}" "$BASE/%64octor")"
+check "trailing dot /doctor/."           "404|503|401|303|308" "$(code "${OUT[@]}" "$BASE/doctor/.")"
 
 echo "WhatsApp webhook"
 check "unsigned fake message from outside" "503|401" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/json' -d '{"object":"whatsapp_business_account","entry":[]}' "$BASE/api/whatsapp")"
