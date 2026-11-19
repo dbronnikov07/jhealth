@@ -2,9 +2,9 @@
 
 The public datasets have healthy adults in a lab, filmed by fixed cameras. Our demo has our own laptop camera, our own room and our own chair. A model trained on clips recorded **the way the demo is filmed** will be better at the demo than any amount of public data, and because every teammate does the *same named mistakes*, the labels are far cleaner too. This is also the honest test for the slide: the score is measured on a teammate the model never saw.
 
-**What we need:** 3 teammates × 4 exercises × 4 clips × about 10 to 15 reps. About 10 minutes of filming per person.
+**What we need:** at least 6 people × 4 exercises × 4 clips × about 10 to 15 reps. Record the same four clips once on a laptop webcam and once on an iPhone/phone for every person. That is about 20 minutes of filming per person. It gives us a meaningful held-person result for both devices instead of hoping that a laptop score transfers to a phone.
 
-**Where the files go:** `clips/<exercise>/<person>/<label>_<n>.mp4`, for example `clips/arm_raise/anna/bent_elbow_1.mp4`. The four exercise folders are `squat`, `sit_to_stand`, `seated_knee_extension`, `arm_raise`.
+**Where the files go:** `clips/<exercise>/<person>/<device>/<label>_<n>.mp4`, for example `clips/arm_raise/anna/iphone/bent_elbow_1.mp4`. Use `iphone`, `phone`, `android`, `laptop`, or `webcam` as the device folder. The four exercise folders are `squat`, `sit_to_stand`, `seated_knee_extension`, `arm_raise`.
 
 ## The four exercises and their mistakes
 
@@ -40,23 +40,31 @@ Put each clip in a folder named after the exercise, then the person, and name th
 clips/
   squat/
     anna/
-      good_1.mp4
-      shallow_1.mp4
-      knees_in_1.mp4
-      lean_forward_1.mp4
+      iphone/
+        good_1.mp4
+        shallow_1.mp4
+        knees_in_1.mp4
+        lean_forward_1.mp4
+      laptop/
+        good_1.mp4
+        shallow_1.mp4
+        knees_in_1.mp4
+        lean_forward_1.mp4
     ben/
       ...
   arm_raise/
     anna/
-      good_1.mp4
-      not_high_1.mp4
-      bent_elbow_1.mp4
-      body_sway_1.mp4
+      iphone/
+        good_1.mp4
+        not_high_1.mp4
+        bent_elbow_1.mp4
+        body_sway_1.mp4
   sit_to_stand/ ...
   seated_knee_extension/ ...
 ```
 
-- The **folder** is the person (lower case, one word). The test hides one person at a time, so the folder name must be right.
+- The first **folder** is the person (lower case, one word). The test hides one person at a time, so the folder name must be right.
+- The second folder is the capture device. It lets the trainer report iPhone and laptop scores separately while still hiding the whole person from training.
 - The **file name** is the label from the table at the top (for example `good`, `shallow`, `knees_in`), then `_1`, `_2` and so on. Anything after the label other than a number is not allowed.
 - **Rename the camera's default names** (`IMG_1234.MOV`, `VID_2026...`). The software reads the name as the label and will warn you.
 - `.mp4`, `.mov`, `.m4v`, `.webm` all work. A phone held upright (portrait) works too.
@@ -75,7 +83,7 @@ All commands run from `~/jhealth/ml`.
 
 (`--exercise sit_to_stand`, `--exercise seated_knee_extension`, `--exercise arm_raise` for the others. The heavy pose tracker is slow on this laptop; Colab is the alternative.)
 
-**Step 2. Check what it found.** The table lists every clip and how many reps it found. Anything near what you did is fine. If a clip says 9 and you did 15, or there is a note in the last column, open the matching picture in `~/jhealth/clips_report/<exercise>/`. It shows the rep signal (the knee angle for squats) over time with every found rep in green and every skipped dip as a red cross. Usual causes: part of the body out of the picture, a squat too shallow to count, or not standing fully upright between squats. Re-record that clip.
+**Step 2. Check what it found.** The table lists every clip, its device, how many reps it found, and the fraction of frames where every joint needed for that exercise was clearly visible. Anything near what you did and at least 75% clear-joint coverage is fine. If a clip says 9 and you did 15, or there is a note in the last column, open the matching picture in `~/jhealth/clips_report/<exercise>/`. It shows the rep signal (the knee angle for squats) over time with every found rep in green and every skipped dip as a red cross. Usual causes: part of the body out of the picture, a squat too shallow to count, or not standing fully upright between squats. Re-record that clip.
 
 **Step 3. Train and test** (again once per exercise):
 
@@ -83,13 +91,14 @@ All commands run from `~/jhealth/ml`.
 ~/jhealth-cache/venv/bin/python train_own.py --exercise squat
 ```
 
-It hides each teammate in turn and tests on them, compares training on your clips only, on the public data only, and on both together, and picks the best. It prints the score for the slide, whether it can name each mistake, and suggested thresholds for the spoken cues ("knees in" when the knee gap is below X). The model is saved to `ml/models/<exercise>_demo.json` and copied into the web app, which then prefers it.
+It hides each teammate in turn and tests on them, compares training on your clips only, on the public data only, and on both together, and picks the best. It prints the score for the slide **and a separate held-out score for iPhone and laptop footage**. Do not quote a combined score if either device has no result. It also reports whether it can name each mistake and suggested thresholds for the spoken cues ("knees in" when the knee gap is below X). The model is saved to `ml/models/<exercise>_demo.json` and copied into the web app, which then prefers it.
 
 ## 5. Rules that keep the test honest
 
 - **Do not re-record only the clips that scored badly** and then quote the new score. That quietly fits the test. Fix recording problems (the pictures show them) before training, not after.
 - **The score on the slide is the "best" line of Step 3**, and it is measured on a teammate the model never saw. Say how many people it is.
-- With three people, one hard-to-track teammate moves the score a lot. That is normal; say so.
+- With fewer than six people, one hard-to-track teammate moves the score a lot. That is normal; say so instead of presenting the result as clinical validation.
+- Keep the iPhone and laptop clips from a hidden person out of that model's training together. Hiding only their laptop clip while training on their iPhone clip is leakage, not cross-device validation.
 
 ## 6. Privacy
 

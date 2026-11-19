@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { CUE, profileFor, ruleQuality, withModelFlag, type Fault } from "@/lib/pose/exercises";
 import { repFeatures, type Frame, type Vec } from "@/lib/pose/features";
+import { ANALYSIS_INTERVAL_MS, cameraConstraints, isPhoneDevice, poseSetupIssue } from "@/lib/pose/camera";
 import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
@@ -48,6 +49,7 @@ export function CameraSession(p: Props) {
   const [bend, setBend] = useState<number | null>(null);
   const [cue, setCue] = useState<string | null>(null);
   const [modelNote, setModelNote] = useState<string | null>(null);
+  const [setupIssue, setSetupIssue] = useState<string | null>("Checking that the camera can see the joints needed for this exercise…");
   const target = p.sets * p.reps;
 
   useEffect(() => {
@@ -69,7 +71,18 @@ export function CameraSession(p: Props) {
     let kneesInRun = 0;
     let cueSpokenThisRep = false;
     let lastSpokenCue = 0;
+    let lastAnalysisTs = -Infinity;
+    let stableFrames = 0;
+    let needsCounterReset = false;
+    let startSpoken = false;
+    let lastSetupIssue = "Checking that the camera can see the joints needed for this exercise…";
     let finished = false;
+
+    const showSetupIssue = (next: string | null) => {
+      if (next === lastSetupIssue) return;
+      lastSetupIssue = next ?? "";
+      setSetupIssue(next);
+    };
 
     const stop = () => {
       cancelAnimationFrame(raf);
@@ -169,9 +182,15 @@ export function CameraSession(p: Props) {
           video.src = p.source;
           video.muted = true;
         } else {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
-          });
+          const preferred = cameraConstraints(isPhoneDevice(navigator.userAgent));
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: preferred, audio: false });
+          } catch (e) {
+            // Older iPhones occasionally reject a detailed constraint set even though the
+            // front camera itself works. Retry the minimum safe request instead of failing.
+            if (!(e instanceof DOMException) || e.name !== "OverconstrainedError") throw e;
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+          }
           video.srcObject = stream;
         }
         /** Everything that happens for one video frame. t = seconds on the session clock, ts = tracker timestamp (ms). */
@@ -183,7 +202,37 @@ export function CameraSession(p: Props) {
           const world = result.worldLandmarks?.[0];
           if (!world) {
             draw(undefined, false, connections);
+            stableFrames = 0;
+            needsCounterReset = true;
+            showSetupIssue("Step into view so the camera can find you.");
             return;
+          }
+          const screen = result.landmarks?.[0];
+          const issue = poseSetupIssue(p.exerciseId, screen);
+          if (issue) {
+            draw(screen, false, connections);
+            stableFrames = 0;
+            needsCounterReset = true;
+            showSetupIssue(issue);
+            return;
+          }
+          // Require about half a second of a stable, complete body before collecting a
+          // rep. It prevents entering the frame or putting the phone down from becoming
+          // a false repetition on either an iPhone or a laptop webcam.
+          stableFrames++;
+          if (stableFrames <= 8) {
+            draw(screen, false, connections);
+            showSetupIssue("Hold still for a moment — camera check in progress.");
+            return;
+          }
+          if (needsCounterReset) {
+            counter.resetAfterTrackingGap();
+            needsCounterReset = false;
+          }
+          showSetupIssue(null);
+          if (!startSpoken) {
+            startSpoken = true;
+            speak(`Camera ready. ${p.exerciseName}, ${target} repetitions.`);
           }
           const frame: Frame = world.map((l) => [l.x, l.y, l.z] as Vec);
           const signal = profile.repSignal(frame);
@@ -192,7 +241,7 @@ export function CameraSession(p: Props) {
           kneesInFlags.push(kneesIn);
           kneesInRun = kneesIn ? kneesInRun + 1 : 0;
           setBend(Math.round(profile.liveValue(frame)));
-          draw(result.landmarks?.[0], kneesIn, connections);
+          draw(screen, kneesIn, connections);
 
           // Say it at the moment it happens: a live warning (knees caving) for about half a second, once per repetition.
           const liveCue = profile.liveWarningFault ? CUE[profile.liveWarningFault] : null;
@@ -265,16 +314,18 @@ export function CameraSession(p: Props) {
 
         await play();
         if (cancelled) return stop();
-        speak(`Let's start. ${p.exerciseName}, ${target} repetitions.`);
         if (p.source) video.onended = () => finish("ended");
 
         const loop = () => {
           if (cancelled || finished || !landmarker) return;
           raf = requestAnimationFrame(loop);
           if (video.readyState < 2 || video.currentTime === lastVideoTime) return;
+          const clock = performance.now();
+          if (clock - lastAnalysisTs < ANALYSIS_INTERVAL_MS - 1) return;
           lastVideoTime = video.currentTime;
-          const ts = Math.max(lastTs + 1, Math.round(performance.now()));
+          const ts = Math.max(lastTs + 1, Math.round(clock));
           lastTs = ts;
+          lastAnalysisTs = ts;
           processFrame(p.source ? video.currentTime : ts / 1000, ts);
         };
         raf = requestAnimationFrame(loop);
@@ -327,6 +378,11 @@ export function CameraSession(p: Props) {
           <div className="stage-loading">
             <span className="spinner" aria-hidden />
             <p>Getting the camera ready<small>Stand about 2.5 m back, so your whole body fits.</small></p>
+          </div>
+        )}
+        {status === "running" && setupIssue && (
+          <div className="stage-loading setup-check" role="status">
+            <p>Camera check<small>{setupIssue}</small></p>
           </div>
         )}
         <div className="hud top">

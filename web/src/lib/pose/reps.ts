@@ -65,6 +65,21 @@ export class RepCounter {
     return this.phase === "down";
   }
 
+  /**
+   * Start a fresh segment after the person was cropped or the camera paused. Keep the
+   * history for already completed reps, but never join movement on opposite sides of a
+   * tracking gap into a made-up repetition.
+   */
+  resetAfterTrackingGap(): void {
+    this.phase = "up";
+    this.segmentStart = this.times.length;
+    this.leftTop = -Infinity;
+    this.valley = -1;
+    this.risenAt = -1;
+    this.rightTop = -Infinity;
+    this.rightTopIndex = -1;
+  }
+
   /** Add one frame. Returns a repetition when one has just been completed. */
   push(time: number, kneeAngle: number): CompletedRep | null {
     const i = this.times.length;

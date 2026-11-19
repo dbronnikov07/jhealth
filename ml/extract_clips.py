@@ -1,4 +1,4 @@
-"""STEP A for your own data: recorded clips -> single squat repetitions.
+"""STEP A for your own data: recorded clips -> single-exercise repetitions.
 
 You record clips (see docs/RECORDING.md), put them in  clips/<person>/<label>_<number>.mp4  and run:
 
@@ -10,7 +10,7 @@ Exercises: squat, sit_to_stand, seated_knee_extension, arm_raise (see exercises.
 For every clip this script
   1. runs the MediaPipe pose tracker on it (the same tracker the browser will use),
   2. measures the knee angle over time,
-  3. cuts the clip into single squats (every dip of the knee angle is one repetition),
+  3. cuts the clip into single repetitions (every dip of that exercise's rep signal is one repetition),
   4. saves every repetition, with the person and the label taken from the folder and file name,
   5. draws a picture per clip (clips_report/) so you can SEE which repetitions were found.
 
@@ -22,6 +22,7 @@ Output: data/own_reps.npz, clips_report/*.png, clips_report/summary.csv
 import argparse
 import contextlib
 import csv
+import hashlib
 import os
 import re
 import sys
@@ -44,17 +45,48 @@ T = 64              # every repetition is stretched to 64 frames, like the publi
 SAMPLE_FPS = 15     # the tracker looks at about 15 frames per second, like when we built the public data
 MIN_REP_S, MAX_REP_S = 0.8, 12.0
 CAMERA_NAMES = ("img", "mov", "pxl", "vid", "screen", "video", "untitled", "photo")
+# Optional folder between participant and filename. Keeping this small prevents an
+# arbitrary session folder from being incorrectly reported as an iPhone validation set.
+DEVICE_FOLDERS = {"iphone", "phone", "android", "laptop", "webcam"}
+TORSO = [11, 12, 23, 24]
+LEFT_LEG, RIGHT_LEG = [23, 25, 27], [24, 26, 28]
+LEFT_ARM, RIGHT_ARM = [11, 13, 15], [12, 14, 16]
 
 
 # ---------------------------------------------------------------- names
 
 def parse_clip(path, root):
-    """clips/anna/knees_in_2.mp4  ->  person 'anna', label 'knees_in'."""
+    """clips/anna/iphone/knees_in_2.mp4 -> person, device, label.
+
+    The device folder is optional so the original clips/<person>/<label>.mp4 layout
+    remains supported. Unknown is intentional: it must not be presented as a tested
+    phone or laptop result later.
+    """
     parts = path.relative_to(root).parts
     person = parts[0] if len(parts) > 1 else "me"
+    device = parts[1].lower() if len(parts) > 2 and parts[1].lower() in DEVICE_FOLDERS else "unknown"
     label = re.sub(r"[ \-]+", "_", path.stem.lower())
     label = re.sub(r"(_?take)?_?\(?\d+\)?$", "", label).strip("_")
-    return person, label
+    return person, device, label
+
+
+def clear_joint_frames(found, visibility, exercise):
+    """Frames whose required joints are actually visible in the capture.
+
+    This mirrors the browser's camera preflight. Squat and sit-to-stand require both
+    legs; the one-sided arm raise and knee extension accept a clear working side in a
+    side-on recording rather than rejecting the naturally occluded far side.
+    """
+    def clear(indices):
+        return np.all(visibility[:, indices] >= 0.45, axis=1)
+    torso = clear(TORSO)
+    if exercise == "seated_knee_extension":
+        joints = torso & (clear(LEFT_LEG) | clear(RIGHT_LEG))
+    elif exercise == "arm_raise":
+        joints = torso & (clear(LEFT_ARM) | clear(RIGHT_ARM))
+    else:
+        joints = clear(TORSO + LEFT_LEG + RIGHT_LEG)
+    return found & joints
 
 
 # ---------------------------------------------------------------- tracking
@@ -129,7 +161,11 @@ def track_video(path, model_name):
 def tracked(path, model_name, cache_dir):
     """track_video with a cache, so changing a setting does not mean tracking the video again."""
     cache_dir.mkdir(parents=True, exist_ok=True)
-    key = f"{path.parent.name}__{path.stem}__{model_name}__{path.stat().st_size}.npz"
+    # Two devices commonly create good_1.mp4. The old key used only the immediate
+    # parent and filename, so it could accidentally reuse laptop landmarks for iPhone
+    # footage. The complete path prevents that silent cross-device leak.
+    identity = hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:12]
+    key = f"{path.stem}__{model_name}__{path.stat().st_size}__{identity}.npz"
     f = cache_dir / key
     if f.exists():
         d = np.load(f)
@@ -248,30 +284,34 @@ def main():
                  "see docs/RECORDING.md.")
     ns = notebook_code.load()
     args.report.mkdir(parents=True, exist_ok=True)
-    cols = {k: [] for k in ("lm", "person", "label", "good", "duration", "clip", "rep", "min_knee", "depth")}
+    cols = {k: [] for k in ("lm", "person", "device", "label", "good", "duration", "clip", "rep", "min_knee", "depth")}
     table, t0 = [], time.time()
 
     for n, path in enumerate(files, 1):
-        person, label = parse_clip(path, args.clips)
-        name = f"{person}/{path.name}"
+        person, device, label = parse_clip(path, args.clips)
+        name = f"{person}/{device}/{path.name}" if device != "unknown" else f"{person}/{path.name}"
         with quiet_native_logs():
             trk = tracked(path, args.model, CACHE / "own_tracks")
         times, world = trk["times"], trk["world"]
         found = ~np.isnan(world[:, 0, 0])
+        fully_visible = clear_joint_frames(found, trk["vis"], args.exercise)
+        visibility_coverage = float(fully_visible.mean())
         notes = []
         if found.mean() < 0.6:
             notes.append(f"person found in only {found.mean():.0%} of frames (rotated video? out of frame?)")
+        if visibility_coverage < 0.75:
+            notes.append(f"needed joints clear in only {visibility_coverage:.0%} of frames (step back and re-record)")
         if trk["fps"] and times[-1] < 5:
             notes.append("clip shorter than 5 s")
         reps, skipped = [], []
-        if found.mean() >= 0.6:
+        if found.mean() >= 0.6 and visibility_coverage >= 0.75:
             raw = ex["rep_signal"](fill_gaps(world.astype(np.float64).copy()))
             reps, smooth, skipped = find_reps(raw, SAMPLE_FPS, args.min_depth, args.edge, args.pad_start, args.pad_end)
             draw_report(args.report / f"{person}__{path.stem}.png", name, times, raw, smooth, reps, skipped, args.min_depth)
             for i, r in enumerate(reps, 1):
                 seg = fill_gaps(world[r["start"]:r["end"] + 1].astype(np.float64).copy())
                 cols["lm"].append(resample(seg, T).astype(np.float32))
-                for k, v in (("person", person), ("label", label), ("good", int(label == "good")),
+                for k, v in (("person", person), ("device", device), ("label", label), ("good", int(label == "good")),
                              ("duration", times[r["end"]] - times[r["start"]] + 1 / SAMPLE_FPS), ("clip", path.name),
                              ("rep", i), ("min_knee", r["min_knee"]), ("depth", r["depth"])):
                     cols[k].append(v)
@@ -279,10 +319,10 @@ def main():
             notes.append(f"found {len(reps)} reps, expected about {args.expected}: check clips_report/{person}__{path.stem}.png")
         if any("middle" in s["why"] for s in skipped) and len(skipped) > 2:
             notes.append("several dips skipped: start and end every clip standing upright")
-        row = {"person": person, "clip": path.name, "label": label, "reps": len(reps), "skipped": len(skipped),
+        row = {"person": person, "device": device, "clip": path.name, "label": label, "reps": len(reps), "skipped": len(skipped),
                "median_depth_deg": round(float(np.median([r["depth"] for r in reps])), 1) if reps else "",
                "median_seconds": round(float(np.median([(r["end"] - r["start"] + 1) / SAMPLE_FPS for r in reps])), 1) if reps else "",
-               "size": f'{trk["width"]}x{trk["height"]}', "notes": "; ".join(notes)}
+               "size": f'{trk["width"]}x{trk["height"]}', "clear_joint_coverage": round(visibility_coverage, 3), "notes": "; ".join(notes)}
         table.append(row)
         print(f"[{n}/{len(files)} {time.time() - t0:3.0f}s] {name:34s} label={label:13s} reps={len(reps):2d} "
               f"depth~{row['median_depth_deg']!s:>5} deg  {row['notes']}", flush=True)
@@ -299,6 +339,9 @@ def main():
 
     labels = sorted(set(out["label"]))
     print(f"\nsaved {args.out}: {len(out['good'])} repetitions from {len(set(out['person']))} people")
+    for device in sorted(set(out["device"])):
+        m = out["device"] == device
+        print(f"  device {device:8s} {int(m.sum()):4d} reps   people: {', '.join(sorted(set(out['person'][m])))}")
     for lab in labels:
         m = out["label"] == lab
         print(f"  {lab:14s} {m.sum():4d} reps   people: {', '.join(sorted(set(out['person'][m])))}")

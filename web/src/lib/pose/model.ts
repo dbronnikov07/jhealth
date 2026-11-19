@@ -8,6 +8,7 @@ type Logistic = { mean: number[]; scale: number[]; weights: number[]; bias: numb
 type Tree = { feature: number[]; threshold: number[]; left: number[]; right: number[]; p_mistake: number[] };
 type Softmax = { classes: string[]; mean: number[]; scale: number[]; weights: number[][]; bias: number[] };
 type BoostedTree = { feature: number[]; threshold: number[]; left: number[]; right: number[]; leaf: number[]; value: number[] };
+type CaptureDeviceResults = Record<string, { reps: number; people: number; "macro F1": number | null; accuracy?: number; note?: string }>;
 type Member =
   | ({ type: "logistic" } & Logistic)
   | { type: "forest"; trees: Tree[] }
@@ -23,7 +24,7 @@ export type ExportedModel = ModelSpec & {
   quality?: Logistic & { type: "logistic" };
   fault?: Softmax | null;
   trees?: Tree[];
-  tested_on_unseen_people?: Record<string, number | string>;
+  tested_on_unseen_people?: Record<string, number | string | CaptureDeviceResults>;
   /** Set by ml/train_exercise.py when the model was trained with every dataset on its own scale: the browser's
    *  camera features are first put on the camera data's scale, then given to the model. */
   input_scale?: { source: string; mean: number[]; scale: number[] };
