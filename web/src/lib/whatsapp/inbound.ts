@@ -1,0 +1,139 @@
+// Handles what WhatsApp sends to our webhook: patients' messages and delivery receipts.
+import { getDb } from "../db";
+import { quickReplyAction, TIME_BUTTONS } from "../quick-replies";
+import { assessMessage, HIGH_PAIN_REPLY } from "../safety";
+import { raiseSafetyAlert } from "../safety-actions";
+
+type Contact = { wa_id?: string; user_id?: string; profile?: { name?: string } };
+type IncomingMessage = {
+  id: string;
+  from?: string;
+  from_user_id?: string;
+  timestamp?: string;
+  type: string;
+  text?: { body?: string };
+  button?: { text?: string; payload?: string };
+  interactive?: { button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } };
+};
+type StatusUpdate = { id: string; status: string; errors?: { code?: number | string; title?: string; message?: string; error_data?: { details?: string } }[] };
+type WebhookBody = {
+  object?: string;
+  entry?: { changes?: { field?: string; value?: { contacts?: Contact[]; messages?: IncomingMessage[]; statuses?: StatusUpdate[] } }[] }[];
+};
+
+const WELCOME =
+  "Hi, this is the jHealth coach. I help you do the exercises your physiotherapist prescribes, and I tell them how it's going.\n" +
+  "Your physiotherapist will send your plan here.\n\n" +
+  "When would you like your daily reminder?";
+
+function textOf(m: IncomingMessage): string {
+  return (
+    m.text?.body ??
+    m.button?.text ??
+    m.interactive?.button_reply?.title ??
+    m.interactive?.list_reply?.title ??
+    `[${m.type} message]`
+  );
+}
+
+/**
+ * Returns the patients who may now have messages to send (replies, or messages waiting for the 24-hour window),
+ * and the ordinary messages the AI coach should answer (after the webhook has answered Meta).
+ */
+export async function handleWebhook(body: WebhookBody): Promise<{ patients: string[]; toCoach: { patientId: string; messageId: string }[] }> {
+  const db = await getDb();
+  const touched = new Set<string>();
+  const toCoach: { patientId: string; messageId: string }[] = [];
+
+  for (const entry of body.entry ?? []) {
+    for (const change of entry.changes ?? []) {
+      if (change.field !== "messages" || !change.value) continue;
+      const { contacts = [], messages = [], statuses = [] } = change.value;
+
+      for (const s of statuses) {
+        const error = s.errors?.[0];
+        await db.query("select apply_message_status($1, $2, $3, $4)", [
+          s.id, s.status, error?.code != null ? String(error.code) : null,
+          error ? (error.error_data?.details ?? error.message ?? error.title ?? "Delivery failed") : null,
+        ]);
+      }
+
+      for (const m of messages) {
+        const phone = m.from ? `+${m.from}` : null;
+        const userId = m.from_user_id ?? null;
+        if (!phone && !userId) continue;
+        const contact = contacts.find((c) => (m.from && c.wa_id === m.from) || (userId && c.user_id === userId));
+
+        // Who is this? Look the patient up by phone or WhatsApp user ID; a new person is created and,
+        // through the database trigger, linked to the default doctor.
+        let [patient] = await db.query<{ id: string; whatsapp_user_id: string | null }>(
+          "select id, whatsapp_user_id from patients where phone = $1 or (whatsapp_user_id is not null and whatsapp_user_id = $2) limit 1",
+          [phone, userId],
+        );
+        let isNew = false;
+        if (!patient) {
+          const name = contact?.profile?.name?.trim() || (phone ? `WhatsApp ${phone.slice(-4)}` : "WhatsApp user");
+          [patient] = await db.query<{ id: string; whatsapp_user_id: string | null }>(
+            `insert into patients (display_name, phone, whatsapp_user_id, condition)
+             values ($1, $2, $3, 'Not assessed yet') returning id, whatsapp_user_id`,
+            [name, phone, userId],
+          );
+          isNew = true;
+        } else if (userId && !patient.whatsapp_user_id) {
+          await db.query("update patients set whatsapp_user_id = $2 where id = $1", [patient.id, userId]);
+        }
+
+        // Store the message. WhatsApp may deliver the same webhook more than once: the unique message id
+        // makes the second copy a no-op.
+        const text = textOf(m);
+        // created_at is when we received it (precise ordering); WhatsApp's own whole-second time is kept in payload.
+        const [stored] = await db.query<{ id: string }>(
+          `insert into messages (patient_id, direction, kind, body, payload, status, provider_id)
+           values ($1, 'in', $2, $3, $4::jsonb, 'received', $5)
+           on conflict (provider_id) do nothing returning id`,
+          [patient.id, m.type === "text" ? "text" : "buttons", text,
+           JSON.stringify({ type: m.type, whatsapp_timestamp: m.timestamp ?? null }), m.id],
+        );
+        if (!stored) continue; // duplicate delivery
+        touched.add(patient.id);
+
+        // The patient just wrote, so the 24-hour window is open: re-queue anything WhatsApp refused for that reason.
+        await db.query("select requeue_after_reply($1)", [patient.id]);
+
+        // A tapped quick-reply button (reminder time, "what got in the way?") is handled by code, not the AI.
+        const tapped = quickReplyAction(m.interactive?.button_reply?.id);
+        if (tapped && !isNew) {
+          if (tapped.kind === "set_time") {
+            await db.query("update patients set reminder_hour = $2 where id = $1", [patient.id, tapped.hour]);
+          }
+          if (tapped.kind === "pain") {
+            await raiseSafetyAlert({ patientId: patient.id, level: "high_pain",
+              reason: "pain as the reason for missing sessions", reply: HIGH_PAIN_REPLY, sourceMessageId: stored.id });
+          } else {
+            await db.query(
+              "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+              [patient.id, tapped.reply, JSON.stringify({ type: "quick_reply_answer", in_reply_to: stored.id,
+                quick_replies: tapped.kind === "reply" ? tapped.buttons : undefined,
+                start_button: tapped.kind === "reply" ? tapped.startButton : undefined })],
+            );
+          }
+          continue;
+        }
+
+        // The pain rule (code, not a language model) decides first. A message it flags never reaches the AI coach.
+        const safety = assessMessage(text);
+        if (safety) {
+          await raiseSafetyAlert({ patientId: patient.id, ...safety, sourceMessageId: stored.id });
+        } else if (isNew) {
+          await db.query(
+            "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+            [patient.id, WELCOME, JSON.stringify({ type: "welcome", quick_replies: TIME_BUTTONS })],
+          );
+        } else {
+          toCoach.push({ patientId: patient.id, messageId: stored.id });
+        }
+      }
+    }
+  }
+  return { patients: [...touched], toCoach };
+}

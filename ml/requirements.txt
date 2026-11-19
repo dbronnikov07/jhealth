@@ -1,0 +1,11 @@
+mediapipe
+remotezip
+numpy
+pandas
+scikit-learn
+matplotlib
+torch
+ipykernel
+nbclient
+nbformat
+scipy

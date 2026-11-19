@@ -1,0 +1,30 @@
+# Secrets: never commit. Keys live in web/.env.local only.
+.env
+.env.*
+!.env.example
+**/.env.local
+
+# Dependencies and builds
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Data: derived from research-licensed datasets (REHAB24-6, REHAB26 are CC BY-NC) and regenerable with the
+# scripts in ml/; large. Recordings of real people (faces) never go into the repository.
+ml/data/
+*.npz
+clips/*/
+clips_report*/
+clips_sit_to_stand/
+web/public/test/
+
+# Local logs and scratch
+web/scripts/mock-whatsapp.jsonl
+*.log
+.DS_Store
+.vscode/
+.idea/

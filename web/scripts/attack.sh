@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Tries to break into our own app the way an outsider would, and says PASS when the attack is refused.
+# Run against the local dev server (npm run dev) from web/:   bash scripts/attack.sh
+# "Outside" requests carry the headers a Cloudflare tunnel adds, so the app treats them exactly like internet traffic.
+set -u
+BASE=${BASE:-http://localhost:3100}
+OUT=(-H "X-Forwarded-For: 203.0.113.9" -H "cf-connecting-ip: 203.0.113.9")
+pass=0; fail=0
+check() { # name, expected (regex), actual
+  if [[ "$3" =~ ^($2)$ ]]; then echo "  PASS  $1  ($3)"; pass=$((pass+1)); else echo "  FAIL  $1  (got $3, wanted $2)"; fail=$((fail+1)); fi; }
+code() { curl -s -o /dev/null -m 60 -w "%{http_code}" "$@"; }
+
+echo "Dashboard and private files from outside"
+check "dashboard home"                   "503|401" "$(code "${OUT[@]}" "$BASE/doctor")"
+check "a patient record"                 "503|401" "$(code "${OUT[@]}" "$BASE/doctor/patients/00000000-0000-4000-8000-000000000000")"
+check "new-patient form"                 "503|401" "$(code "${OUT[@]}" "$BASE/doctor/patients/new")"
+check "research test video"              "503|401" "$(code "${OUT[@]}" "$BASE/test/squat_clip.mp4")"
+check "wrong password x1"                "401|503" "$(code "${OUT[@]}" -u doctor:guess "$BASE/doctor")"
+check "case trick /DOCTOR"               "404|503|401" "$(code "${OUT[@]}" "$BASE/DOCTOR")"
+check "encoded path /%64octor"           "404|503|401" "$(code "${OUT[@]}" "$BASE/%64octor")"
+check "trailing dot /doctor/."           "404|503|401|308" "$(code "${OUT[@]}" "$BASE/doctor/.")"
+
+echo "Files that must never be served"
+for p in /.env.local /web/.env.local /../.env.local /%2e%2e/.env.local /models/../../.env.local /_next/../.env.local /package.json /next.config.ts /src/lib/db.ts /.git/config; do
+  check "GET $p" "404|400|308" "$(code "${OUT[@]}" --path-as-is "$BASE$p")"
+done
+
+echo "WhatsApp webhook"
+check "unsigned fake message from outside" "503|401" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/json' -d '{"object":"whatsapp_business_account","entry":[]}' "$BASE/api/whatsapp")"
+check "forged signature from outside"     "503|401" "$(code "${OUT[@]}" -X POST -H 'X-Hub-Signature-256: sha256=deadbeef' -d '{}' "$BASE/api/whatsapp")"
+check "oversized body (600 kB)"           "413|503" "$(head -c 600000 /dev/zero | tr '\0' 'a' | curl -s -o /dev/null -m 60 -w '%{http_code}' "${OUT[@]}" -X POST --data-binary @- "$BASE/api/whatsapp")"
+check "verify with a wrong token"         "403" "$(code "${OUT[@]}" "$BASE/api/whatsapp?hub.mode=subscribe&hub.verify_token=guess&hub.challenge=1")"
+
+echo "Reminder trigger"
+check "run reminders from outside"        "403" "$(code "${OUT[@]}" "$BASE/api/cron/reminders?force=1")"
+check "with a made-up secret"             "403" "$(code "${OUT[@]}" -H 'Authorization: Bearer guess' "$BASE/api/cron/reminders")"
+
+echo "Patient links and session API"
+check "made-up patient link"              "404" "$(code "${OUT[@]}" "$BASE/s/$(printf 'a%.0s' {1..64})")"
+check "malformed patient link"            "404" "$(code "${OUT[@]}" "$BASE/s/'%20or%201=1--")"
+check "session save, made-up token"       "404|400" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/json' -d "{\"token\":\"$(printf 'b%.0s' {1..64})\",\"exercise_id\":\"squat\"}" "$BASE/api/session")"
+check "session save, SQL injection"       "404|400" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/json' -d "{\"token\":\"' or '1'='1\",\"exercise_id\":\"x' ; drop table patients;--\"}" "$BASE/api/session")"
+check "session save, oversized"           "413" "$(head -c 300000 /dev/zero | tr '\0' 'a' | curl -s -o /dev/null -m 60 -w '%{http_code}' "${OUT[@]}" -X POST -H 'Content-Type: application/json' -H 'Content-Length: 300000' --data-binary @- "$BASE/api/session")"
+check "pain button, made-up token"        "404" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/json' -d "{\"token\":\"$(printf 'c%.0s' {1..64})\"}" "$BASE/api/session/pain")"
+
+echo "Headers"
+H=$(curl -s -D - -o /dev/null -m 60 "${OUT[@]}" "$BASE/")
+for h in "content-security-policy" "x-frame-options: DENY" "x-content-type-options: nosniff" "referrer-policy" "permissions-policy: camera=(self)"; do
+  check "header $h" "yes" "$(grep -qi "^$h" <<<"$H" && echo yes || echo no)"
+done
+check "no X-Powered-By" "absent" "$(grep -qi '^x-powered-by' <<<"$H" && echo present || echo absent)"
+check "frame-ancestors 'none'" "yes" "$(grep -qi "frame-ancestors 'none'" <<<"$H" && echo yes || echo no)"
+
+echo
+echo "$pass passed, $fail failed"
+[ "$fail" = 0 ]

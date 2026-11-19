@@ -1,0 +1,25 @@
+model,exercise,accuracy,F1 (mistake),macro F1,AUC
+always 'correct',squat,0.687,0.0,0.407,0.5
+always 'correct',lunge,0.449,0.0,0.31,0.5
+always 'correct',leg abduction,0.571,0.0,0.364,0.5
+always 'correct',arm abduction,0.506,0.0,0.336,0.5
+always 'correct',arm VW,0.452,0.0,0.311,0.5
+always 'correct',ALL,0.535,0.0,0.349,0.5
+logistic regression,squat,0.754,0.622,0.72,0.823
+logistic regression,lunge,0.658,0.701,0.651,0.683
+logistic regression,leg abduction,0.764,0.721,0.759,0.844
+logistic regression,arm abduction,0.635,0.626,0.635,0.682
+logistic regression,arm VW,0.695,0.705,0.694,0.782
+logistic regression,ALL,0.704,0.68,0.703,0.774
+random forest,squat,0.705,0.542,0.662,0.772
+random forest,lunge,0.617,0.693,0.593,0.659
+random forest,leg abduction,0.762,0.702,0.752,0.841
+random forest,arm abduction,0.697,0.698,0.697,0.759
+random forest,arm VW,0.695,0.718,0.693,0.753
+random forest,ALL,0.698,0.681,0.697,0.774
+1D-CNN,squat,0.736,0.62,0.709,0.758
+1D-CNN,lunge,0.69,0.737,0.68,0.739
+1D-CNN,leg abduction,0.731,0.683,0.725,0.798
+1D-CNN,arm abduction,0.635,0.643,0.635,0.735
+1D-CNN,arm VW,0.666,0.685,0.665,0.71
+1D-CNN,ALL,0.693,0.678,0.692,0.754
