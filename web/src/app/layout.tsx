@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next } from "next/font/google";
+import { Atkinson_Hyperlegible_Mono, Figtree } from "next/font/google";
 import "./globals.css";
 
-// Atkinson Hyperlegible was drawn for readers with low vision: the right face for patients aged 55 and up.
-// The mono cut is used for every measured number (degrees, reps, scores), so measurements read like an instrument.
-const sans = Atkinson_Hyperlegible_Next({ subsets: ["latin"], variable: "--font-sans", display: "swap", adjustFontFallback: false });
+// Figtree: open, friendly and very legible at large sizes (the body face Sword Health uses; recommended for
+// healthcare). Atkinson Hyperlegible Mono, drawn for readers with low vision, sets every measured number
+// (degrees, reps, scores), so measurements read like an instrument.
+const sans = Figtree({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const mono = Atkinson_Hyperlegible_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap", adjustFontFallback: false });
 
 export const metadata: Metadata = {
