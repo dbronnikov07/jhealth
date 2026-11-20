@@ -28,6 +28,139 @@ def table(head, rows):
     return "\n".join(["| " + " | ".join(head) + " |", "|" + "---|" * len(head)] + ["| " + " | ".join(str(c) for c in r) + " |" for r in rows])
 
 
+MD, R26, R24 = "phone (Mendeley, gym)", "phone (REHAB26)", "fixed camera (REHAB24-6)"
+SIGNAL = {"avg_knee": "knee angle", "avg_hip": "hip angle (trunk to thigh)", "avg_thigh_incl": "thigh tilt away from vertical", "avg_thigh_fwd": "how far the thighs point forward",
+          "avg_knee_fwd": "how far the knees travel ahead of the ankles", "trunk_lean": "trunk lean away from upright", "shoulder_tilt": "shoulder tilt", "pelvis_tilt": "pelvis tilt",
+          "knee_gap": "distance between the knees (in hip widths)", "ankle_gap": "stance width (in hip widths)", "hip_h": "hip height (in leg lengths)", "thigh_spread": "angle between the two thighs"}
+STAT = {"min": "lowest value in the rep", "max": "highest value in the rep", "range": "range over the rep", "mean": "average over the rep", "std": "variation over the rep",
+        "when_min": "when the lowest value happens", "when_max": "when the highest value happens", "speed": "average speed of change", "peak_speed": "fastest change",
+        "jerk": "jerkiness", "first_vs_second_half": "first half minus second half"}
+# Plain words for the features that came out on top (written after looking at the measured direction of each).
+PLAIN = {"avg_hip:min": "the hips fold less at the bottom (trunk-to-thigh angle stays more open): a shallower squat",
+         "avg_thigh_incl:std": "the thighs move less over the repetition",
+         "avg_thigh_incl:range": "the thighs swing through a smaller arc",
+         "avg_hip:range": "the hip angle changes less between standing and the bottom",
+         "avg_thigh_incl:max": "the thighs stay further from level at the bottom: a shallower squat",
+         "avg_knee:mean": "the knees stay straighter on average",
+         "avg_thigh_incl:mean": "the thighs are more upright on average",
+         "avg_hip:std": "the hip angle varies less over the repetition",
+         "avg_hip:mean": "the hips stay more open on average",
+         "avg_knee:min": "a smaller knee bend at the bottom: a shallower squat"}
+
+
+def describe(feature, d):
+    if feature == "duration":
+        return "time per repetition: " + ("longer" if d > 0 else "shorter") + " in bad reps"
+    sig, stat = feature.split(":")
+    name = SIGNAL.get(sig) or ("left-right difference in " + SIGNAL.get(sig.replace("diff_", "avg_"), sig) if sig.startswith("diff_") else sig)
+    return f"{name}, {STAT[stat]}: {'higher' if d > 0 else 'lower'} in bad reps"
+
+
+def cell(g, k):
+    v = g.get(k)
+    return "n/a" if v is None else f"{f(v['macro_f1'])}, {f(v['auc'])}, {f(v['precision_mistake'])} / {f(v['recall_mistake'])}"
+
+
+def mendeley_section(w, res, fin):
+    me, mr = load("mendeley_eval.json"), load("mendeley_reps.json")
+    EQ, PL = "3c_combined | ensemble | balanced + datasets weighted equally", "3c_combined | ensemble | balanced"
+    w("## 11. New squat data: Mendeley multi-view fitness dataset (added 19 November, evening)\n")
+    w("\"A Multi-View Raw Video Dataset of Seven Fitness Exercises with Good/Bad Form Labels\" (Mendeley Data, DOI 10.17632/kgbb3yn47p.3, CC BY 4.0): people filmed on smartphones in a gym, "
+      "bodyweight squats, front / side / diagonal views, about 31 s per clip at 15 frames per second, faces blurred. **One label per clip** (good or bad form); the dataset page does not say which mistakes make a clip bad. "
+      "Every repetition inherits its clip's label, so some repetitions inside a \"bad\" clip may be fine. Script: `ml/mendeley_squat.py`.\n")
+    w("**Tracking and cutting.** Same tracker and settings as the REHAB24-6 body points the squat model is trained on (MediaPipe heavy model, video mode, one person, 15 frames per second). "
+      "Repetitions are cut by the project's own cutter (`extract_clips.find_reps`, squat settings). A clip is used when the person is found in at least 60% of frames; a repetition is dropped when the tracker lost the person "
+      "in more than 20% of it or drew the body upside down (shoulders below hips) in more than 10% of it. These rules never look at the label.\n")
+    rb, zv, up, app = mr["reps_by_view"], mr["zero_rep_clips_by_view"], mr["clips_where_body_is_upside_down_in_over_10pct_of_frames"], mr["clips_the_app_camera_check_would_refuse (both legs clear in under 75% of frames)"]
+    w(table(["View", "Clips tracked", "Clips with zero usable repetitions", "Clips where the tracker drew the body upside down in over 10% of frames", "Clips the app's camera check would refuse (both legs clearly visible in under 75% of frames)",
+             "People with repetitions", "Repetitions: good", "Repetitions: bad"],
+            [[v, mr["clips_by_view"][v], zv[v], up[v], app[v], mr["people_by_view"][v], rb[v]["good"], rb[v]["bad"]] for v in ("front", "side", "diagonal")]
+            + [["all", mr["clips_tracked"], mr["clips_with_zero_reps"], sum(up.values()), sum(app.values()), mr["people_with_reps"], mr["reps_good"], mr["reps_bad"]]]))
+    pp = mr["reps_per_person"]
+    w(f"\n{mr['clips_tracked']} of {mr['clips_downloaded']} downloaded clips were tracked. {mr['reps']} repetitions from {mr['people_with_reps']} people; per person min {pp['min']}, median {pp['median']:.0f}, max {pp['max']}; "
+      f"per clip min {mr['reps_per_clip']['min']}, median {mr['reps_per_clip']['median']:.0f}, max {mr['reps_per_clip']['max']}. "
+      f"Zero-repetition clips by label: {mr['zero_rep_clips_by_label']['good']} good, {mr['zero_rep_clips_by_label']['bad']} bad. "
+      f"Repetitions dropped because the body was drawn upside down: {mr['reps_dropped_flipped_body']}; because the person was lost: {mr['reps_dropped_person_lost']}. "
+      "More than half of the upside-down clips are side views. The cause was not investigated; a guess is that the blurred faces and a side-on body make the tracker's person detector misjudge which way up the body is.\n")
+
+    w("**Tested on Mendeley people** (macro F1, AUC, precision / recall of the mistake class; every view of the tested person is out of training):\n")
+    a, t, e_, p_ = me["3a_mendeley_alone"]["groups"], me["3b_transfer"]["groups"], me.get(EQ, {}).get("groups", {}), me.get(PL, {}).get("groups", {})
+    names = [(MD, "Mendeley, all views"), ("Mendeley front", "front"), ("Mendeley side", "side"), ("Mendeley diagonal", "diagonal"), ("Mendeley, clips the app's camera check accepts", "only clips the app's camera check accepts")]
+    w(table(["Test repetitions", "People / reps (bad)", "3a. Trained on Mendeley alone", "3b. Current REHAB-only model, no retraining", "3c. One model from all three datasets (datasets weighted equally)", "3c. Same, no dataset weights"],
+            [[lab, f"{a[k]['people']} / {a[k]['reps']} ({a[k]['mistake_reps']})" if k in a else "n/a", cell(a, k), cell(t, k), cell(e_, k), cell(p_, k)] for k, lab in names]))
+    fl = me["3b_transfer"]["at_flag_threshold"]
+    w(f"\nAlways saying \"correct\" scores {f(a[MD]['floor_always_correct'])} macro F1 on Mendeley. With no retraining, the current model calls {fl['share_of_good_reps_called_mistake_at_0.5']:.1%} of Mendeley's \"good\" repetitions a mistake at the 0.5 cut-off; "
+      f"at the app's flag cut-off ({fl['threshold']:.2f}) it flags {fl['flagged']} repetitions, precision {f(fl['precision'])}, recall {f(fl['recall'])}.\n")
+    w("**Tested on REHAB people** (the two device groups of sections 1 to 7), with and without Mendeley in training:\n")
+    own = res["squat"][fin["squat"]]
+    rows = []
+    for k, old in ((R26, own[PHONE]), (R24, own[FIXED])):
+        rows.append([k, f"{old['people']} / {old['reps']}", f"{f(old['macro_f1'])}, {f(old['auc'])}, {f(old['precision_mistake'])} / {f(old['recall_mistake'])}", cell(e_, k), cell(p_, k)])
+    w(table(["Device group", "People / reps", "REHAB-only model (current)", "All three datasets, weighted equally", "All three datasets, no dataset weights"], rows))
+    if (OUT / "curve_squat_mendeley.json").exists():
+        c = load("curve_squat_mendeley.json")
+        w(f"\n**Learning curve, larger pool ({c['people']} people).** Hidden person as always, training people drawn at random from all three datasets ({c['repeats']} draws per size; ± is the spread). Model: {c['model']}.\n")
+        rows = []
+        for k in sorted(c["points"], key=int):
+            row = [k, f"{np.mean([r['train_reps'] for r in c['points'][k]]):.0f}"]
+            for g in ("all", R26, R24, MD):
+                v = [r[g] for r in c["points"][k] if g in r]
+                row.append("n/a" if not v else (f"{np.mean(v):.3f} ± {np.std(v):.3f}" if len(v) > 1 else f"{v[0]:.3f}"))
+            rows.append(row)
+        w(table(["People in training", "Reps in training (average)", "All reps pooled", R26, R24, MD], rows))
+    bad = me["3e_what_bad_means"]
+    w("\n**What \"bad\" means in this dataset** (measured, since the page does not say). The five features whose average differs most between bad and good repetitions, in standard deviations:\n")
+    w(table(["Feature", "In plain words", "Bad minus good (standard deviations)", "Average: good", "Average: bad", "Same direction in how many people"],
+            [[f"`{t_['feature']}`", PLAIN.get(t_["feature"], describe(t_["feature"], t_["standardised_difference_bad_minus_good"])), f"{t_['standardised_difference_bad_minus_good']:+.2f}",
+              f"{t_['mean_good']:.3f}", f"{t_['mean_bad']:.3f}", f"{t_['people_with_the_same_direction']} of {t_['people_with_both_labels']}"] for t_ in bad["top"][:5]]))
+    pl = bad["plain"]
+    w(f"\nAll five say the same thing: on average a \"bad\" repetition is a shallower squat (hips and thighs travel less). It is also slightly quicker "
+      f"(median {pl['bad']['median_seconds']:.2f} s against {pl['good']['median_seconds']:.2f} s). The direction holds for 16 to 19 of the 25 people, not for all: what counts as bad varies from person to person. "
+      "In side views the features that differ most are left-right knee differences, which a side view cannot really see, so part of the signal there is tracking noise.\n")
+    ctx = bad.get("depth_and_tempo_by_dataset")
+    if ctx:
+        w("How deep and how fast the squats are in each dataset (median lowest knee angle, where 180 is a straight leg; median seconds per repetition):\n")
+        w(table(["Dataset", "Correct / good: lowest knee angle", "seconds", "Mistake / bad: lowest knee angle", "seconds"],
+                [[k, f"{v['correct or good']['median_lowest_knee_angle']:.1f}", f"{v['correct or good']['median_seconds']:.2f}",
+                  f"{v['mistake or bad']['median_lowest_knee_angle']:.1f}", f"{v['mistake or bad']['median_seconds']:.2f}"] for k, v in ctx.items()]))
+        w("")
+    # ---- model decision, by the same rule as before, applied to the configuration named in advance (datasets weighted equally)
+    cur = {R26: own[PHONE], R24: own[FIXED]}
+    better = [k for k in cur if e_[k]["macro_f1"] > cur[k]["macro_f1"]]
+    worse = [k for k in cur if e_[k]["macro_f1"] < cur[k]["macro_f1"] - 0.01]
+    passes = bool(better) and not worse
+    replaced = fin.get("squat_model") == "combined"
+    ext = load("extras.json")
+    pb, pa = ext["squat"][fin["squat"]]["per_person_macro_f1"], me[EQ]["per_person_macro_f1"]
+    counts = "; ".join(f"{g}: better for {sum(pa[q] > pb[q] + 1e-9 for q in pb if q.startswith(tag))} of {sum(q.startswith(tag) for q in pb)} people, "
+                       f"worse for {sum(pa[q] < pb[q] - 1e-9 for q in pb if q.startswith(tag))}" for tag, g in (("R26", R26), ("R24", R24)))
+    w(f"**Model decision: `squat.json` was {'replaced' if replaced else 'not replaced'}.** The rule: replace only if the new model is better on one REHAB device group and not worse by more than 0.01 on the other. "
+      f"With Mendeley in training (datasets weighted equally, the configuration named before the run) macro F1 goes from {f(cur[R26]['macro_f1'])} to {f(e_[R26]['macro_f1'])} on {R26} "
+      f"and from {f(cur[R24]['macro_f1'])} to {f(e_[R24]['macro_f1'])} on {R24}; AUC goes from {f(cur[R26]['auc'])} to {f(e_[R26]['auc'])} and from {f(cur[R24]['auc'])} to {f(e_[R24]['auc'])}. "
+      f"The rule is {'met' if passes else 'not met'}. Per person ({counts}). On Mendeley's own people that combined model scores {f(e_[MD]['macro_f1'])} (AUC {f(e_[MD]['auc'])}); "
+      f"the model that stays in the app scores {f(t[MD]['macro_f1'])} (AUC {f(t[MD]['auc'])}) there, which is chance level.\n")
+    if passes != replaced:
+        w("**Note: the rule and the state of the model file disagree; check before relying on this section.**\n")
+    c = bad.get("depth_and_tempo_by_dataset", {})
+    if c:
+        w(f"**Why adding 25 people did not help.** The labels mean different things. Mendeley's squats are deep gym squats: \"good\" repetitions reach a knee angle of {c[MD]['correct or good']['median_lowest_knee_angle']:.1f} degrees "
+          f"and \"bad\" ones {c[MD]['mistake or bad']['median_lowest_knee_angle']:.1f}, both deeper than REHAB's correct squats ({c[R26]['correct or good']['median_lowest_knee_angle']:.1f} on phones, "
+          f"{c[R24]['correct or good']['median_lowest_knee_angle']:.1f} on the fixed camera). In Mendeley the deeper squat is the good one; on REHAB24-6's fixed camera the mistakes are on average the deeper ones "
+          f"({c[R24]['mistake or bad']['median_lowest_knee_angle']:.1f} against {c[R24]['correct or good']['median_lowest_knee_angle']:.1f} degrees). "
+          "So the two sets of labels pull the model in opposite directions on depth, and the fixed-camera group pays for it. \"Bad\" in Mendeley is a gym standard (not deep enough); "
+          "a REHAB26 mistake is one named fault (knees inside, too shallow, lifted heels, torso to the side, knees forward).\n")
+    w("**Skipped and not verified.**\n")
+    w(f"- {mr['clips_downloaded'] - mr['clips_tracked']} of {mr['clips_downloaded']} clips were not tracked (diagonal views of the last people): the 70-minute tracking budget was used up. Front and side views are complete.")
+    w("- What makes a clip \"bad\" is not documented; the description above is measured from the body points, not taken from the authors.")
+    w("- One label per clip is applied to every repetition in it. How many repetitions in a \"bad\" clip are actually fine is unknown.")
+    w("- Mendeley's people are assumed to be different from REHAB's people (different country and setting; not checkable).")
+    w("- Side views: the app's own camera check would refuse all of them (far leg hidden), and the tracker drew the body upside down in several; those repetitions were dropped, the rest kept, as for REHAB's profile views.")
+    w("- A good and a bad clip of the same person and view are separate recordings; a model could pick up recording differences instead of form. Leave-one-person-out does not rule that out.")
+    w("- Because `squat.json` was not replaced, nothing was re-exported and the sit-to-stand stand-in result in SIT_TO_STAND_CAMERA.md still applies to the model in the app.\n" if not replaced else
+      "- The sit-to-stand stand-in result in SIT_TO_STAND_CAMERA.md was measured with the previous squat model and has not been re-measured with the new one.\n")
+    w("![Data overview](img/data_overview.png)\n")
+
+
 def main():
     res = {ex: load(f"results_{ex}.json") for ex in EXS}
     ext, fin = load("extras.json"), load("final.json")
@@ -37,13 +170,14 @@ def main():
 
     w("# ML results: final training round (19 November 2026)\n")
     w("Per-repetition \"correct vs mistake\" models for chair squat, arm raise to the side and sit-to-stand. "
-      "Every number below was measured by `ml/final_round.py`; this file is written by `ml/final_round_report.py` from its output, so nothing is retyped.\n")
+      "Sections 1 to 10 were measured by `ml/final_round.py` and section 11 by `ml/mendeley_squat.py`; this file is written by `ml/final_round_report.py` from their output, so those numbers are not retyped. "
+      "The sit-to-stand camera test in section 1 is the exception: it is quoted from [SIT_TO_STAND_CAMERA.md](SIT_TO_STAND_CAMERA.md).\n")
     w("**How every number is tested.** Leave one person out: all repetitions of the hidden person, from every camera and view, are removed from training; "
       "the model is trained on everyone else and scored on the hidden person; repeated for each person. Settings are fixed in the script or chosen inside the training people only. "
       "Features are unchanged (the browser computes the same ones). Macro F1 uses the cut-off 0.5. \"Precision\" and \"recall\" are for the mistake class: "
       "of the reps called a mistake, the share that were one; of the real mistakes, the share that were caught.\n")
     w("**Device groups.** *Phone* = REHAB26-ViewAngles (three iPhones, front to profile). *Fixed camera (webcam-like)* = REHAB24-6 (two fixed cameras). "
-      "No laptop-webcam recordings with labels exist; REHAB24-6 is the stand-in.\n")
+      "For squat and arm raise no labelled laptop-webcam recordings exist; REHAB24-6 is the stand-in.\n")
 
     w("## 1. Before and after\n")
     w(f"Before = the models in the app until today (soft-vote ensemble of logistic regression, random forest and gradient boosting, trained on both camera datasets). "
@@ -59,12 +193,19 @@ def main():
              "Precision / recall before", "Precision / recall after", "Always \"correct\" floor"], rows))
     s = ext["lab"]["UI-PRMD sit-to-stand"]
     sl = s["logistic C=0.1"]
-    w(f"\n**Sit-to-stand: no labelled camera data exists, so there is no camera score.** The only number is on Vicon motion capture (UI-PRMD): "
-      f"{s['people']} people, {sl['reps']} repetitions ({sl['mistake_reps']} with a mistake), logistic regression. Re-measured today from the cached body points: "
-      f"macro F1 {f(sl['macro_f1'])}, AUC {f(sl['auc'])}, precision {f(sl['precision_mistake'])}, recall {f(sl['recall_mistake'])}. "
-      "The number stored with the exported `sit_to_stand.json` on 18 November is macro F1 0.904, AUC 0.978; the difference is 2 of 199 repetitions and was not tracked down "
-      "(same model recipe as far as the code shows; a guess is full-precision body points then and the rounded cache now). Quote 0.90, on motion capture only. "
-      "Models trained on motion capture lose a lot on camera points (squat 0.83 to 0.55, measured earlier by `transfer_check.py`). `sit_to_stand.json` was not changed.\n")
+    w("\n**Sit-to-stand** has no camera-trained model, but since the evening of 19 November it has a camera test. Detail and method: [SIT_TO_STAND_CAMERA.md](SIT_TO_STAND_CAMERA.md) "
+      "(measured by the main session with `ml/wlu_sit_to_stand.py`; not re-run by `final_round.py`). In short:\n")
+    w("- **Data:** WLU Rehabilitation Posture (Kaggle, MIT licence): 127 home clips (79 correct, 48 incorrect), phones and webcams, 6 recording set-ups (nobody is named; clips are grouped by room). "
+      "The labels mean \"a valid repetition or not\" (mostly unfinished movements), not fine technique mistakes.")
+    w("- **The app's sit-to-stand rules** agree with the labels on 87% of clips (macro F1 0.87; 90% of correct clips accepted, 83% of incorrect ones caught). Before the fix: 61%, macro F1 0.60, 41% of correct clips accepted. "
+      "With settings picked without the tested set-up: 89%, macro F1 0.88.")
+    w("- **What was fixed:** the \"stand up tall\" line was 155 degrees, but a standing knee measures a median of 155 on camera; it is now 145 (`UPRIGHT_KNEE`). At 155 it also objected to 17% of correct REHAB26 phone squats "
+      "and 7% of REHAB24-6 ones (4% and 0% at 145). \"Knees out\" is now judged only when the person faces the camera (`FACING_MIN` 0.6).")
+    w("- **Trained models on 50 real stand-sit-stand repetitions** (42 correct, 8 incorrect): the squat model used as the stand-in has AUC 0.84 and flags 0% of the correct ones; "
+      "the UI-PRMD motion-capture model has AUC 0.54 (0.68 after camera calibration on the other set-ups).")
+    w(f"- **So the motion-capture score stays a lab-only number:** UI-PRMD, {s['people']} people, {sl['reps']} repetitions ({sl['mistake_reps']} with a mistake), logistic regression, "
+      f"re-measured in this round from the cached body points: macro F1 {f(sl['macro_f1'])}, AUC {f(sl['auc'])}, precision {f(sl['precision_mistake'])}, recall {f(sl['recall_mistake'])}. "
+      "The number stored with `sit_to_stand.json` on 18 November is macro F1 0.904, AUC 0.978; the difference is 2 of 199 repetitions and was not tracked down. `sit_to_stand.json` was not changed.\n")
     w("![F1 by device](img/f1_by_device.png)\n")
     w("How to read the change, honestly:\n")
     d = {ex: {g: res[ex][fin[ex]][g]["macro_f1"] - res[ex][B][g]["macro_f1"] for g in (PHONE, FIXED)} for ex in EXS}
@@ -91,6 +232,10 @@ def main():
             rows.append([NAME[ex], DATASET[g], g, a["people"], a["reps"], a["mistake_reps"]])
     for n, v in ext["lab"].items():
         rows.append([NAME.get(v["exercise"], "Sit-to-stand"), n, "lab (motion capture / Kinect), not a camera", v["people"], v["logistic C=0.1"]["reps"], v["logistic C=0.1"]["mistake_reps"]])
+    if (OUT / "mendeley_reps.json").exists():
+        mr_ = load("mendeley_reps.json")
+        rows.insert(2, ["Chair squat", "Mendeley multi-view fitness (section 11)", "phone (Mendeley, gym)", mr_["people_with_reps"], mr_["reps"], f"{mr_['reps_bad']} (labelled per clip)"])
+    rows.append(["Sit-to-stand", "WLU Rehabilitation Posture (see SIT_TO_STAND_CAMERA.md)", "home phones and webcams; used to test, not to train", "6 recording set-ups (people not named)", "127 clips", "48 clips"])
     w(table(["Exercise", "Dataset", "Device group", "People", "Repetitions", "With a mistake"], rows))
     w("\nA REHAB26 repetition filmed by three iPhones counts as three repetitions (three views); REHAB24-6 likewise has two cameras per repetition. All views of a hidden person are hidden together. "
       "The README says REHAB24-6 has 10 people; the squat and arm-abduction repetitions on disk come from 9.\n")
@@ -175,6 +320,8 @@ def main():
     w("\n**Yes: the curves are still rising at 13 people** for both exercises, and have not flattened. Recording more people (especially on the devices patients use) is the most likely way to raise the score. "
       "The curve cannot say how far it goes. A phone person brings about 330 rep-views and a fixed-camera person about 40, so \"people\" also means more repetitions.\n")
     w("![Learning curve](img/learning_curve.png)\n")
+    if (OUT / "curve_squat_mendeley.json").exists():
+        w("The squat panel of this chart uses the larger pool of people of section 11 (REHAB24-6 + REHAB26 + Mendeley); the table above is the REHAB-only curve.\n")
 
     w("## 7. Experiment f: when the app says \"mistake\", how often is it right?\n")
     w("The lowest cut-off at which at least 90% of flagged held-out repetitions are real mistakes (as `operating_point.py`). The cut-off is chosen on the same held-out predictions it is scored on, "
@@ -214,9 +361,13 @@ def main():
     w("- Whether any person appears in both REHAB24-6 and REHAB26 (same research group; ids are numbers in one and first names in the other). If someone does, that person leaks between training and test.")
     w("- A real laptop webcam and a real propped-up phone at home: both device groups are lab recordings of healthy adults.")
     w("- Which MediaPipe model produced REHAB26's body points (they come from the dataset authors); REHAB24-6 uses the heavy tracker.")
-    w("- The app in a browser was not run; only the parity test (same features and score as Python on one repetition per exercise).\n")
+    w("- The app in a browser was not run; only the parity test (same features and score as Python on one repetition per exercise).")
+    w("- The sit-to-stand camera numbers in section 1 (WLU): quoted from SIT_TO_STAND_CAMERA.md, not re-run here.\n")
 
-    w("## 11. Reproduce\n")
+    if (OUT / "mendeley_eval.json").exists():
+        mendeley_section(w, res, fin)
+
+    w("## 12. Reproduce\n")
     w("One process at a time, from `ml/`. On this laptop the stages took about 3, 2, 4, 3, 2, 1, 1, 1 minutes.\n")
     w("```bash\ncd ~/jhealth/ml && P=~/jhealth-cache/venv/bin/python\n"
       "OMP_NUM_THREADS=2 nice -n 10 $P final_round.py families squat\n"
@@ -231,6 +382,13 @@ def main():
       f"OMP_NUM_THREADS=2 nice -n 10 $P final_round.py export squat --config \"{fin['squat']}\"      # writes final_round_out/squat.json\n"
       f"OMP_NUM_THREADS=2 nice -n 10 $P final_round.py export arm_raise --config \"{fin['arm_raise']}\"\n"
       "OMP_NUM_THREADS=2 nice -n 10 $P final_round_charts.py     # docs/img/*.png\n"
+      "# section 11 (Mendeley squats): clips fetched by fetch_mendeley_squats.py, then\n"
+      "OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py track --max-minutes 7.5   # repeat until all clips are tracked (about 70 minutes in all)\n"
+      "OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py reps\n"
+      "OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py eval\n"
+      "OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py combined --weights equal\n"
+      "OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py combined --weights none\n"
+      "OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py curve\n"
       "$P final_round_report.py                                  # this file\n"
       "$P make_parity.py squat arm_raise && (cd ../web && node --test scripts/pose.test.ts)\n```\n")
     w("Raw numbers: `ml/final_round_out/results_<exercise>.json`, `extras.json`, `curve_<exercise>.json`; held-out probabilities: `probs_<exercise>.npz`; logs: `log_*.txt`.")

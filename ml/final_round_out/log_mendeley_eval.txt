@@ -1,0 +1,36 @@
+Mendeley: 1796 reps, 25 people, 51.0% labelled bad
+  3b. REHAB-only model (current squat.json) applied to Mendeley, no retraining
+      all                                               25 people  1796 reps ( 916 mistakes)  macro F1 0.511  AUC 0.515  precision 0.521  recall 0.581  floor 0.329
+      phone (Mendeley, gym)                             25 people  1796 reps ( 916 mistakes)  macro F1 0.511  AUC 0.515  precision 0.521  recall 0.581  floor 0.329
+      Mendeley front                                    25 people   631 reps ( 308 mistakes)  macro F1 0.495  AUC 0.552  precision 0.512  recall 0.818  floor 0.339
+      Mendeley side                                     24 people   574 reps ( 301 mistakes)  macro F1 0.457  AUC 0.457  precision 0.483  recall 0.336  floor 0.322
+      Mendeley diagonal                                 23 people   591 reps ( 307 mistakes)  macro F1 0.543  AUC 0.555  precision 0.559  recall 0.583  floor 0.325
+      Mendeley, clips the app's camera check accepts    25 people   999 reps ( 476 mistakes)  macro F1 0.512  AUC 0.540  precision 0.498  recall 0.693  floor 0.344
+      at the app's flag cut-off: {"threshold": 0.84, "flagged": 299, "precision": 0.5384615384615384, "recall": 0.17576419213973798, "share_of_good_reps_called_mistake_at_0.5": 0.5556818181818182}
+  3e. features that differ most between bad and good reps (bad minus good, in standard deviations)
+      avg_hip:min                      +0.66   good    69.025  bad    86.168   same direction in 19 of 25 people
+      avg_thigh_incl:std               -0.66   good    22.251  bad    17.891   same direction in 19 of 25 people
+      avg_thigh_incl:range             -0.64   good    66.411  bad    54.123   same direction in 18 of 25 people
+      avg_hip:range                    -0.64   good    94.916  bad    78.495   same direction in 16 of 25 people
+      avg_thigh_incl:max               -0.64   good    74.864  bad    62.374   same direction in 18 of 25 people
+      avg_knee:mean                    +0.63   good   123.612  bad   130.884   same direction in 19 of 25 people
+      avg_thigh_incl:mean              -0.62   good    35.164  bad    29.090   same direction in 22 of 25 people
+      avg_hip:std                      -0.60   good    32.712  bad    26.889   same direction in 15 of 25 people
+      avg_hip:mean                     +0.60   good   123.924  bad   132.781   same direction in 22 of 25 people
+      avg_thigh_fwd:max                -0.59   good     0.839  bad     0.737   same direction in 21 of 25 people
+      avg_thigh_fwd:mean               -0.58   good     0.387  bad     0.299   same direction in 21 of 25 people
+      avg_knee:min                     +0.55   good    73.206  bad    84.445   same direction in 17 of 25 people
+      thigh_spread:mean                -0.54   good    27.097  bad    22.382   same direction in 21 of 25 people
+      hip_h:mean                       +0.49   good     0.795  bad     0.823   same direction in 17 of 25 people
+      avg_thigh_incl:speed             -0.47   good   160.192  bad   134.010   same direction in 18 of 25 people
+      top 5 per view: {"front": ["thigh_spread:std", "avg_thigh_incl:std", "thigh_spread:mean", "avg_thigh_incl:range", "avg_thigh_incl:max"], "side": ["diff_knee:mean", "diff_knee:std", "diff_knee:speed", "diff_knee:max", "diff_knee:range"], "diagonal": ["avg_hip:min", "avg_thigh_incl:std", "avg_hip:range", "avg_thigh_incl:range", "avg_thigh_incl:max"]}
+      plain: {"good": {"median_seconds": 2.066666603088379, "median_lowest_knee_angle": 74.07746635135396}, "bad": {"median_seconds": 1.9333332777023315, "median_lowest_knee_angle": 84.71168212574862}}
+      depth and tempo by dataset: {"phone (REHAB26)": {"correct or good": {"reps": 828, "median_lowest_knee_angle": 109.05782318115234, "median_seconds": 2.4000000953674316}, "mistake or bad": {"reps": 834, "median_lowest_knee_angle": 104.48828887939453, "median_seconds": 2.433333396911621}}, "fixed camera (REHAB24-6)": {"correct or good": {"reps": 268, "median_lowest_knee_angle": 86.88925170898438, "median_seconds": 3.200000047683716}, "mistake or bad": {"reps": 122, "median_lowest_knee_angle": 73.81259155273438, "median_seconds": 3.1666667461395264}}, "phone (Mendeley, gym)": {"correct or good": {"reps": 880, "median_lowest_knee_angle": 72.63647842407227, "median_seconds": 2.066666603088379}, "mistake or bad": {"reps": 916, "median_lowest_knee_angle": 82.12711334228516, "median_seconds": 1.9333332777023315}}}
+  3a. trained on Mendeley alone, leave one person out
+      all                                               25 people  1796 reps ( 916 mistakes)  macro F1 0.714  AUC 0.774  precision 0.768  recall 0.634  floor 0.329
+      phone (Mendeley, gym)                             25 people  1796 reps ( 916 mistakes)  macro F1 0.714  AUC 0.774  precision 0.768  recall 0.634  floor 0.329
+      Mendeley front                                    25 people   631 reps ( 308 mistakes)  macro F1 0.741  AUC 0.771  precision 0.793  recall 0.646  floor 0.339
+      Mendeley side                                     24 people   574 reps ( 301 mistakes)  macro F1 0.693  AUC 0.756  precision 0.726  recall 0.668  floor 0.322
+      Mendeley diagonal                                 23 people   591 reps ( 307 mistakes)  macro F1 0.703  AUC 0.793  precision 0.790  recall 0.590  floor 0.325
+      Mendeley, clips the app's camera check accepts    25 people   999 reps ( 476 mistakes)  macro F1 0.746  AUC 0.800  precision 0.806  recall 0.630  floor 0.344
+[eval] 143 s

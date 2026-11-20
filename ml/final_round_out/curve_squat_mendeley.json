@@ -1,0 +1,230 @@
+{
+ "model": "soft vote of logistic (C=0.1) + forest (100 trees), balanced",
+ "repeats": 3,
+ "people": 39,
+ "points": {
+  "2": [
+   {
+    "all": 0.5140645555569077,
+    "phone (REHAB26)": 0.48521966344500633,
+    "fixed camera (REHAB24-6)": 0.4833505572933645,
+    "phone (Mendeley, gym)": 0.5391452957384368,
+    "Mendeley front": 0.5339312631896291,
+    "Mendeley side": 0.510061929149066,
+    "Mendeley diagonal": 0.5664771685310839,
+    "Mendeley, clips the app's camera check accepts": 0.5315085294683511,
+    "train_reps": 208.64102564102564
+   },
+   {
+    "all": 0.5890969410706253,
+    "phone (REHAB26)": 0.6352147143818665,
+    "fixed camera (REHAB24-6)": 0.5031284504968716,
+    "phone (Mendeley, gym)": 0.5547347390023666,
+    "Mendeley front": 0.5608171269483224,
+    "Mendeley side": 0.5442466348241424,
+    "Mendeley diagonal": 0.5431441010388378,
+    "Mendeley, clips the app's camera check accepts": 0.5909025212783041,
+    "train_reps": 203.23076923076923
+   },
+   {
+    "all": 0.5692551289580501,
+    "phone (REHAB26)": 0.5776022954729676,
+    "fixed camera (REHAB24-6)": 0.4724025974025974,
+    "phone (Mendeley, gym)": 0.5539633559538815,
+    "Mendeley front": 0.5540771586410231,
+    "Mendeley side": 0.5483843529665509,
+    "Mendeley diagonal": 0.5565807560137457,
+    "Mendeley, clips the app's camera check accepts": 0.5732971213049225,
+    "train_reps": 214.82051282051282
+   }
+  ],
+  "5": [
+   {
+    "all": 0.6148145026115205,
+    "phone (REHAB26)": 0.582454881050041,
+    "fixed camera (REHAB24-6)": 0.5964027518656716,
+    "phone (Mendeley, gym)": 0.6358412040160324,
+    "Mendeley front": 0.6354982921438617,
+    "Mendeley side": 0.6096802787998008,
+    "Mendeley diagonal": 0.6615663009368487,
+    "Mendeley, clips the app's camera check accepts": 0.6696693386773547,
+    "train_reps": 441.64102564102564
+   },
+   {
+    "all": 0.6140174378025388,
+    "phone (REHAB26)": 0.6363275402599999,
+    "fixed camera (REHAB24-6)": 0.5280228055077453,
+    "phone (Mendeley, gym)": 0.6095224714483722,
+    "Mendeley front": 0.6439123687445836,
+    "Mendeley side": 0.5754166476416602,
+    "Mendeley diagonal": 0.6031052691998622,
+    "Mendeley, clips the app's camera check accepts": 0.6509433962264151,
+    "train_reps": 502.56410256410254
+   },
+   {
+    "all": 0.6138891038722809,
+    "phone (REHAB26)": 0.6194531640825136,
+    "fixed camera (REHAB24-6)": 0.5525442649384478,
+    "phone (Mendeley, gym)": 0.5958671223390963,
+    "Mendeley front": 0.6270357282090622,
+    "Mendeley side": 0.592210725735937,
+    "Mendeley diagonal": 0.5646188735934363,
+    "Mendeley, clips the app's camera check accepts": 0.5932018775575705,
+    "train_reps": 530.0512820512821
+   }
+  ],
+  "10": [
+   {
+    "all": 0.6620956178076096,
+    "phone (REHAB26)": 0.6728999893576233,
+    "fixed camera (REHAB24-6)": 0.5774231678486997,
+    "phone (Mendeley, gym)": 0.6494141402084825,
+    "Mendeley front": 0.6670937594211637,
+    "Mendeley side": 0.6350787964740259,
+    "Mendeley diagonal": 0.6415657779215378,
+    "Mendeley, clips the app's camera check accepts": 0.6686673406833888,
+    "train_reps": 910.5897435897435
+   },
+   {
+    "all": 0.6750603333921512,
+    "phone (REHAB26)": 0.6819627104985855,
+    "fixed camera (REHAB24-6)": 0.5665479126701379,
+    "phone (Mendeley, gym)": 0.6753775777051274,
+    "Mendeley front": 0.6886304128902316,
+    "Mendeley side": 0.6794269410550597,
+    "Mendeley diagonal": 0.655088446599988,
+    "Mendeley, clips the app's camera check accepts": 0.6863233501697856,
+    "train_reps": 992.6923076923077
+   },
+   {
+    "all": 0.6754104290880895,
+    "phone (REHAB26)": 0.745836601613262,
+    "fixed camera (REHAB24-6)": 0.6179663412127441,
+    "phone (Mendeley, gym)": 0.6044126705616635,
+    "Mendeley front": 0.6509604747058232,
+    "Mendeley side": 0.5708279708279709,
+    "Mendeley diagonal": 0.586143955917805,
+    "Mendeley, clips the app's camera check accepts": 0.6495228739825989,
+    "train_reps": 964.7179487179487
+   }
+  ],
+  "13": [
+   {
+    "all": 0.6685087643612531,
+    "phone (REHAB26)": 0.6486992872261919,
+    "fixed camera (REHAB24-6)": 0.7340046439984367,
+    "phone (Mendeley, gym)": 0.6592136369292024,
+    "Mendeley front": 0.7194224000844092,
+    "Mendeley side": 0.606451632739023,
+    "Mendeley diagonal": 0.6422105627306274,
+    "Mendeley, clips the app's camera check accepts": 0.6976101319819747,
+    "train_reps": 1247.5897435897436
+   },
+   {
+    "all": 0.713190059367684,
+    "phone (REHAB26)": 0.7850802126834167,
+    "fixed camera (REHAB24-6)": 0.6356275303643725,
+    "phone (Mendeley, gym)": 0.6531050272903849,
+    "Mendeley front": 0.6763451674544907,
+    "Mendeley side": 0.6153752436647173,
+    "Mendeley diagonal": 0.6632787157471005,
+    "Mendeley, clips the app's camera check accepts": 0.6756493506493506,
+    "train_reps": 1291.051282051282
+   },
+   {
+    "all": 0.6873550218599613,
+    "phone (REHAB26)": 0.677732683982684,
+    "fixed camera (REHAB24-6)": 0.6709483594729497,
+    "phone (Mendeley, gym)": 0.6786084566046735,
+    "Mendeley front": 0.6917083047910706,
+    "Mendeley side": 0.6622036559893888,
+    "Mendeley diagonal": 0.6777350476409139,
+    "Mendeley, clips the app's camera check accepts": 0.6901430081396294,
+    "train_reps": 1367.2820512820513
+   }
+  ],
+  "20": [
+   {
+    "all": 0.6944090658376373,
+    "phone (REHAB26)": 0.7118511801496641,
+    "fixed camera (REHAB24-6)": 0.615722774678632,
+    "phone (Mendeley, gym)": 0.6794047086113326,
+    "Mendeley front": 0.6829464375439653,
+    "Mendeley side": 0.6661835704197399,
+    "Mendeley diagonal": 0.6866817259819289,
+    "Mendeley, clips the app's camera check accepts": 0.6946897999468931,
+    "train_reps": 2008.076923076923
+   },
+   {
+    "all": 0.6921424081376079,
+    "phone (REHAB26)": 0.6963932378563775,
+    "fixed camera (REHAB24-6)": 0.6840727816550349,
+    "phone (Mendeley, gym)": 0.6755630803193788,
+    "Mendeley front": 0.6766053662948448,
+    "Mendeley side": 0.6821598470363288,
+    "Mendeley diagonal": 0.6666145955375042,
+    "Mendeley, clips the app's camera check accepts": 0.6905120685765846,
+    "train_reps": 1966.820512820513
+   },
+   {
+    "all": 0.720806783728132,
+    "phone (REHAB26)": 0.787892455372228,
+    "fixed camera (REHAB24-6)": 0.5967592592592592,
+    "phone (Mendeley, gym)": 0.6725729019263993,
+    "Mendeley front": 0.6810703158593532,
+    "Mendeley side": 0.63699604743083,
+    "Mendeley diagonal": 0.6969013680968412,
+    "Mendeley, clips the app's camera check accepts": 0.713182325588866,
+    "train_reps": 2048.7179487179487
+   }
+  ],
+  "30": [
+   {
+    "all": 0.7433949628477745,
+    "phone (REHAB26)": 0.7947790770558865,
+    "fixed camera (REHAB24-6)": 0.6427224228054104,
+    "phone (Mendeley, gym)": 0.7063858287233089,
+    "Mendeley front": 0.7231897942718838,
+    "Mendeley side": 0.6496924128503077,
+    "Mendeley diagonal": 0.7398026571361976,
+    "Mendeley, clips the app's camera check accepts": 0.7512470180004338,
+    "train_reps": 2972.230769230769
+   },
+   {
+    "all": 0.7445412220944074,
+    "phone (REHAB26)": 0.7941045640075286,
+    "fixed camera (REHAB24-6)": 0.6280755292771314,
+    "phone (Mendeley, gym)": 0.7118716577540107,
+    "Mendeley front": 0.7273010512774126,
+    "Mendeley side": 0.6885303872792898,
+    "Mendeley diagonal": 0.7174822033312599,
+    "Mendeley, clips the app's camera check accepts": 0.7497294372294372,
+    "train_reps": 2985.051282051282
+   },
+   {
+    "all": 0.7281281746460607,
+    "phone (REHAB26)": 0.7869246202765444,
+    "fixed camera (REHAB24-6)": 0.6272466606056368,
+    "phone (Mendeley, gym)": 0.6826605827368804,
+    "Mendeley front": 0.6655261379537307,
+    "Mendeley side": 0.6705379495634121,
+    "Mendeley diagonal": 0.7110938578329882,
+    "Mendeley, clips the app's camera check accepts": 0.7046751130623178,
+    "train_reps": 2992.230769230769
+   }
+  ],
+  "38": [
+   {
+    "all": 0.7403631354815206,
+    "phone (REHAB26)": 0.7941809080599116,
+    "fixed camera (REHAB24-6)": 0.6603400522553766,
+    "phone (Mendeley, gym)": 0.6950832273013907,
+    "Mendeley front": 0.6909543005688883,
+    "Mendeley side": 0.6887802457336629,
+    "Mendeley diagonal": 0.7037098930481284,
+    "Mendeley, clips the app's camera check accepts": 0.7217147506553264,
+    "train_reps": 3749.3333333333335
+   }
+  ]
+ }
+}

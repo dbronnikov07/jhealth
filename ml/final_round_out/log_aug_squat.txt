@@ -1,0 +1,18 @@
+
+squat: 2052 reps, 14 people
+  fixed camera (webcam-like)   REHAB24 camera     390 reps,  9 people, 31.3% with a mistake
+  phone                        REHAB26 camera    1662 reps,  5 people, 50.2% with a mistake
+  columns per group: macro F1, AUC, precision/recall of the mistake class (cut-off 0.5)
+  mirror: largest feature change, in standard deviations: 0.00e+00
+  yaw +-15/+-30: largest feature change, in standard deviations: 2.49e+00
+  camera tilt+depth+offset: median feature change, in standard deviations: 1.44e-01
+  logistic C=0.1 | balanced | aug mirror+yaw                 phone 0.748 0.861 0.70/0.88 | fixed 0.777 0.871 0.68/0.72 | all 0.762 0.865 0.70/0.86
+  forest | balanced | aug mirror+yaw                         phone 0.788 0.861 0.76/0.85 | fixed 0.796 0.865 0.66/0.84 | all 0.793 0.865 0.75/0.85
+  boosting | balanced | aug mirror+yaw                       phone 0.753 0.854 0.71/0.88 | fixed 0.753 0.833 0.64/0.70 | all 0.761 0.853 0.70/0.85
+  ensemble | balanced | aug mirror+yaw                       phone 0.783 0.875 0.74/0.89 | fixed 0.807 0.879 0.72/0.76 | all 0.794 0.878 0.74/0.87
+  logistic C=0.1 | balanced | aug camera tilt+depth+offset   phone 0.754 0.857 0.72/0.84 | fixed 0.762 0.859 0.67/0.68 | all 0.763 0.860 0.72/0.82
+  forest | balanced | aug camera tilt+depth+offset           phone 0.802 0.870 0.79/0.83 | fixed 0.759 0.844 0.61/0.80 | all 0.797 0.870 0.76/0.83
+  boosting | balanced | aug camera tilt+depth+offset         phone 0.769 0.848 0.74/0.83 | fixed 0.765 0.820 0.64/0.75 | all 0.774 0.847 0.73/0.82
+  ensemble | balanced | aug camera tilt+depth+offset         phone 0.791 0.872 0.77/0.84 | fixed 0.801 0.862 0.69/0.78 | all 0.798 0.874 0.76/0.84
+
+[aug squat] 220 s

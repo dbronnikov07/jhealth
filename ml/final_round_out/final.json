@@ -1,0 +1,7 @@
+{
+ "squat": "ensemble | balanced + devices weighted equally",
+ "arm_raise": "ensemble | balanced + devices weighted equally",
+ "baseline": "ensemble | balanced",
+ "squat_model": "rehab_only",
+ "combined_config": "ensemble | balanced + datasets weighted equally"
+}

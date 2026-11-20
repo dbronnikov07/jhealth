@@ -1,0 +1,10 @@
+  3c. REHAB24-6 + REHAB26 + Mendeley, leave one person out: ensemble | balanced + datasets weighted equally
+      all                                               39 people  3848 reps (1872 mistakes)  macro F1 0.750  AUC 0.824  precision 0.723  recall 0.790  floor 0.339
+      phone (REHAB26)                                    5 people  1662 reps ( 834 mistakes)  macro F1 0.803  AUC 0.862  precision 0.790  recall 0.829  floor 0.333
+      fixed camera (REHAB24-6)                           9 people   390 reps ( 122 mistakes)  macro F1 0.772  AUC 0.866  precision 0.708  recall 0.656  floor 0.407
+      phone (Mendeley, gym)                             25 people  1796 reps ( 916 mistakes)  macro F1 0.686  AUC 0.760  precision 0.669  recall 0.773  floor 0.329
+      Mendeley front                                    25 people   631 reps ( 308 mistakes)  macro F1 0.692  AUC 0.778  precision 0.659  recall 0.766  floor 0.339
+      Mendeley side                                     24 people   574 reps ( 301 mistakes)  macro F1 0.682  AUC 0.735  precision 0.680  recall 0.761  floor 0.322
+      Mendeley diagonal                                 23 people   591 reps ( 307 mistakes)  macro F1 0.681  AUC 0.766  precision 0.668  recall 0.792  floor 0.325
+      Mendeley, clips the app's camera check accepts    25 people   999 reps ( 476 mistakes)  macro F1 0.702  AUC 0.795  precision 0.654  recall 0.800  floor 0.344
+[combined] 223 s

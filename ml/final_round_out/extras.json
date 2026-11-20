@@ -1,0 +1,1012 @@
+{
+ "squat": {
+  "ensemble | balanced": {
+   "main": {
+    "all camera": {
+     "reps": 2052,
+     "mistake_reps": 956,
+     "macro_f1": 0.7933597564914707,
+     "auc": 0.880357061051217,
+     "precision_mistake": 0.7392086330935251,
+     "recall_mistake": 0.8598326359832636,
+     "floor_always_correct": 0.34815756035578144,
+     "people": 14
+    },
+    "fixed camera (webcam-like)": {
+     "reps": 390,
+     "mistake_reps": 122,
+     "macro_f1": 0.7939622641509434,
+     "auc": 0.8742353804746757,
+     "precision_mistake": 0.703125,
+     "recall_mistake": 0.7377049180327869,
+     "floor_always_correct": 0.4072948328267477,
+     "people": 9
+    },
+    "phone": {
+     "reps": 1662,
+     "mistake_reps": 834,
+     "macro_f1": 0.785110383548315,
+     "auc": 0.8784972022382094,
+     "precision_mistake": 0.7439024390243902,
+     "recall_mistake": 0.8776978417266187,
+     "floor_always_correct": 0.3325301204819277,
+     "people": 5
+    }
+   },
+   "operating_point": {
+    "target_precision": 0.9,
+    "threshold": 0.85,
+    "pooled": {
+     "flagged": 578,
+     "precision": 0.9013840830449827,
+     "recall": 0.5449790794979079
+    },
+    "at_0.5": {
+     "flagged": 1112,
+     "precision": 0.7392086330935251,
+     "recall": 0.8598326359832636
+    },
+    "cutoff_chosen_without_the_tested_person": {
+     "thresholds": [
+      0.85,
+      0.84,
+      0.85,
+      0.85,
+      0.85,
+      0.85,
+      0.85,
+      0.85,
+      0.84,
+      null,
+      null,
+      null,
+      0.75,
+      0.87
+     ],
+     "flagged": 272,
+     "precision": 0.7169117647058824,
+     "recall": 0.20397489539748953
+    },
+    "by_device": {
+     "fixed camera (webcam-like)": {
+      "flagged": 18,
+      "precision": 0.6111111111111112,
+      "recall": 0.09016393442622951
+     },
+     "phone": {
+      "flagged": 560,
+      "precision": 0.9107142857142857,
+      "recall": 0.6115107913669064
+     }
+    }
+   },
+   "coachable_same_model": {
+    "reps": 1497,
+    "mistake_reps": 669,
+    "macro_f1": 0.7967747467097273,
+    "auc": 0.9060660875342101,
+    "precision_mistake": 0.7100115074798619,
+    "recall_mistake": 0.922272047832586,
+    "floor_always_correct": 0.3561290322580645,
+    "people": 5
+   },
+   "per_mistake_same_model": {
+    "ERR_KNEES_FORWARD": {
+     "reps": 993,
+     "mistake_reps": 165,
+     "macro_f1": 0.6937615648955855,
+     "auc": 0.9580661689357342,
+     "precision_mistake": 0.39568345323741005,
+     "recall_mistake": 1.0,
+     "floor_always_correct": 0.4546952224052718,
+     "share_flagged_at_0.5": 1.0,
+     "coachable": true
+    },
+    "ERR_KNEES_INSIDE": {
+     "reps": 996,
+     "mistake_reps": 168,
+     "macro_f1": 0.6489854681243532,
+     "auc": 0.8305152979066022,
+     "precision_mistake": 0.35384615384615387,
+     "recall_mistake": 0.8214285714285714,
+     "floor_always_correct": 0.45394736842105265,
+     "share_flagged_at_0.5": 0.8214285714285714,
+     "coachable": true
+    },
+    "ERR_LIFTED_HEELS": {
+     "reps": 996,
+     "mistake_reps": 168,
+     "macro_f1": 0.6944618574451187,
+     "auc": 0.9655437658155049,
+     "precision_mistake": 0.39856801909307876,
+     "recall_mistake": 0.9940476190476191,
+     "floor_always_correct": 0.45394736842105265,
+     "share_flagged_at_0.5": 0.9940476190476191,
+     "coachable": true
+    },
+    "ERR_SHALLOW_SQUAT": {
+     "reps": 996,
+     "mistake_reps": 168,
+     "macro_f1": 0.6634697855750487,
+     "auc": 0.8710676903611686,
+     "precision_mistake": 0.3684210526315789,
+     "recall_mistake": 0.875,
+     "floor_always_correct": 0.45394736842105265,
+     "share_flagged_at_0.5": 0.875,
+     "coachable": true
+    },
+    "ERR_TORSO_TO_SIDE": {
+     "reps": 993,
+     "mistake_reps": 165,
+     "macro_f1": 0.6123139692422253,
+     "auc": 0.7667179036744254,
+     "precision_mistake": 0.3133514986376022,
+     "recall_mistake": 0.696969696969697,
+     "floor_always_correct": 0.4546952224052718,
+     "share_flagged_at_0.5": 0.696969696969697,
+     "coachable": false
+    }
+   },
+   "confusion_at_0.5": [
+    [
+     806,
+     290
+    ],
+    [
+     134,
+     822
+    ]
+   ],
+   "per_person_macro_f1": {
+    "R24-1": 0.8071428571428572,
+    "R24-2": 0.5416666666666667,
+    "R24-3": 0.949874686716792,
+    "R24-4": 0.9134199134199135,
+    "R24-5": 0.8484848484848485,
+    "R24-6": 0.8803418803418803,
+    "R24-7": 0.7234443746071653,
+    "R24-8": 0.3888888888888889,
+    "R24-9": 0.7855477855477855,
+    "R26-Honza": 0.748101217510782,
+    "R26-Mima": 0.8884017933970382,
+    "R26-Petra": 0.9514705882352941,
+    "R26-Terka": 0.6046895251561211,
+    "R26-Vasil": 0.7069445778503506
+   }
+  },
+  "ensemble | balanced + devices weighted equally": {
+   "main": {
+    "all camera": {
+     "reps": 2052,
+     "mistake_reps": 956,
+     "macro_f1": 0.8006572173365716,
+     "auc": 0.884265339156461,
+     "precision_mistake": 0.7548928238583411,
+     "recall_mistake": 0.8472803347280334,
+     "floor_always_correct": 0.34815756035578144,
+     "people": 14
+    },
+    "fixed camera (webcam-like)": {
+     "reps": 390,
+     "mistake_reps": 122,
+     "macro_f1": 0.8023733351485036,
+     "auc": 0.8867445559089797,
+     "precision_mistake": 0.7165354330708661,
+     "recall_mistake": 0.7459016393442623,
+     "floor_always_correct": 0.4072948328267477,
+     "people": 9
+    },
+    "phone": {
+     "reps": 1662,
+     "mistake_reps": 834,
+     "macro_f1": 0.7931812889328753,
+     "auc": 0.8805535281919391,
+     "precision_mistake": 0.7600422832980972,
+     "recall_mistake": 0.8621103117505995,
+     "floor_always_correct": 0.3325301204819277,
+     "people": 5
+    }
+   },
+   "operating_point": {
+    "target_precision": 0.9,
+    "threshold": 0.84,
+    "pooled": {
+     "flagged": 574,
+     "precision": 0.9024390243902439,
+     "recall": 0.5418410041841004
+    },
+    "at_0.5": {
+     "flagged": 1073,
+     "precision": 0.7548928238583411,
+     "recall": 0.8472803347280334
+    },
+    "cutoff_chosen_without_the_tested_person": {
+     "thresholds": [
+      0.84,
+      0.82,
+      0.84,
+      0.84,
+      0.84,
+      0.84,
+      0.84,
+      0.83,
+      0.84,
+      null,
+      0.94,
+      null,
+      0.68,
+      0.85
+     ],
+     "flagged": 313,
+     "precision": 0.731629392971246,
+     "recall": 0.2395397489539749
+    },
+    "by_device": {
+     "fixed camera (webcam-like)": {
+      "flagged": 36,
+      "precision": 0.6944444444444444,
+      "recall": 0.20491803278688525
+     },
+     "phone": {
+      "flagged": 538,
+      "precision": 0.9163568773234201,
+      "recall": 0.5911270983213429
+     }
+    }
+   },
+   "coachable_same_model": {
+    "reps": 1497,
+    "mistake_reps": 669,
+    "macro_f1": 0.8062770640040268,
+    "auc": 0.9057609959345191,
+    "precision_mistake": 0.7274909963985594,
+    "recall_mistake": 0.905829596412556,
+    "floor_always_correct": 0.3561290322580645,
+    "people": 5
+   },
+   "per_mistake_same_model": {
+    "ERR_KNEES_FORWARD": {
+     "reps": 993,
+     "mistake_reps": 165,
+     "macro_f1": 0.7168036303651095,
+     "auc": 0.9632045088566827,
+     "precision_mistake": 0.42091836734693877,
+     "recall_mistake": 1.0,
+     "floor_always_correct": 0.4546952224052718,
+     "share_flagged_at_0.5": 1.0,
+     "coachable": true
+    },
+    "ERR_KNEES_INSIDE": {
+     "reps": 996,
+     "mistake_reps": 168,
+     "macro_f1": 0.6641078551336237,
+     "auc": 0.8291350356567749,
+     "precision_mistake": 0.37119113573407203,
+     "recall_mistake": 0.7976190476190477,
+     "floor_always_correct": 0.45394736842105265,
+     "share_flagged_at_0.5": 0.7976190476190477,
+     "coachable": true
+    },
+    "ERR_LIFTED_HEELS": {
+     "reps": 996,
+     "mistake_reps": 168,
+     "macro_f1": 0.7174327451907523,
+     "auc": 0.9646092132505175,
+     "precision_mistake": 0.42385786802030456,
+     "recall_mistake": 0.9940476190476191,
+     "floor_always_correct": 0.45394736842105265,
+     "share_flagged_at_0.5": 0.9940476190476191,
+     "coachable": true
+    },
+    "ERR_SHALLOW_SQUAT": {
+     "reps": 996,
+     "mistake_reps": 168,
+     "macro_f1": 0.6741736637181766,
+     "auc": 0.8671210029905683,
+     "precision_mistake": 0.3814713896457766,
+     "recall_mistake": 0.8333333333333334,
+     "floor_always_correct": 0.45394736842105265,
+     "share_flagged_at_0.5": 0.8333333333333334,
+     "coachable": true
+    },
+    "ERR_TORSO_TO_SIDE": {
+     "reps": 993,
+     "mistake_reps": 165,
+     "macro_f1": 0.6295692634759762,
+     "auc": 0.778348704435661,
+     "precision_mistake": 0.3323529411764706,
+     "recall_mistake": 0.6848484848484848,
+     "floor_always_correct": 0.4546952224052718,
+     "share_flagged_at_0.5": 0.6848484848484848,
+     "coachable": false
+    }
+   },
+   "confusion_at_0.5": [
+    [
+     833,
+     263
+    ],
+    [
+     146,
+     810
+    ]
+   ],
+   "per_person_macro_f1": {
+    "R24-1": 0.8480300187617261,
+    "R24-2": 0.5416666666666667,
+    "R24-3": 0.949874686716792,
+    "R24-4": 0.84375,
+    "R24-5": 0.8465473145780051,
+    "R24-6": 0.9045454545454545,
+    "R24-7": 0.7714285714285715,
+    "R24-8": 0.3888888888888889,
+    "R24-9": 0.7946428571428572,
+    "R26-Honza": 0.7915940089168733,
+    "R26-Mima": 0.8766588673177166,
+    "R26-Petra": 0.9423601982000203,
+    "R26-Terka": 0.6085716246287165,
+    "R26-Vasil": 0.7221699100230174
+   }
+  },
+  "selection_check": {
+   "configurations": 28,
+   "picked": {
+    "ensemble | balanced + devices weighted equally": 9,
+    "ensemble | balanced | aug mirror+yaw": 2,
+    "ensemble | balanced | aug camera tilt+depth+offset": 1,
+    "forest | balanced | aug mirror+yaw": 1,
+    "forest | balanced + devices weighted equally": 1
+   },
+   "main": {
+    "all camera": {
+     "reps": 2052,
+     "mistake_reps": 956,
+     "macro_f1": 0.7811827958266111,
+     "auc": 0.8624357687139237,
+     "precision_mistake": 0.7289972899728997,
+     "recall_mistake": 0.8441422594142259,
+     "floor_always_correct": 0.34815756035578144,
+     "people": 14
+    },
+    "fixed camera (webcam-like)": {
+     "reps": 390,
+     "mistake_reps": 122,
+     "macro_f1": 0.7955959316678187,
+     "auc": 0.8822791778810863,
+     "precision_mistake": 0.712,
+     "recall_mistake": 0.7295081967213115,
+     "floor_always_correct": 0.4072948328267477,
+     "people": 9
+    },
+    "phone": {
+     "reps": 1662,
+     "mistake_reps": 834,
+     "macro_f1": 0.7693797543789949,
+     "auc": 0.8539813077074572,
+     "precision_mistake": 0.7311608961303462,
+     "recall_mistake": 0.8609112709832134,
+     "floor_always_correct": 0.3325301204819277,
+     "people": 5
+    }
+   }
+  },
+  "coachable_dedicated_ensemble": {
+   "reps": 1497,
+   "mistake_reps": 669,
+   "macro_f1": 0.8309361782856632,
+   "auc": 0.9171595069430905,
+   "precision_mistake": 0.76,
+   "recall_mistake": 0.9088191330343797,
+   "floor_always_correct": 0.3561290322580645,
+   "people": 5,
+   "trained_on": "REHAB24 (all) + REHAB26 correct and coachable reps, hidden person out"
+  },
+  "per_mistake_detector": {
+   "ERR_KNEES_FORWARD": {
+    "reps": 993,
+    "mistake_reps": 165,
+    "macro_f1": 0.7171687087800254,
+    "auc": 0.8996267018006149,
+    "precision_mistake": 0.425414364640884,
+    "recall_mistake": 0.9333333333333333,
+    "floor_always_correct": 0.4546952224052718,
+    "coachable": true,
+    "people": 5
+   },
+   "ERR_KNEES_INSIDE": {
+    "reps": 996,
+    "mistake_reps": 168,
+    "macro_f1": 0.577778019326297,
+    "auc": 0.7593527145157579,
+    "precision_mistake": 0.28368794326241137,
+    "recall_mistake": 0.7142857142857143,
+    "floor_always_correct": 0.45394736842105265,
+    "coachable": true,
+    "people": 5
+   },
+   "ERR_LIFTED_HEELS": {
+    "reps": 996,
+    "mistake_reps": 168,
+    "macro_f1": 0.7715693804403482,
+    "auc": 0.9492969289164942,
+    "precision_mistake": 0.49404761904761907,
+    "recall_mistake": 0.9880952380952381,
+    "floor_always_correct": 0.45394736842105265,
+    "coachable": true,
+    "people": 5
+   },
+   "ERR_SHALLOW_SQUAT": {
+    "reps": 996,
+    "mistake_reps": 168,
+    "macro_f1": 0.7981005292991479,
+    "auc": 0.9419786634460547,
+    "precision_mistake": 0.5642023346303502,
+    "recall_mistake": 0.8630952380952381,
+    "floor_always_correct": 0.45394736842105265,
+    "coachable": true,
+    "people": 5
+   },
+   "ERR_TORSO_TO_SIDE": {
+    "reps": 993,
+    "mistake_reps": 165,
+    "macro_f1": 0.51643304560385,
+    "auc": 0.6659127506953594,
+    "precision_mistake": 0.22573363431151242,
+    "recall_mistake": 0.6060606060606061,
+    "floor_always_correct": 0.4546952224052718,
+    "coachable": false,
+    "people": 5
+   }
+  }
+ },
+ "arm_raise": {
+  "ensemble | balanced": {
+   "main": {
+    "all camera": {
+     "reps": 2024,
+     "mistake_reps": 1010,
+     "macro_f1": 0.6588333699078006,
+     "auc": 0.7329759603179253,
+     "precision_mistake": 0.6447249774571686,
+     "recall_mistake": 0.7079207920792079,
+     "floor_always_correct": 0.3337722185648453,
+     "people": 14
+    },
+    "fixed camera (webcam-like)": {
+     "reps": 356,
+     "mistake_reps": 176,
+     "macro_f1": 0.6555435608332334,
+     "auc": 0.7413194444444444,
+     "precision_mistake": 0.6244343891402715,
+     "recall_mistake": 0.7840909090909091,
+     "floor_always_correct": 0.3358208955223881,
+     "people": 9
+    },
+    "phone": {
+     "reps": 1668,
+     "mistake_reps": 834,
+     "macro_f1": 0.6591151466480145,
+     "auc": 0.7329488926844137,
+     "precision_mistake": 0.6497747747747747,
+     "recall_mistake": 0.6918465227817746,
+     "floor_always_correct": 0.3333333333333333,
+     "people": 5
+    }
+   },
+   "operating_point": {
+    "target_precision": 0.9,
+    "threshold": 0.82,
+    "pooled": {
+     "flagged": 181,
+     "precision": 0.9226519337016574,
+     "recall": 0.16534653465346535
+    },
+    "at_0.5": {
+     "flagged": 1109,
+     "precision": 0.6447249774571686,
+     "recall": 0.7079207920792079
+    },
+    "cutoff_chosen_without_the_tested_person": {
+     "thresholds": [
+      0.81,
+      0.82,
+      0.82,
+      0.82,
+      0.82,
+      0.82,
+      0.82,
+      0.82,
+      0.82,
+      0.82,
+      0.8,
+      0.82,
+      0.82,
+      0.82
+     ],
+     "flagged": 206,
+     "precision": 0.8689320388349514,
+     "recall": 0.17722772277227722
+    },
+    "by_device": {
+     "fixed camera (webcam-like)": {
+      "flagged": 28,
+      "precision": 0.9285714285714286,
+      "recall": 0.14772727272727273
+     },
+     "phone": {
+      "flagged": 153,
+      "precision": 0.9215686274509803,
+      "recall": 0.16906474820143885
+     }
+    }
+   },
+   "coachable_same_model": {
+    "reps": 1167,
+    "mistake_reps": 333,
+    "macro_f1": 0.6481084286450682,
+    "auc": 0.7791064445740705,
+    "precision_mistake": 0.450530035335689,
+    "recall_mistake": 0.7657657657657657,
+    "floor_always_correct": 0.41679160419790107,
+    "people": 5
+   },
+   "per_mistake_same_model": {
+    "ERR_ARM_FORWARD": {
+     "reps": 1002,
+     "mistake_reps": 168,
+     "macro_f1": 0.5580082947762088,
+     "auc": 0.7128654219481557,
+     "precision_mistake": 0.26303317535545023,
+     "recall_mistake": 0.6607142857142857,
+     "floor_always_correct": 0.4542483660130719,
+     "share_flagged_at_0.5": 0.6607142857142857,
+     "coachable": false
+    },
+    "ERR_BENT_ARM": {
+     "reps": 1002,
+     "mistake_reps": 168,
+     "macro_f1": 0.594585561105358,
+     "auc": 0.7983042137718397,
+     "precision_mistake": 0.30112359550561796,
+     "recall_mistake": 0.7976190476190477,
+     "floor_always_correct": 0.4542483660130719,
+     "share_flagged_at_0.5": 0.7976190476190477,
+     "coachable": true
+    },
+    "ERR_ELEVATED_SHOULDER": {
+     "reps": 999,
+     "mistake_reps": 165,
+     "macro_f1": 0.5564592520006533,
+     "auc": 0.706198677421699,
+     "precision_mistake": 0.25952380952380955,
+     "recall_mistake": 0.6606060606060606,
+     "floor_always_correct": 0.45499181669394434,
+     "share_flagged_at_0.5": 0.6606060606060606,
+     "coachable": false
+    },
+    "ERR_HEAD_TO_SIDE": {
+     "reps": 1002,
+     "mistake_reps": 168,
+     "macro_f1": 0.54309276056137,
+     "auc": 0.6878140344866964,
+     "precision_mistake": 0.2469733656174334,
+     "recall_mistake": 0.6071428571428571,
+     "floor_always_correct": 0.4542483660130719,
+     "share_flagged_at_0.5": 0.6071428571428571,
+     "coachable": false
+    },
+    "ERR_LOW_ABDUCTION": {
+     "reps": 999,
+     "mistake_reps": 165,
+     "macro_f1": 0.5759848493000334,
+     "auc": 0.759559625027251,
+     "precision_mistake": 0.2800925925925926,
+     "recall_mistake": 0.7333333333333333,
+     "floor_always_correct": 0.45499181669394434,
+     "share_flagged_at_0.5": 0.7333333333333333,
+     "coachable": true
+    }
+   },
+   "confusion_at_0.5": [
+    [
+     620,
+     394
+    ],
+    [
+     295,
+     715
+    ]
+   ],
+   "per_person_macro_f1": {
+    "R24-1": 0.4773139745916515,
+    "R24-2": 0.5396419437340154,
+    "R24-3": 0.7234443746071653,
+    "R24-4": 0.5194508009153318,
+    "R24-5": 0.7306122448979592,
+    "R24-6": 0.7916666666666667,
+    "R24-7": 0.9245757385292269,
+    "R24-8": 0.5238095238095238,
+    "R24-9": 0.6644880174291938,
+    "R26-Honza": 0.5708980453755812,
+    "R26-Mima": 0.595960385972802,
+    "R26-Petra": 0.6965215429731559,
+    "R26-Terka": 0.7185657606881976,
+    "R26-Vasil": 0.5696292371822426
+   }
+  },
+  "ensemble | balanced + devices weighted equally": {
+   "main": {
+    "all camera": {
+     "reps": 2024,
+     "mistake_reps": 1010,
+     "macro_f1": 0.6649016441960844,
+     "auc": 0.727529439334466,
+     "precision_mistake": 0.6577946768060836,
+     "recall_mistake": 0.6851485148514852,
+     "floor_always_correct": 0.3337722185648453,
+     "people": 14
+    },
+    "fixed camera (webcam-like)": {
+     "reps": 356,
+     "mistake_reps": 176,
+     "macro_f1": 0.7017859965228386,
+     "auc": 0.7836174242424242,
+     "precision_mistake": 0.6804123711340206,
+     "recall_mistake": 0.75,
+     "floor_always_correct": 0.3358208955223881,
+     "people": 9
+    },
+    "phone": {
+     "reps": 1668,
+     "mistake_reps": 834,
+     "macro_f1": 0.6570033303998205,
+     "auc": 0.7162528969630051,
+     "precision_mistake": 0.6526806526806527,
+     "recall_mistake": 0.6714628297362111,
+     "floor_always_correct": 0.3333333333333333,
+     "people": 5
+    }
+   },
+   "operating_point": {
+    "target_precision": 0.9,
+    "threshold": 0.79,
+    "pooled": {
+     "flagged": 207,
+     "precision": 0.9130434782608695,
+     "recall": 0.18712871287128713
+    },
+    "at_0.5": {
+     "flagged": 1052,
+     "precision": 0.6577946768060836,
+     "recall": 0.6851485148514852
+    },
+    "cutoff_chosen_without_the_tested_person": {
+     "thresholds": [
+      0.76,
+      0.79,
+      0.79,
+      0.79,
+      0.79,
+      0.79,
+      0.79,
+      0.79,
+      0.79,
+      0.79,
+      0.77,
+      0.79,
+      0.79,
+      0.79
+     ],
+     "flagged": 223,
+     "precision": 0.8878923766816144,
+     "recall": 0.19603960396039605
+    },
+    "by_device": {
+     "fixed camera (webcam-like)": {
+      "flagged": 64,
+      "precision": 0.875,
+      "recall": 0.3181818181818182
+     },
+     "phone": {
+      "flagged": 143,
+      "precision": 0.9300699300699301,
+      "recall": 0.15947242206235013
+     }
+    }
+   },
+   "coachable_same_model": {
+    "reps": 1167,
+    "mistake_reps": 333,
+    "macro_f1": 0.6451553242845052,
+    "auc": 0.7543262687147579,
+    "precision_mistake": 0.4491682070240296,
+    "recall_mistake": 0.7297297297297297,
+    "floor_always_correct": 0.41679160419790107,
+    "people": 5
+   },
+   "per_mistake_same_model": {
+    "ERR_ARM_FORWARD": {
+     "reps": 1002,
+     "mistake_reps": 168,
+     "macro_f1": 0.5629784849297044,
+     "auc": 0.7032374100719425,
+     "precision_mistake": 0.2660098522167488,
+     "recall_mistake": 0.6428571428571429,
+     "floor_always_correct": 0.4542483660130719,
+     "share_flagged_at_0.5": 0.6428571428571429,
+     "coachable": false
+    },
+    "ERR_BENT_ARM": {
+     "reps": 1002,
+     "mistake_reps": 168,
+     "macro_f1": 0.6035313898015078,
+     "auc": 0.7945500742263332,
+     "precision_mistake": 0.308584686774942,
+     "recall_mistake": 0.7916666666666666,
+     "floor_always_correct": 0.4542483660130719,
+     "share_flagged_at_0.5": 0.7916666666666666,
+     "coachable": true
+    },
+    "ERR_ELEVATED_SHOULDER": {
+     "reps": 999,
+     "mistake_reps": 165,
+     "macro_f1": 0.5596843297547522,
+     "auc": 0.6914105079572705,
+     "precision_mistake": 0.26054590570719605,
+     "recall_mistake": 0.6363636363636364,
+     "floor_always_correct": 0.45499181669394434,
+     "share_flagged_at_0.5": 0.6363636363636364,
+     "coachable": false
+    },
+    "ERR_HEAD_TO_SIDE": {
+     "reps": 1002,
+     "mistake_reps": 168,
+     "macro_f1": 0.5562357777288409,
+     "auc": 0.6782002969053329,
+     "precision_mistake": 0.25870646766169153,
+     "recall_mistake": 0.6190476190476191,
+     "floor_always_correct": 0.4542483660130719,
+     "share_flagged_at_0.5": 0.6190476190476191,
+     "coachable": false
+    },
+    "ERR_LOW_ABDUCTION": {
+     "reps": 999,
+     "mistake_reps": 165,
+     "macro_f1": 0.5681124276660237,
+     "auc": 0.7133711212847903,
+     "precision_mistake": 0.2696078431372549,
+     "recall_mistake": 0.6666666666666666,
+     "floor_always_correct": 0.45499181669394434,
+     "share_flagged_at_0.5": 0.6666666666666666,
+     "coachable": true
+    }
+   },
+   "confusion_at_0.5": [
+    [
+     654,
+     360
+    ],
+    [
+     318,
+     692
+    ]
+   ],
+   "per_person_macro_f1": {
+    "R24-1": 0.4678492239467849,
+    "R24-2": 0.7493734335839599,
+    "R24-3": 0.7737272155876807,
+    "R24-4": 0.5143031040779062,
+    "R24-5": 0.7343300747556067,
+    "R24-6": 0.9,
+    "R24-7": 0.819471308833011,
+    "R24-8": 0.6011396011396011,
+    "R24-9": 0.7953488372093023,
+    "R26-Honza": 0.6781917718280213,
+    "R26-Mima": 0.6291677961507184,
+    "R26-Petra": 0.621536296723914,
+    "R26-Terka": 0.6843278384026004,
+    "R26-Vasil": 0.5713608345187293
+   }
+  },
+  "selection_check": {
+   "configurations": 28,
+   "picked": {
+    "forest | balanced + devices weighted equally": 4,
+    "ensemble | balanced | control, each rep repeated x3": 1,
+    "ensemble | balanced | aug mirror+yaw": 3,
+    "ensemble | balanced + devices weighted equally": 2,
+    "ensemble (nested-C logistic) | balanced": 4
+   },
+   "main": {
+    "all camera": {
+     "reps": 2024,
+     "mistake_reps": 1010,
+     "macro_f1": 0.6522438909774436,
+     "auc": 0.722993926611596,
+     "precision_mistake": 0.6377459749552773,
+     "recall_mistake": 0.7059405940594059,
+     "floor_always_correct": 0.3337722185648453,
+     "people": 14
+    },
+    "fixed camera (webcam-like)": {
+     "reps": 356,
+     "mistake_reps": 176,
+     "macro_f1": 0.6511222123957263,
+     "auc": 0.7345328282828283,
+     "precision_mistake": 0.6232558139534884,
+     "recall_mistake": 0.7613636363636364,
+     "floor_always_correct": 0.3358208955223881,
+     "people": 9
+    },
+    "phone": {
+     "reps": 1668,
+     "mistake_reps": 834,
+     "macro_f1": 0.6522826766729206,
+     "auc": 0.7216241395372911,
+     "precision_mistake": 0.6411960132890365,
+     "recall_mistake": 0.6942446043165468,
+     "floor_always_correct": 0.3333333333333333,
+     "people": 5
+    }
+   }
+  },
+  "coachable_dedicated_ensemble": {
+   "reps": 1167,
+   "mistake_reps": 333,
+   "macro_f1": 0.7575971372204289,
+   "auc": 0.8378882479601905,
+   "precision_mistake": 0.6318681318681318,
+   "recall_mistake": 0.6906906906906907,
+   "floor_always_correct": 0.41679160419790107,
+   "people": 5,
+   "trained_on": "REHAB24 (all) + REHAB26 correct and coachable reps, hidden person out"
+  },
+  "per_mistake_detector": {
+   "ERR_ARM_FORWARD": {
+    "reps": 1002,
+    "mistake_reps": 168,
+    "macro_f1": 0.678487043609315,
+    "auc": 0.8186379467854288,
+    "precision_mistake": 0.3953488372093023,
+    "recall_mistake": 0.7083333333333334,
+    "floor_always_correct": 0.4542483660130719,
+    "coachable": false,
+    "people": 5
+   },
+   "ERR_BENT_ARM": {
+    "reps": 1002,
+    "mistake_reps": 168,
+    "macro_f1": 0.680322216169601,
+    "auc": 0.7970338015302044,
+    "precision_mistake": 0.3979933110367893,
+    "recall_mistake": 0.7083333333333334,
+    "floor_always_correct": 0.4542483660130719,
+    "coachable": true,
+    "people": 5
+   },
+   "ERR_ELEVATED_SHOULDER": {
+    "reps": 999,
+    "mistake_reps": 165,
+    "macro_f1": 0.5892789373814041,
+    "auc": 0.7350410580626408,
+    "precision_mistake": 0.28695652173913044,
+    "recall_mistake": 0.6,
+    "floor_always_correct": 0.45499181669394434,
+    "coachable": false,
+    "people": 5
+   },
+   "ERR_HEAD_TO_SIDE": {
+    "reps": 1002,
+    "mistake_reps": 168,
+    "macro_f1": 0.6093567251461989,
+    "auc": 0.717169121845381,
+    "precision_mistake": 0.31313131313131315,
+    "recall_mistake": 0.5535714285714286,
+    "floor_always_correct": 0.4542483660130719,
+    "coachable": false,
+    "people": 5
+   },
+   "ERR_LOW_ABDUCTION": {
+    "reps": 999,
+    "mistake_reps": 165,
+    "macro_f1": 0.7143715719453845,
+    "auc": 0.8425405130441102,
+    "precision_mistake": 0.44363636363636366,
+    "recall_mistake": 0.7393939393939394,
+    "floor_always_correct": 0.45499181669394434,
+    "coachable": true,
+    "people": 5
+   }
+  }
+ },
+ "lab": {
+  "UI-PRMD sit-to-stand": {
+   "exercise": "sit_to_stand",
+   "people": 10,
+   "logistic C=0.1": {
+    "reps": 199,
+    "mistake_reps": 99,
+    "macro_f1": 0.9144345802665856,
+    "auc": 0.9775757575757575,
+    "precision_mistake": 0.8796296296296297,
+    "recall_mistake": 0.9595959595959596,
+    "floor_always_correct": 0.33444816053511706
+   },
+   "logistic + forest": {
+    "reps": 199,
+    "mistake_reps": 99,
+    "macro_f1": 0.8990667478190302,
+    "auc": 0.9704040404040404,
+    "precision_mistake": 0.8495575221238938,
+    "recall_mistake": 0.9696969696969697,
+    "floor_always_correct": 0.33444816053511706
+   }
+  },
+  "UI-PRMD deep squat": {
+   "exercise": "squat",
+   "people": 10,
+   "logistic C=0.1": {
+    "reps": 200,
+    "mistake_reps": 100,
+    "macro_f1": 0.7998198378540686,
+    "auc": 0.9041,
+    "precision_mistake": 0.7830188679245284,
+    "recall_mistake": 0.83,
+    "floor_always_correct": 0.3333333333333333
+   },
+   "logistic + forest": {
+    "reps": 200,
+    "mistake_reps": 100,
+    "macro_f1": 0.8146246148450612,
+    "auc": 0.8936999999999999,
+    "precision_mistake": 0.7889908256880734,
+    "recall_mistake": 0.86,
+    "floor_always_correct": 0.3333333333333333
+   }
+  },
+  "UI-PRMD shoulder abduction": {
+   "exercise": "arm_raise",
+   "people": 10,
+   "logistic C=0.1": {
+    "reps": 199,
+    "mistake_reps": 99,
+    "macro_f1": 0.9698302001212856,
+    "auc": 0.9944444444444445,
+    "precision_mistake": 0.9894736842105263,
+    "recall_mistake": 0.9494949494949495,
+    "floor_always_correct": 0.33444816053511706
+   },
+   "logistic + forest": {
+    "reps": 199,
+    "mistake_reps": 99,
+    "macro_f1": 0.979894928268337,
+    "auc": 0.9957575757575758,
+    "precision_mistake": 0.9896907216494846,
+    "recall_mistake": 0.9696969696969697,
+    "floor_always_correct": 0.33444816053511706
+   }
+  },
+  "IRDS abduction (patients)": {
+   "exercise": "arm_raise",
+   "people": 28,
+   "logistic C=0.1": {
+    "reps": 522,
+    "mistake_reps": 83,
+    "macro_f1": 0.7760990505944187,
+    "auc": 0.9421467189944288,
+    "precision_mistake": 0.5816326530612245,
+    "recall_mistake": 0.6867469879518072,
+    "floor_always_correct": 0.45681581685744016
+   },
+   "logistic + forest": {
+    "reps": 522,
+    "mistake_reps": 83,
+    "macro_f1": 0.7906164721354595,
+    "auc": 0.9523286768943656,
+    "precision_mistake": 0.6195652173913043,
+    "recall_mistake": 0.6867469879518072,
+    "floor_always_correct": 0.45681581685744016
+   }
+  }
+ }
+}

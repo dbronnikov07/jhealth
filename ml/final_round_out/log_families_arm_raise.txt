@@ -1,0 +1,23 @@
+
+arm_raise: 2024 reps, 14 people
+  fixed camera (webcam-like)   REHAB24 camera     356 reps,  9 people, 49.4% with a mistake
+  phone                        REHAB26 camera    1668 reps,  5 people, 50.0% with a mistake
+  columns per group: macro F1, AUC, precision/recall of the mistake class (cut-off 0.5)
+  logistic C=0.1 | balanced                                  phone 0.637 0.698 0.64/0.62 | fixed 0.630 0.699 0.60/0.76 | all 0.637 0.696 0.63/0.65
+  logistic C=nested | balanced                               phone 0.650 0.708 0.65/0.65 | fixed 0.649 0.713 0.62/0.74 | all 0.650 0.707 0.65/0.66
+  forest | balanced                                          phone 0.674 0.743 0.66/0.74 | fixed 0.623 0.702 0.60/0.77 | all 0.666 0.736 0.64/0.74
+  boosting | balanced                                        phone 0.643 0.702 0.63/0.70 | fixed 0.654 0.723 0.63/0.76 | all 0.645 0.703 0.63/0.71
+  ensemble | balanced                                        phone 0.659 0.733 0.65/0.69 | fixed 0.656 0.741 0.62/0.78 | all 0.659 0.733 0.64/0.71
+  ensemble (nested-C logistic) | balanced                    phone 0.668 0.741 0.66/0.71 | fixed 0.668 0.748 0.64/0.78 | all 0.668 0.741 0.65/0.72
+  logistic C=0.1 | unweighted                                phone 0.637 0.698 0.64/0.62 | fixed 0.635 0.699 0.61/0.77 | all 0.638 0.696 0.63/0.65
+  logistic C=nested | unweighted                             phone 0.650 0.708 0.65/0.64 | fixed 0.652 0.713 0.63/0.74 | all 0.651 0.707 0.65/0.66
+  forest | unweighted                                        phone 0.673 0.743 0.65/0.75 | fixed 0.608 0.710 0.58/0.79 | all 0.662 0.738 0.64/0.75
+  boosting | unweighted                                      phone 0.636 0.704 0.62/0.70 | fixed 0.663 0.718 0.63/0.77 | all 0.641 0.704 0.62/0.71
+  ensemble | unweighted                                      phone 0.661 0.734 0.65/0.70 | fixed 0.659 0.743 0.63/0.78 | all 0.661 0.734 0.65/0.71
+  ensemble (nested-C logistic) | unweighted                  phone 0.662 0.742 0.65/0.71 | fixed 0.668 0.748 0.64/0.78 | all 0.664 0.742 0.65/0.72
+  logistic C=0.1 | balanced + devices weighted equally       phone 0.616 0.664 0.63/0.56 | fixed 0.674 0.735 0.66/0.72 | all 0.627 0.677 0.64/0.58
+  forest | balanced + devices weighted equally               phone 0.688 0.744 0.68/0.72 | fixed 0.663 0.748 0.63/0.77 | all 0.684 0.744 0.67/0.73
+  boosting | balanced + devices weighted equally             phone 0.618 0.687 0.61/0.68 | fixed 0.705 0.769 0.68/0.75 | all 0.633 0.700 0.62/0.69
+  ensemble | balanced + devices weighted equally             phone 0.657 0.716 0.65/0.67 | fixed 0.702 0.784 0.68/0.75 | all 0.665 0.728 0.66/0.69
+
+[families arm_raise] 107 s

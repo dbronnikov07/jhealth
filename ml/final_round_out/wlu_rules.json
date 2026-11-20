@@ -1,0 +1,125 @@
+{
+ "dataset": "WLU Rehabilitation Posture, Sit To Stand",
+ "clips": 127,
+ "correct": 79,
+ "incorrect": 48,
+ "setups": {
+  "WLU-1": 27,
+  "WLU-2": 22,
+  "WLU-3": 32,
+  "WLU-4": 18,
+  "WLU-5": 21,
+  "WLU-6": 7
+ },
+ "cycles": {
+  "sit-stand-sit": 50,
+  "none": 27,
+  "stand-sit-stand": 50
+ },
+ "rules_before": {
+  "rules": {
+   "upright": 155.0,
+   "knees_in": "any",
+   "timing": true
+  },
+  "n": 127,
+  "accuracy": 0.6062992125984252,
+  "macro_f1": 0.6021303258145363,
+  "correct_accepted": 0.4050632911392405,
+  "incorrect_caught": 0.9375,
+  "said": {
+   "knees_in": 11,
+   "no complete repetition": 27,
+   "not_upright": 46,
+   "ok": 35,
+   "sit_slowly": 8
+  },
+  "per_setup_accuracy": {
+   "WLU-1": 0.25925925925925924,
+   "WLU-2": 0.7272727272727273,
+   "WLU-3": 0.8125,
+   "WLU-4": 0.6666666666666666,
+   "WLU-5": 0.5238095238095238,
+   "WLU-6": 0.7142857142857143
+  }
+ },
+ "rules_now": {
+  "rules": {
+   "upright": 145.0,
+   "knees_in": "facing",
+   "timing": true
+  },
+  "n": 127,
+  "accuracy": 0.8740157480314961,
+  "macro_f1": 0.8660337552742616,
+  "correct_accepted": 0.8987341772151899,
+  "incorrect_caught": 0.8333333333333334,
+  "said": {
+   "not_upright": 6,
+   "no complete repetition": 27,
+   "sit_slowly": 11,
+   "ok": 79,
+   "knees_in": 4
+  },
+  "per_setup_accuracy": {
+   "WLU-1": 0.8888888888888888,
+   "WLU-2": 1.0,
+   "WLU-3": 0.9375,
+   "WLU-4": 0.7777777777777778,
+   "WLU-5": 0.6666666666666666,
+   "WLU-6": 1.0
+  }
+ },
+ "held_out_tuned": {
+  "n": 127,
+  "accuracy": 0.889763779527559,
+  "macro_f1": 0.8827795358649788,
+  "correct_accepted": 0.9113924050632911,
+  "incorrect_caught": 0.8541666666666666,
+  "picked": [
+   {
+    "setup": "WLU-1",
+    "upright": 135.0,
+    "knees_in": false,
+    "timing": true
+   },
+   {
+    "setup": "WLU-2",
+    "upright": 135.0,
+    "knees_in": false,
+    "timing": true
+   },
+   {
+    "setup": "WLU-3",
+    "upright": 150.0,
+    "knees_in": false,
+    "timing": true
+   },
+   {
+    "setup": "WLU-4",
+    "upright": 150.0,
+    "knees_in": false,
+    "timing": true
+   },
+   {
+    "setup": "WLU-5",
+    "upright": 135.0,
+    "knees_in": false,
+    "timing": true
+   },
+   {
+    "setup": "WLU-6",
+    "upright": 135.0,
+    "knees_in": false,
+    "timing": true
+   }
+  ]
+ },
+ "stand_knee_correct": {
+  "n": 79,
+  "median": 155.3089877631428,
+  "p10": 151.23261322846494,
+  "below_155": 0.46835443037974683,
+  "below_145": 0.012658227848101266
+ }
+}

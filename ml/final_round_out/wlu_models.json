@@ -1,0 +1,28 @@
+{
+ "reps": 50,
+ "from_correct_clips": 42,
+ "from_incorrect_clips": 8,
+ "squat": {
+  "flag_threshold": 0.84,
+  "auc": 0.8392857142857143,
+  "median_p_mistake_correct": 0.15201340461884771,
+  "median_p_mistake_incorrect": 0.3908998571862053,
+  "correct_flagged": 0.0,
+  "incorrect_flagged": 0.125,
+  "median_quality_shown_correct": 84.79865953811523
+ },
+ "sit_to_stand": {
+  "flag_threshold": 0.5,
+  "auc": 0.5446428571428572,
+  "median_p_mistake_correct": 0.9999762221285182,
+  "median_p_mistake_incorrect": 0.996832113434285,
+  "correct_flagged": 0.9523809523809523,
+  "incorrect_flagged": 0.75,
+  "median_quality_shown_correct": 0.0023777871481778234
+ },
+ "sit_to_stand_calibrated_held_out": {
+  "auc": 0.6845238095238095,
+  "correct_flagged": 0.47619047619047616,
+  "incorrect_flagged": 0.5
+ }
+}

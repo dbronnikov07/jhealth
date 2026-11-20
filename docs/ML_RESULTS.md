@@ -1,10 +1,10 @@
 # ML results: final training round (19 November 2026)
 
-Per-repetition "correct vs mistake" models for chair squat, arm raise to the side and sit-to-stand. Every number below was measured by `ml/final_round.py`; this file is written by `ml/final_round_report.py` from its output, so nothing is retyped.
+Per-repetition "correct vs mistake" models for chair squat, arm raise to the side and sit-to-stand. Sections 1 to 10 were measured by `ml/final_round.py` and section 11 by `ml/mendeley_squat.py`; this file is written by `ml/final_round_report.py` from their output, so those numbers are not retyped. The sit-to-stand camera test in section 1 is the exception: it is quoted from [SIT_TO_STAND_CAMERA.md](SIT_TO_STAND_CAMERA.md).
 
 **How every number is tested.** Leave one person out: all repetitions of the hidden person, from every camera and view, are removed from training; the model is trained on everyone else and scored on the hidden person; repeated for each person. Settings are fixed in the script or chosen inside the training people only. Features are unchanged (the browser computes the same ones). Macro F1 uses the cut-off 0.5. "Precision" and "recall" are for the mistake class: of the reps called a mistake, the share that were one; of the real mistakes, the share that were caught.
 
-**Device groups.** *Phone* = REHAB26-ViewAngles (three iPhones, front to profile). *Fixed camera (webcam-like)* = REHAB24-6 (two fixed cameras). No laptop-webcam recordings with labels exist; REHAB24-6 is the stand-in.
+**Device groups.** *Phone* = REHAB26-ViewAngles (three iPhones, front to profile). *Fixed camera (webcam-like)* = REHAB24-6 (two fixed cameras). For squat and arm raise no labelled laptop-webcam recordings exist; REHAB24-6 is the stand-in.
 
 ## 1. Before and after
 
@@ -17,7 +17,13 @@ Before = the models in the app until today (soft-vote ensemble of logistic regre
 | Arm raise to the side | phone (REHAB26-ViewAngles, 3 iPhones) | 5 | 1668 (834 mistakes) | 0.659 | **0.657** | 0.733 | 0.716 | 0.650 / 0.692 | 0.653 / 0.671 | 0.333 |
 | Arm raise to the side | fixed camera (webcam-like) (REHAB24-6, 2 fixed cameras) | 9 | 356 (176 mistakes) | 0.656 | **0.702** | 0.741 | 0.784 | 0.624 / 0.784 | 0.680 / 0.750 | 0.336 |
 
-**Sit-to-stand: no labelled camera data exists, so there is no camera score.** The only number is on Vicon motion capture (UI-PRMD): 10 people, 199 repetitions (99 with a mistake), logistic regression. Re-measured today from the cached body points: macro F1 0.914, AUC 0.978, precision 0.880, recall 0.960. The number stored with the exported `sit_to_stand.json` on 18 November is macro F1 0.904, AUC 0.978; the difference is 2 of 199 repetitions and was not tracked down (same model recipe as far as the code shows; a guess is full-precision body points then and the rounded cache now). Quote 0.90, on motion capture only. Models trained on motion capture lose a lot on camera points (squat 0.83 to 0.55, measured earlier by `transfer_check.py`). `sit_to_stand.json` was not changed.
+**Sit-to-stand** has no camera-trained model, but since the evening of 19 November it has a camera test. Detail and method: [SIT_TO_STAND_CAMERA.md](SIT_TO_STAND_CAMERA.md) (measured by the main session with `ml/wlu_sit_to_stand.py`; not re-run by `final_round.py`). In short:
+
+- **Data:** WLU Rehabilitation Posture (Kaggle, MIT licence): 127 home clips (79 correct, 48 incorrect), phones and webcams, 6 recording set-ups (nobody is named; clips are grouped by room). The labels mean "a valid repetition or not" (mostly unfinished movements), not fine technique mistakes.
+- **The app's sit-to-stand rules** agree with the labels on 87% of clips (macro F1 0.87; 90% of correct clips accepted, 83% of incorrect ones caught). Before the fix: 61%, macro F1 0.60, 41% of correct clips accepted. With settings picked without the tested set-up: 89%, macro F1 0.88.
+- **What was fixed:** the "stand up tall" line was 155 degrees, but a standing knee measures a median of 155 on camera; it is now 145 (`UPRIGHT_KNEE`). At 155 it also objected to 17% of correct REHAB26 phone squats and 7% of REHAB24-6 ones (4% and 0% at 145). "Knees out" is now judged only when the person faces the camera (`FACING_MIN` 0.6).
+- **Trained models on 50 real stand-sit-stand repetitions** (42 correct, 8 incorrect): the squat model used as the stand-in has AUC 0.84 and flags 0% of the correct ones; the UI-PRMD motion-capture model has AUC 0.54 (0.68 after camera calibration on the other set-ups).
+- **So the motion-capture score stays a lab-only number:** UI-PRMD, 10 people, 199 repetitions (99 with a mistake), logistic regression, re-measured in this round from the cached body points: macro F1 0.914, AUC 0.978, precision 0.880, recall 0.960. The number stored with `sit_to_stand.json` on 18 November is macro F1 0.904, AUC 0.978; the difference is 2 of 199 repetitions and was not tracked down. `sit_to_stand.json` was not changed.
 
 ![F1 by device](img/f1_by_device.png)
 
@@ -37,12 +43,14 @@ How to read the change, honestly:
 |---|---|---|---|---|---|
 | Chair squat | REHAB24-6, 2 fixed cameras | fixed camera (webcam-like) | 9 | 390 | 122 |
 | Chair squat | REHAB26-ViewAngles, 3 iPhones | phone | 5 | 1662 | 834 |
+| Chair squat | Mendeley multi-view fitness (section 11) | phone (Mendeley, gym) | 25 | 1796 | 916 (labelled per clip) |
 | Arm raise to the side | REHAB24-6, 2 fixed cameras | fixed camera (webcam-like) | 9 | 356 | 176 |
 | Arm raise to the side | REHAB26-ViewAngles, 3 iPhones | phone | 5 | 1668 | 834 |
 | Sit-to-stand | UI-PRMD sit-to-stand | lab (motion capture / Kinect), not a camera | 10 | 199 | 99 |
 | Chair squat | UI-PRMD deep squat | lab (motion capture / Kinect), not a camera | 10 | 200 | 100 |
 | Arm raise to the side | UI-PRMD shoulder abduction | lab (motion capture / Kinect), not a camera | 10 | 199 | 99 |
 | Arm raise to the side | IRDS abduction (patients) | lab (motion capture / Kinect), not a camera | 28 | 522 | 83 |
+| Sit-to-stand | WLU Rehabilitation Posture (see SIT_TO_STAND_CAMERA.md) | home phones and webcams; used to test, not to train | 6 recording set-ups (people not named) | 127 clips | 48 clips |
 
 A REHAB26 repetition filmed by three iPhones counts as three repetitions (three views); REHAB24-6 likewise has two cameras per repetition. All views of a hidden person are hidden together. The README says REHAB24-6 has 10 people; the squat and arm-abduction repetitions on disk come from 9.
 
@@ -152,6 +160,8 @@ Hidden person as always; training people drawn at random from the other 13 (4 dr
 
 ![Learning curve](img/learning_curve.png)
 
+The squat panel of this chart uses the larger pool of people of section 11 (REHAB24-6 + REHAB26 + Mendeley); the table above is the REHAB-only curve.
+
 ## 7. Experiment f: when the app says "mistake", how often is it right?
 
 The lowest cut-off at which at least 90% of flagged held-out repetitions are real mistakes (as `operating_point.py`). The cut-off is chosen on the same held-out predictions it is scored on, so the last columns repeat the rule with the cut-off chosen without the tested person.
@@ -189,8 +199,91 @@ The lowest cut-off at which at least 90% of flagged held-out repetitions are rea
 - A real laptop webcam and a real propped-up phone at home: both device groups are lab recordings of healthy adults.
 - Which MediaPipe model produced REHAB26's body points (they come from the dataset authors); REHAB24-6 uses the heavy tracker.
 - The app in a browser was not run; only the parity test (same features and score as Python on one repetition per exercise).
+- The sit-to-stand camera numbers in section 1 (WLU): quoted from SIT_TO_STAND_CAMERA.md, not re-run here.
 
-## 11. Reproduce
+## 11. New squat data: Mendeley multi-view fitness dataset (added 19 November, evening)
+
+"A Multi-View Raw Video Dataset of Seven Fitness Exercises with Good/Bad Form Labels" (Mendeley Data, DOI 10.17632/kgbb3yn47p.3, CC BY 4.0): people filmed on smartphones in a gym, bodyweight squats, front / side / diagonal views, about 31 s per clip at 15 frames per second, faces blurred. **One label per clip** (good or bad form); the dataset page does not say which mistakes make a clip bad. Every repetition inherits its clip's label, so some repetitions inside a "bad" clip may be fine. Script: `ml/mendeley_squat.py`.
+
+**Tracking and cutting.** Same tracker and settings as the REHAB24-6 body points the squat model is trained on (MediaPipe heavy model, video mode, one person, 15 frames per second). Repetitions are cut by the project's own cutter (`extract_clips.find_reps`, squat settings). A clip is used when the person is found in at least 60% of frames; a repetition is dropped when the tracker lost the person in more than 20% of it or drew the body upside down (shoulders below hips) in more than 10% of it. These rules never look at the label.
+
+| View | Clips tracked | Clips with zero usable repetitions | Clips where the tracker drew the body upside down in over 10% of frames | Clips the app's camera check would refuse (both legs clearly visible in under 75% of frames) | People with repetitions | Repetitions: good | Repetitions: bad |
+|---|---|---|---|---|---|---|---|
+| front | 50 | 0 | 4 | 4 | 25 | 323 | 308 |
+| side | 50 | 4 | 9 | 50 | 24 | 273 | 301 |
+| diagonal | 46 | 0 | 3 | 17 | 23 | 284 | 307 |
+| all | 146 | 4 | 16 | 71 | 25 | 880 | 916 |
+
+146 of 150 downloaded clips were tracked. 1796 repetitions from 25 people; per person min 37, median 71, max 120; per clip min 0, median 13, max 23. Zero-repetition clips by label: 2 good, 2 bad. Repetitions dropped because the body was drawn upside down: 150; because the person was lost: 64. More than half of the upside-down clips are side views. The cause was not investigated; a guess is that the blurred faces and a side-on body make the tracker's person detector misjudge which way up the body is.
+
+**Tested on Mendeley people** (macro F1, AUC, precision / recall of the mistake class; every view of the tested person is out of training):
+
+| Test repetitions | People / reps (bad) | 3a. Trained on Mendeley alone | 3b. Current REHAB-only model, no retraining | 3c. One model from all three datasets (datasets weighted equally) | 3c. Same, no dataset weights |
+|---|---|---|---|---|---|
+| Mendeley, all views | 25 / 1796 (916) | 0.714, 0.774, 0.768 / 0.634 | 0.511, 0.515, 0.521 / 0.581 | 0.686, 0.760, 0.669 / 0.773 | 0.709, 0.776, 0.706 / 0.737 |
+| front | 25 / 631 (308) | 0.741, 0.771, 0.793 / 0.646 | 0.495, 0.552, 0.512 / 0.818 | 0.692, 0.778, 0.659 / 0.766 | 0.718, 0.777, 0.703 / 0.731 |
+| side | 24 / 574 (301) | 0.693, 0.756, 0.726 / 0.668 | 0.457, 0.457, 0.483 / 0.336 | 0.682, 0.735, 0.680 / 0.761 | 0.709, 0.757, 0.716 / 0.744 |
+| diagonal | 23 / 591 (307) | 0.703, 0.793, 0.790 / 0.590 | 0.543, 0.555, 0.559 / 0.583 | 0.681, 0.766, 0.668 / 0.792 | 0.697, 0.790, 0.700 / 0.736 |
+| only clips the app's camera check accepts | 25 / 999 (476) | 0.746, 0.800, 0.806 / 0.630 | 0.512, 0.540, 0.498 / 0.693 | 0.702, 0.795, 0.654 / 0.800 | 0.735, 0.814, 0.706 / 0.758 |
+
+Always saying "correct" scores 0.329 macro F1 on Mendeley. With no retraining, the current model calls 55.6% of Mendeley's "good" repetitions a mistake at the 0.5 cut-off; at the app's flag cut-off (0.84) it flags 299 repetitions, precision 0.538, recall 0.176.
+
+**Tested on REHAB people** (the two device groups of sections 1 to 7), with and without Mendeley in training:
+
+| Device group | People / reps | REHAB-only model (current) | All three datasets, weighted equally | All three datasets, no dataset weights |
+|---|---|---|---|---|
+| phone (REHAB26) | 5 / 1662 | 0.793, 0.881, 0.760 / 0.862 | 0.803, 0.862, 0.790 / 0.829 | 0.803, 0.866, 0.790 / 0.826 |
+| fixed camera (REHAB24-6) | 9 / 390 | 0.802, 0.887, 0.717 / 0.746 | 0.772, 0.866, 0.708 / 0.656 | 0.687, 0.789, 0.591 / 0.533 |
+
+**Learning curve, larger pool (39 people).** Hidden person as always, training people drawn at random from all three datasets (3 draws per size; ± is the spread). Model: soft vote of logistic (C=0.1) + forest (100 trees), balanced.
+
+| People in training | Reps in training (average) | All reps pooled | phone (REHAB26) | fixed camera (REHAB24-6) | phone (Mendeley, gym) |
+|---|---|---|---|---|---|
+| 2 | 209 | 0.557 ± 0.032 | 0.566 ± 0.062 | 0.486 ± 0.013 | 0.549 ± 0.007 |
+| 5 | 491 | 0.614 ± 0.000 | 0.613 ± 0.022 | 0.559 ± 0.028 | 0.614 ± 0.017 |
+| 10 | 956 | 0.671 ± 0.006 | 0.700 ± 0.032 | 0.587 ± 0.022 | 0.643 ± 0.029 |
+| 13 | 1302 | 0.690 ± 0.018 | 0.704 ± 0.059 | 0.680 ± 0.041 | 0.664 ± 0.011 |
+| 20 | 2008 | 0.702 ± 0.013 | 0.732 ± 0.040 | 0.632 ± 0.037 | 0.676 ± 0.003 |
+| 30 | 2983 | 0.739 ± 0.007 | 0.792 ± 0.004 | 0.633 ± 0.007 | 0.700 ± 0.013 |
+| 38 | 3749 | 0.740 | 0.794 | 0.660 | 0.695 |
+
+**What "bad" means in this dataset** (measured, since the page does not say). The five features whose average differs most between bad and good repetitions, in standard deviations:
+
+| Feature | In plain words | Bad minus good (standard deviations) | Average: good | Average: bad | Same direction in how many people |
+|---|---|---|---|---|---|
+| `avg_hip:min` | the hips fold less at the bottom (trunk-to-thigh angle stays more open): a shallower squat | +0.66 | 69.025 | 86.168 | 19 of 25 |
+| `avg_thigh_incl:std` | the thighs move less over the repetition | -0.66 | 22.251 | 17.891 | 19 of 25 |
+| `avg_thigh_incl:range` | the thighs swing through a smaller arc | -0.64 | 66.411 | 54.123 | 18 of 25 |
+| `avg_hip:range` | the hip angle changes less between standing and the bottom | -0.64 | 94.916 | 78.495 | 16 of 25 |
+| `avg_thigh_incl:max` | the thighs stay further from level at the bottom: a shallower squat | -0.64 | 74.864 | 62.374 | 18 of 25 |
+
+All five say the same thing: on average a "bad" repetition is a shallower squat (hips and thighs travel less). It is also slightly quicker (median 1.93 s against 2.07 s). The direction holds for 16 to 19 of the 25 people, not for all: what counts as bad varies from person to person. In side views the features that differ most are left-right knee differences, which a side view cannot really see, so part of the signal there is tracking noise.
+
+How deep and how fast the squats are in each dataset (median lowest knee angle, where 180 is a straight leg; median seconds per repetition):
+
+| Dataset | Correct / good: lowest knee angle | seconds | Mistake / bad: lowest knee angle | seconds |
+|---|---|---|---|---|
+| phone (REHAB26) | 109.1 | 2.40 | 104.5 | 2.43 |
+| fixed camera (REHAB24-6) | 86.9 | 3.20 | 73.8 | 3.17 |
+| phone (Mendeley, gym) | 72.6 | 2.07 | 82.1 | 1.93 |
+
+**Model decision: `squat.json` was not replaced.** The rule: replace only if the new model is better on one REHAB device group and not worse by more than 0.01 on the other. With Mendeley in training (datasets weighted equally, the configuration named before the run) macro F1 goes from 0.793 to 0.803 on phone (REHAB26) and from 0.802 to 0.772 on fixed camera (REHAB24-6); AUC goes from 0.881 to 0.862 and from 0.887 to 0.866. The rule is not met. Per person (phone (REHAB26): better for 4 of 5 people, worse for 1; fixed camera (REHAB24-6): better for 2 of 9 people, worse for 7). On Mendeley's own people that combined model scores 0.686 (AUC 0.760); the model that stays in the app scores 0.511 (AUC 0.515) there, which is chance level.
+
+**Why adding 25 people did not help.** The labels mean different things. Mendeley's squats are deep gym squats: "good" repetitions reach a knee angle of 72.6 degrees and "bad" ones 82.1, both deeper than REHAB's correct squats (109.1 on phones, 86.9 on the fixed camera). In Mendeley the deeper squat is the good one; on REHAB24-6's fixed camera the mistakes are on average the deeper ones (73.8 against 86.9 degrees). So the two sets of labels pull the model in opposite directions on depth, and the fixed-camera group pays for it. "Bad" in Mendeley is a gym standard (not deep enough); a REHAB26 mistake is one named fault (knees inside, too shallow, lifted heels, torso to the side, knees forward).
+
+**Skipped and not verified.**
+
+- 4 of 150 clips were not tracked (diagonal views of the last people): the 70-minute tracking budget was used up. Front and side views are complete.
+- What makes a clip "bad" is not documented; the description above is measured from the body points, not taken from the authors.
+- One label per clip is applied to every repetition in it. How many repetitions in a "bad" clip are actually fine is unknown.
+- Mendeley's people are assumed to be different from REHAB's people (different country and setting; not checkable).
+- Side views: the app's own camera check would refuse all of them (far leg hidden), and the tracker drew the body upside down in several; those repetitions were dropped, the rest kept, as for REHAB's profile views.
+- A good and a bad clip of the same person and view are separate recordings; a model could pick up recording differences instead of form. Leave-one-person-out does not rule that out.
+- Because `squat.json` was not replaced, nothing was re-exported and the sit-to-stand stand-in result in SIT_TO_STAND_CAMERA.md still applies to the model in the app.
+
+![Data overview](img/data_overview.png)
+
+## 12. Reproduce
 
 One process at a time, from `ml/`. On this laptop the stages took about 3, 2, 4, 3, 2, 1, 1, 1 minutes.
 
@@ -208,6 +301,13 @@ OMP_NUM_THREADS=2 nice -n 10 $P final_round.py extras --final-squat "ensemble | 
 OMP_NUM_THREADS=2 nice -n 10 $P final_round.py export squat --config "ensemble | balanced + devices weighted equally"      # writes final_round_out/squat.json
 OMP_NUM_THREADS=2 nice -n 10 $P final_round.py export arm_raise --config "ensemble | balanced + devices weighted equally"
 OMP_NUM_THREADS=2 nice -n 10 $P final_round_charts.py     # docs/img/*.png
+# section 11 (Mendeley squats): clips fetched by fetch_mendeley_squats.py, then
+OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py track --max-minutes 7.5   # repeat until all clips are tracked (about 70 minutes in all)
+OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py reps
+OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py eval
+OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py combined --weights equal
+OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py combined --weights none
+OMP_NUM_THREADS=2 nice -n 10 $P -I mendeley_squat.py curve
 $P final_round_report.py                                  # this file
 $P make_parity.py squat arm_raise && (cd ../web && node --test scripts/pose.test.ts)
 ```

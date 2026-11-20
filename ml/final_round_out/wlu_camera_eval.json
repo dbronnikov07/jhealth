@@ -1,0 +1,15 @@
+{
+  "source": "https://www.kaggle.com/datasets/sulaimanmuhammed/wlu-rehabilitation-posture",
+  "licence": "MIT (as listed on Kaggle)",
+  "exercise": "sit-to-stand",
+  "clips": 127,
+  "bad_clips": 48,
+  "recording_setups": {
+    "room01": {
+      "clips": 127,
+      "good": 79,
+      "bad": 48
+    }
+  },
+  "decision": "REJECTED FOR MODEL TRAINING: the inferred grouping found one visual setup, WLU publishes no participant IDs, and clip labels cannot support a setup-held-out or person-held-out F1. Do not train, export, or quote a score from this source."
+}

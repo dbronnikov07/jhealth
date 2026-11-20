@@ -1,0 +1,86 @@
+{
+ "clips_downloaded": 150,
+ "clips_tracked": 146,
+ "clips_with_zero_reps": 4,
+ "zero_rep_clips": [
+  "subject_001_squat_bad_side",
+  "subject_001_squat_good_side",
+  "subject_002_squat_bad_side",
+  "subject_021_squat_good_side"
+ ],
+ "clips_by_view": {
+  "front": 50,
+  "side": 50,
+  "diagonal": 46
+ },
+ "clips_rejected_person_found_under_60pct": {
+  "front": 0,
+  "side": 0,
+  "diagonal": 0
+ },
+ "clips_the_app_camera_check_would_refuse (both legs clear in under 75% of frames)": {
+  "front": 4,
+  "side": 50,
+  "diagonal": 17
+ },
+ "zero_rep_clips_by_view": {
+  "front": 0,
+  "side": 4,
+  "diagonal": 0
+ },
+ "zero_rep_clips_by_label": {
+  "good": 2,
+  "bad": 2
+ },
+ "reps_from_clips_the_app_check_accepts": 999,
+ "clips_where_body_is_upside_down_in_over_10pct_of_frames": {
+  "front": 4,
+  "side": 9,
+  "diagonal": 3
+ },
+ "reps_dropped_flipped_body": 150,
+ "clips_with_reps_by_view": {
+  "front": 50,
+  "side": 46,
+  "diagonal": 46
+ },
+ "people_by_view": {
+  "front": 25,
+  "side": 24,
+  "diagonal": 23
+ },
+ "reps": 1796,
+ "reps_good": 880,
+ "reps_bad": 916,
+ "reps_by_view": {
+  "front": {
+   "good": 323,
+   "bad": 308
+  },
+  "side": {
+   "good": 273,
+   "bad": 301
+  },
+  "diagonal": {
+   "good": 284,
+   "bad": 307
+  }
+ },
+ "people": 25,
+ "people_with_reps": 25,
+ "reps_per_person": {
+  "min": 37,
+  "median": 71.0,
+  "max": 120
+ },
+ "reps_per_clip": {
+  "min": 0,
+  "median": 13.0,
+  "max": 23
+ },
+ "skipped_dips": 84,
+ "reps_dropped_person_lost": 64,
+ "median_rep_seconds": 2.0
+}
+saved ~/jhealth-cache/mendeley_squat.npz (20.6 MB)
+[reps] 4 s

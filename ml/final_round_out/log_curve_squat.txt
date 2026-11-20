@@ -1,0 +1,12 @@
+
+squat: 2052 reps, 14 people
+  fixed camera (webcam-like)   REHAB24 camera     390 reps,  9 people, 31.3% with a mistake
+  phone                        REHAB26 camera    1662 reps,  5 people, 50.2% with a mistake
+  columns per group: macro F1, AUC, precision/recall of the mistake class (cut-off 0.5)
+   2 training people (   293 reps on average): all camera 0.608 (sd 0.025), fixed camera (webcam-like) 0.610 (sd 0.040), phone 0.599 (sd 0.027)
+   4 training people (   612 reps on average): all camera 0.698 (sd 0.017), fixed camera (webcam-like) 0.630 (sd 0.065), phone 0.704 (sd 0.035)
+   7 training people (  1040 reps on average): all camera 0.709 (sd 0.037), fixed camera (webcam-like) 0.675 (sd 0.023), phone 0.699 (sd 0.047)
+  10 training people (  1463 reps on average): all camera 0.769 (sd 0.030), fixed camera (webcam-like) 0.777 (sd 0.007), phone 0.756 (sd 0.039)
+  13 training people (  1905 reps on average): all camera 0.786 (sd 0.000), fixed camera (webcam-like) 0.786 (sd 0.000), phone 0.778 (sd 0.000)
+
+[curve squat] 46 s

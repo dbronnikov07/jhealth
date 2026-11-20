@@ -52,11 +52,14 @@ For one repetition of one exercise: **was it done correctly, or with a mistake?*
 | [REHAB26-ViewAngles](https://zenodo.org/records/23018128) | 3 iPhones, front to side | squat, arm raise | 5 | 1,662 + 1,668 | CC BY-NC |
 | [UI-PRMD](https://doi.org/10.5281/zenodo.23104965) | Vicon motion capture (lab) | sit-to-stand, squat, arm raise | 10 | 199 + 200 + 199 | public domain |
 | [IntelliRehabDS](https://zenodo.org/records/4610859) | Kinect (lab), patients | arm raise | 28 | 522 | CC BY 4.0 |
+| [Mendeley multi-view fitness](https://doi.org/10.17632/kgbb3yn47p.3) | phones in a gym, front / side / diagonal | squat (tested, not in the app's model) | 25 | 1,796 | CC BY 4.0 |
 | [WLU Rehabilitation Posture](https://www.kaggle.com/datasets/sulaimanmuhammed/wlu-rehabilitation-posture) | phones and webcams in people's homes | sit-to-stand (test only) | 6 rooms, nobody named | 127 clips | MIT |
 
 Camera data today: **4,076 labelled repetitions from 14 people**. Each repetition was marked correct or incorrect by the dataset's authors (in REHAB24-6, under a physiotherapist's instruction). The number that limits us is people, not repetitions: the model is always tested on a person it has never seen.
 
-In progress: 150 phone-filmed squat clips from 26 more people ([Mendeley Data, CC BY 4.0](https://doi.org/10.17632/kgbb3yn47p.3)), fetched by `ml/fetch_mendeley_squats.py`.
+**We also tried 25 more people, and they did not help.** The Mendeley set adds phone-filmed squats from a gym (1,796 repetitions). Trained with them, the squat model gains 0.01 on phones and loses 0.03 on the fixed camera, so the app keeps the model above. The reason is the labels: there "bad" means "not deep enough" by a gym standard (the good squats are the deeper ones), while in REHAB24-6 the mistakes are on average the deeper squats. More people only help when their labels mean the same thing as ours. Details: [docs/ML_RESULTS.md](docs/ML_RESULTS.md), section 11.
+
+![Labelled data behind each exercise](docs/img/data_overview.png)
 
 ### 3. From video to numbers
 
@@ -115,7 +118,7 @@ A shallow squat, lifted heels and knees going forward are caught well; a hitched
 
 ![Learning curve](docs/img/learning_curve.png)
 
-Yes. Trained on 2 people the squat scores 0.61; on 13 people 0.79, and the curve has not flattened. This is why the next round adds 26 more people, and why the team's own clips matter (`docs/RECORDING.md`).
+Yes, if their labels mean the same thing as ours. With all three squat datasets pooled (39 people, a lighter model for speed), the phone score climbs from 0.57 with 2 people in training to 0.79 with 38. The fixed camera stops rising after 13 people, most likely because the gym people added from then on judge depth the opposite way. That is why the team's own clips, with the same named mistakes on phone and laptop, are the next step (`docs/RECORDING.md`).
 
 ### 9. What did not help
 

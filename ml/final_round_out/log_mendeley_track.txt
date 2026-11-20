@@ -1,0 +1,165 @@
+[  4 tracked,   27s] subject_001_squat_good_side.mp4               479 frames,  31.9 s of video, 810x1440 @ 15 fps, person found 82%, upright 13%, tracking took 27 s
+[  5 tracked,   53s] subject_002_squat_bad_front.mp4               470 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[  6 tracked,   79s] subject_002_squat_bad_side.mp4                479 frames,  31.9 s of video, 810x1440 @ 15 fps, person found 92%, upright 15%, tracking took 26 s
+  first 3 clips: 26.3 s per clip -> about 66 minutes for all 150, 44 minutes for front + side only
+[  7 tracked,  104s] subject_002_squat_good_front.mp4              467 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[  8 tracked,  129s] subject_002_squat_good_side.mp4               467 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[  9 tracked,  155s] subject_003_squat_bad_front.mp4               468 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 25 s
+[track] 156 s
+[ 10 tracked,   26s] subject_003_squat_bad_side.mp4                470 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 97%, tracking took 26 s
+[ 11 tracked,   51s] subject_003_squat_good_front.mp4              468 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[track] 52 s
+[ 12 tracked,   26s] subject_003_squat_good_side.mp4               458 frames,  30.5 s of video, 810x1440 @ 15 fps, person found 95%, upright 93%, tracking took 26 s
+[ 13 tracked,   51s] subject_004_squat_bad_front.mp4               466 frames,  31.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 99%, tracking took 25 s
+[ 14 tracked,   77s] subject_004_squat_bad_side.mp4                481 frames,  32.0 s of video, 810x1440 @ 15 fps, person found 99%, upright 95%, tracking took 26 s
+  first 3 clips: 25.6 s per clip -> about 64 minutes for all 150, 43 minutes for front + side only
+[ 15 tracked,  102s] subject_004_squat_good_front.mp4              467 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[ 16 tracked,  127s] subject_004_squat_good_side.mp4               476 frames,  31.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[ 17 tracked,  151s] subject_005_squat_bad_front.mp4               455 frames,  30.3 s of video, 810x1440 @ 15 fps, person found 90%, upright 89%, tracking took 24 s
+[ 18 tracked,  176s] subject_005_squat_bad_side.mp4                462 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[track] 177 s
+[ 19 tracked,   26s] subject_005_squat_good_front.mp4              469 frames,  31.2 s of video, 810x1440 @ 15 fps, person found 93%, upright 86%, tracking took 26 s
+[ 20 tracked,   52s] subject_005_squat_good_side.mp4               463 frames,  30.8 s of video, 810x1440 @ 15 fps, person found 99%, upright 95%, tracking took 25 s
+[ 21 tracked,   77s] subject_006_squat_bad_front.mp4               467 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+  first 3 clips: 25.5 s per clip -> about 64 minutes for all 150, 43 minutes for front + side only
+[ 22 tracked,  101s] subject_006_squat_bad_side.mp4                462 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[ 23 tracked,  126s] subject_006_squat_good_front.mp4              458 frames,  30.5 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 24 s
+[ 24 tracked,  150s] subject_006_squat_good_side.mp4               463 frames,  30.8 s of video, 810x1440 @ 15 fps, person found 99%, upright 95%, tracking took 25 s
+[ 25 tracked,  176s] subject_007_squat_bad_front.mp4               467 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 89%, upright 79%, tracking took 25 s
+[ 26 tracked,  201s] subject_007_squat_bad_side.mp4                532 frames,  35.4 s of video, 810x1440 @ 15 fps, person found 77%, upright 66%, tracking took 25 s
+[ 27 tracked,  226s] subject_007_squat_good_front.mp4              467 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 97%, upright 97%, tracking took 25 s
+[ 28 tracked,  249s] subject_007_squat_good_side.mp4               480 frames,  31.9 s of video, 810x1440 @ 15 fps, person found 80%, upright 67%, tracking took 24 s
+[ 29 tracked,  274s] subject_008_squat_bad_front.mp4               462 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[ 30 tracked,  301s] subject_008_squat_bad_side.mp4                496 frames,  33.0 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 26 s
+[ 31 tracked,  325s] subject_008_squat_good_front.mp4              466 frames,  31.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[ 32 tracked,  350s] subject_008_squat_good_side.mp4               471 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 98%, upright 91%, tracking took 25 s
+[ 33 tracked,  375s] subject_009_squat_bad_front.mp4               455 frames,  30.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 24 s
+[ 34 tracked,  399s] subject_009_squat_bad_side.mp4                447 frames,  29.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 24 s
+[ 35 tracked,  426s] subject_009_squat_good_front.mp4              453 frames,  30.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 27 s
+[ 36 tracked,  458s] subject_009_squat_good_side.mp4               461 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 98%, upright 98%, tracking took 32 s
+[track] 459 s
+[ 37 tracked,   28s] subject_010_squat_bad_front.mp4               456 frames,  30.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 28 s
+[ 38 tracked,   61s] subject_010_squat_bad_side.mp4                469 frames,  31.2 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 33 s
+[ 39 tracked,   91s] subject_010_squat_good_front.mp4              460 frames,  30.6 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 29 s
+  first 3 clips: 30.2 s per clip -> about 76 minutes for all 150, 50 minutes for front + side only
+[ 40 tracked,  117s] subject_010_squat_good_side.mp4               446 frames,  29.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 26 s
+[ 41 tracked,  142s] subject_011_squat_bad_front.mp4               430 frames,  28.6 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[ 42 tracked,  168s] subject_011_squat_bad_side.mp4                435 frames,  28.9 s of video, 540x960 @ 15 fps, person found 98%, upright 98%, tracking took 26 s
+[ 43 tracked,  208s] subject_011_squat_good_front.mp4              465 frames,  30.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 40 s
+[ 44 tracked,  241s] subject_011_squat_good_side.mp4               482 frames,  32.1 s of video, 540x960 @ 15 fps, person found 96%, upright 93%, tracking took 33 s
+[ 45 tracked,  271s] subject_012_squat_bad_front.mp4               457 frames,  30.4 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 30 s
+[ 46 tracked,  301s] subject_012_squat_bad_side.mp4                459 frames,  30.5 s of video, 358x636 @ 15 fps, person found 99%, upright 87%, tracking took 31 s
+[ 47 tracked,  334s] subject_012_squat_good_front.mp4              449 frames,  29.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 33 s
+[ 48 tracked,  362s] subject_012_squat_good_side.mp4               451 frames,  30.0 s of video, 358x636 @ 15 fps, person found 100%, upright 100%, tracking took 28 s
+[ 49 tracked,  394s] subject_013_squat_bad_front.mp4               470 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 32 s
+[ 50 tracked,  424s] subject_013_squat_bad_side.mp4                470 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 29 s
+[ 51 tracked,  453s] subject_013_squat_good_front.mp4              464 frames,  30.9 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 29 s
+[track] 455 s
+[ 52 tracked,   37s] subject_013_squat_good_side.mp4               468 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 98%, upright 98%, tracking took 37 s
+[ 53 tracked,   69s] subject_014_squat_bad_front.mp4               465 frames,  30.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 32 s
+[ 54 tracked,  110s] subject_014_squat_bad_side.mp4                456 frames,  30.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 41 s
+  first 3 clips: 36.6 s per clip -> about 91 minutes for all 150, 61 minutes for front + side only
+[ 55 tracked,  148s] subject_014_squat_good_front.mp4              461 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 99%, tracking took 38 s
+[ 56 tracked,  187s] subject_014_squat_good_side.mp4               470 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 99%, upright 93%, tracking took 39 s
+[ 57 tracked,  209s] subject_015_squat_bad_front.mp4               315 frames,  20.9 s of video, 810x1440 @ 15 fps, person found 97%, upright 97%, tracking took 23 s
+[ 58 tracked,  230s] subject_015_squat_bad_side.mp4                297 frames,  19.7 s of video, 810x1440 @ 15 fps, person found 98%, upright 91%, tracking took 20 s
+[ 59 tracked,  262s] subject_015_squat_good_front.mp4              468 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 97%, upright 87%, tracking took 33 s
+[ 60 tracked,  298s] subject_015_squat_good_side.mp4               462 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 35 s
+[ 61 tracked,  327s] subject_016_squat_bad_front.mp4               463 frames,  30.8 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 29 s
+[ 62 tracked,  356s] subject_016_squat_bad_side.mp4                449 frames,  29.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 29 s
+[ 63 tracked,  387s] subject_016_squat_good_front.mp4              466 frames,  31.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 31 s
+[ 64 tracked,  417s] subject_016_squat_good_side.mp4               451 frames,  30.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 30 s
+[ 65 tracked,  447s] subject_017_squat_bad_front.mp4               442 frames,  29.4 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 30 s
+[ 66 tracked,  480s] subject_017_squat_bad_side.mp4                470 frames,  31.3 s of video, 358x636 @ 15 fps, person found 92%, upright 80%, tracking took 34 s
+[track] 482 s
+[ 67 tracked,   36s] subject_017_squat_good_front.mp4              454 frames,  30.2 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 36 s
+[ 68 tracked,   73s] subject_017_squat_good_side.mp4               461 frames,  30.7 s of video, 358x636 @ 15 fps, person found 98%, upright 97%, tracking took 37 s
+[ 69 tracked,  105s] subject_018_squat_bad_front.mp4               430 frames,  28.6 s of video, 358x636 @ 15 fps, person found 99%, upright 99%, tracking took 33 s
+  first 3 clips: 35.0 s per clip -> about 87 minutes for all 150, 58 minutes for front + side only
+[ 70 tracked,  132s] subject_018_squat_bad_side.mp4                436 frames,  29.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 27 s
+[ 71 tracked,  163s] subject_018_squat_good_front.mp4              489 frames,  32.5 s of video, 358x636 @ 15 fps, person found 100%, upright 100%, tracking took 31 s
+[ 72 tracked,  197s] subject_018_squat_good_side.mp4               466 frames,  31.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 33 s
+[ 73 tracked,  215s] subject_019_squat_bad_front.mp4               258 frames,  17.1 s of video, 358x636 @ 15 fps, person found 100%, upright 100%, tracking took 18 s
+[ 74 tracked,  230s] subject_019_squat_bad_side.mp4                250 frames,  16.6 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 16 s
+[ 75 tracked,  247s] subject_019_squat_good_front.mp4              274 frames,  18.2 s of video, 358x636 @ 15 fps, person found 95%, upright 94%, tracking took 16 s
+[ 76 tracked,  267s] subject_019_squat_good_side.mp4               263 frames,  17.5 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 21 s
+[ 77 tracked,  306s] subject_020_squat_bad_front.mp4               465 frames,  30.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 39 s
+[ 78 tracked,  332s] subject_020_squat_bad_side.mp4                385 frames,  25.6 s of video, 810x1440 @ 15 fps, person found 96%, upright 84%, tracking took 26 s
+[ 79 tracked,  361s] subject_020_squat_good_front.mp4              468 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 30 s
+[ 80 tracked,  392s] subject_020_squat_good_side.mp4               461 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 98%, upright 98%, tracking took 31 s
+[ 81 tracked,  422s] subject_021_squat_bad_front.mp4               458 frames,  30.5 s of video, 810x1440 @ 15 fps, person found 99%, upright 94%, tracking took 30 s
+[ 82 tracked,  451s] subject_021_squat_bad_side.mp4                454 frames,  30.2 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 29 s
+[track] 453 s
+[ 83 tracked,   32s] subject_021_squat_good_front.mp4              457 frames,  30.4 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 32 s
+[ 84 tracked,   45s] subject_021_squat_good_side.mp4               181 frames,  12.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 12 s
+[ 85 tracked,   70s] subject_022_squat_bad_front.mp4               425 frames,  28.3 s of video, 810x1440 @ 15 fps, person found 81%, upright 68%, tracking took 25 s
+  first 3 clips: 23.1 s per clip -> about 58 minutes for all 150, 39 minutes for front + side only
+[ 86 tracked,   96s] subject_022_squat_bad_side.mp4                425 frames,  28.3 s of video, 810x1440 @ 15 fps, person found 98%, upright 98%, tracking took 26 s
+[ 87 tracked,  120s] subject_022_squat_good_front.mp4              429 frames,  28.5 s of video, 810x1440 @ 15 fps, person found 95%, upright 95%, tracking took 25 s
+[ 88 tracked,  147s] subject_022_squat_good_side.mp4               423 frames,  28.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 27 s
+[ 89 tracked,  172s] subject_023_squat_bad_front.mp4               341 frames,  22.7 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 24 s
+[ 90 tracked,  204s] subject_023_squat_bad_side.mp4                451 frames,  30.0 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 32 s
+[ 91 tracked,  225s] subject_023_squat_good_front.mp4              372 frames,  24.7 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 21 s
+[ 92 tracked,  253s] subject_023_squat_good_side.mp4               451 frames,  30.0 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 28 s
+[ 93 tracked,  279s] subject_024_squat_bad_front.mp4               471 frames,  31.3 s of video, 540x960 @ 15 fps, person found 97%, upright 82%, tracking took 26 s
+[ 94 tracked,  310s] subject_024_squat_bad_side.mp4                440 frames,  29.3 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 31 s
+[ 95 tracked,  335s] subject_024_squat_good_front.mp4              414 frames,  27.5 s of video, 540x960 @ 15 fps, person found 99%, upright 99%, tracking took 25 s
+[ 96 tracked,  362s] subject_024_squat_good_side.mp4               496 frames,  33.0 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 27 s
+[ 97 tracked,  390s] subject_026_squat_bad_front.mp4               448 frames,  29.8 s of video, 810x1440 @ 15 fps, person found 100%, upright 99%, tracking took 28 s
+[ 98 tracked,  417s] subject_026_squat_bad_side.mp4                462 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 27 s
+[ 99 tracked,  443s] subject_026_squat_good_front.mp4              431 frames,  28.7 s of video, 810x1440 @ 15 fps, person found 98%, upright 97%, tracking took 26 s
+[100 tracked,  470s] subject_026_squat_good_side.mp4               459 frames,  30.5 s of video, 810x1440 @ 15 fps, person found 74%, upright 62%, tracking took 27 s
+[track] 472 s
+[101 tracked,   29s] subject_001_squat_bad_diagonal.mp4            494 frames,  32.9 s of video, 810x1440 @ 15 fps, person found 79%, upright 67%, tracking took 29 s
+[102 tracked,   54s] subject_001_squat_good_diagonal.mp4           480 frames,  31.9 s of video, 810x1440 @ 15 fps, person found 79%, upright 74%, tracking took 25 s
+[103 tracked,   89s] subject_002_squat_bad_diagonal.mp4            580 frames,  38.6 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 34 s
+  first 3 clips: 29.5 s per clip -> about 74 minutes for all 150, 49 minutes for front + side only
+[104 tracked,  121s] subject_002_squat_good_diagonal.mp4           464 frames,  30.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 99%, tracking took 33 s
+[105 tracked,  179s] subject_003_squat_bad_diagonal.mp4            486 frames,  32.3 s of video, 348x624 @ 15 fps, person found 100%, upright 100%, tracking took 57 s
+[106 tracked,  225s] subject_003_squat_good_diagonal.mp4           486 frames,  32.3 s of video, 348x624 @ 15 fps, person found 100%, upright 100%, tracking took 47 s
+[107 tracked,  256s] subject_004_squat_bad_diagonal.mp4            491 frames,  32.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 30 s
+[108 tracked,  293s] subject_004_squat_good_diagonal.mp4           502 frames,  33.4 s of video, 810x1440 @ 15 fps, person found 99%, upright 93%, tracking took 37 s
+[109 tracked,  338s] subject_005_squat_bad_diagonal.mp4            464 frames,  30.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 45 s
+[110 tracked,  371s] subject_005_squat_good_diagonal.mp4           470 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 33 s
+[111 tracked,  406s] subject_006_squat_bad_diagonal.mp4            468 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 35 s
+[112 tracked,  437s] subject_006_squat_good_diagonal.mp4           467 frames,  31.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 31 s
+[113 tracked,  464s] subject_007_squat_bad_diagonal.mp4            469 frames,  31.2 s of video, 810x1440 @ 15 fps, person found 99%, upright 99%, tracking took 28 s
+[track] 466 s
+[114 tracked,   31s] subject_007_squat_good_diagonal.mp4           474 frames,  31.5 s of video, 810x1440 @ 15 fps, person found 93%, upright 74%, tracking took 31 s
+[115 tracked,   58s] subject_008_squat_bad_diagonal.mp4            470 frames,  31.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 27 s
+[116 tracked,   89s] subject_008_squat_good_diagonal.mp4           479 frames,  31.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 32 s
+  first 3 clips: 29.8 s per clip -> about 74 minutes for all 150, 50 minutes for front + side only
+[117 tracked,  116s] subject_009_squat_bad_diagonal.mp4            456 frames,  30.3 s of video, 540x960 @ 15 fps, person found 99%, upright 99%, tracking took 26 s
+[118 tracked,  140s] subject_009_squat_good_diagonal.mp4           447 frames,  29.7 s of video, 540x960 @ 15 fps, person found 99%, upright 98%, tracking took 25 s
+[119 tracked,  167s] subject_010_squat_bad_diagonal.mp4            474 frames,  31.5 s of video, 358x636 @ 15 fps, person found 100%, upright 100%, tracking took 27 s
+[120 tracked,  195s] subject_010_squat_good_diagonal.mp4           472 frames,  31.4 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 28 s
+[121 tracked,  223s] subject_011_squat_bad_diagonal.mp4            447 frames,  29.7 s of video, 810x1440 @ 15 fps, person found 99%, upright 96%, tracking took 27 s
+[122 tracked,  251s] subject_011_squat_good_diagonal.mp4           479 frames,  31.9 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 28 s
+[123 tracked,  282s] subject_012_squat_bad_diagonal.mp4            461 frames,  30.7 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 31 s
+[124 tracked,  308s] subject_012_squat_good_diagonal.mp4           451 frames,  30.0 s of video, 810x1440 @ 15 fps, person found 100%, upright 98%, tracking took 26 s
+[125 tracked,  333s] subject_013_squat_bad_diagonal.mp4            460 frames,  30.6 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[126 tracked,  360s] subject_013_squat_good_diagonal.mp4           463 frames,  30.8 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 27 s
+[127 tracked,  388s] subject_014_squat_bad_diagonal.mp4            480 frames,  31.9 s of video, 540x960 @ 15 fps, person found 97%, upright 94%, tracking took 28 s
+[128 tracked,  414s] subject_014_squat_good_diagonal.mp4           454 frames,  30.2 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 25 s
+[129 tracked,  430s] subject_015_squat_bad_diagonal.mp4            299 frames,  19.9 s of video, 540x960 @ 15 fps, person found 96%, upright 83%, tracking took 16 s
+[130 tracked,  456s] subject_015_squat_good_diagonal.mp4           472 frames,  31.4 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 26 s
+[track] 458 s
+[131 tracked,   28s] subject_016_squat_bad_diagonal.mp4            462 frames,  30.7 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 28 s
+[132 tracked,   62s] subject_016_squat_good_diagonal.mp4           470 frames,  31.3 s of video, 540x960 @ 15 fps, person found 99%, upright 99%, tracking took 34 s
+[133 tracked,   98s] subject_017_squat_bad_diagonal.mp4            433 frames,  28.8 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 36 s
+  first 3 clips: 32.7 s per clip -> about 82 minutes for all 150, 55 minutes for front + side only
+[134 tracked,  124s] subject_017_squat_good_diagonal.mp4           443 frames,  29.5 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 26 s
+[135 tracked,  147s] subject_018_squat_bad_diagonal.mp4            410 frames,  27.3 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 22 s
+[136 tracked,  173s] subject_018_squat_good_diagonal.mp4           424 frames,  28.2 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 26 s
+[137 tracked,  181s] subject_019_squat_bad_diagonal.mp4            123 frames,   8.1 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 8 s
+[138 tracked,  196s] subject_019_squat_good_diagonal.mp4           253 frames,  16.8 s of video, 810x1440 @ 15 fps, person found 100%, upright 100%, tracking took 15 s
+[139 tracked,  224s] subject_020_squat_bad_diagonal.mp4            454 frames,  30.2 s of video, 810x1440 @ 15 fps, person found 93%, upright 92%, tracking took 28 s
+[140 tracked,  249s] subject_020_squat_good_diagonal.mp4           442 frames,  29.4 s of video, 810x1440 @ 15 fps, person found 93%, upright 86%, tracking took 25 s
+[141 tracked,  274s] subject_021_squat_bad_diagonal.mp4            424 frames,  28.2 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 24 s
+[142 tracked,  306s] subject_021_squat_good_diagonal.mp4           437 frames,  29.1 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 33 s
+[143 tracked,  348s] subject_022_squat_bad_diagonal.mp4            421 frames,  28.0 s of video, 540x960 @ 15 fps, person found 99%, upright 99%, tracking took 41 s
+[144 tracked,  379s] subject_022_squat_good_diagonal.mp4           416 frames,  27.7 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 32 s
+[145 tracked,  446s] subject_023_squat_bad_diagonal.mp4            484 frames,  32.2 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 67 s
+[146 tracked,  482s] subject_023_squat_good_diagonal.mp4           375 frames,  24.9 s of video, 540x960 @ 15 fps, person found 100%, upright 100%, tracking took 36 s
+[track] 484 s
+tracking budget of 70 minutes used: stopping

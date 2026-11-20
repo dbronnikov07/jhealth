@@ -1,0 +1,8 @@
+   2 training people (   209 reps): all 0.557 (sd 0.032), phone (REHAB26) 0.566 (sd 0.062), fixed camera (REHAB24-6) 0.486 (sd 0.013), phone (Mendeley, gym) 0.549 (sd 0.007)
+   5 training people (   491 reps): all 0.614 (sd 0.000), phone (REHAB26) 0.613 (sd 0.022), fixed camera (REHAB24-6) 0.559 (sd 0.028), phone (Mendeley, gym) 0.614 (sd 0.017)
+  10 training people (   956 reps): all 0.671 (sd 0.006), phone (REHAB26) 0.700 (sd 0.032), fixed camera (REHAB24-6) 0.587 (sd 0.022), phone (Mendeley, gym) 0.643 (sd 0.029)
+  13 training people (  1302 reps): all 0.690 (sd 0.018), phone (REHAB26) 0.704 (sd 0.059), fixed camera (REHAB24-6) 0.680 (sd 0.041), phone (Mendeley, gym) 0.664 (sd 0.011)
+  20 training people (  2008 reps): all 0.702 (sd 0.013), phone (REHAB26) 0.732 (sd 0.040), fixed camera (REHAB24-6) 0.632 (sd 0.037), phone (Mendeley, gym) 0.676 (sd 0.003)
+  30 training people (  2983 reps): all 0.739 (sd 0.007), phone (REHAB26) 0.792 (sd 0.004), fixed camera (REHAB24-6) 0.633 (sd 0.007), phone (Mendeley, gym) 0.700 (sd 0.013)
+  38 training people (  3749 reps): all 0.740 (sd 0.000), phone (REHAB26) 0.794 (sd 0.000), fixed camera (REHAB24-6) 0.660 (sd 0.000), phone (Mendeley, gym) 0.695 (sd 0.000)
+[curve] 244 s

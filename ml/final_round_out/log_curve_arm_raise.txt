@@ -1,0 +1,12 @@
+
+arm_raise: 2024 reps, 14 people
+  fixed camera (webcam-like)   REHAB24 camera     356 reps,  9 people, 49.4% with a mistake
+  phone                        REHAB26 camera    1668 reps,  5 people, 50.0% with a mistake
+  columns per group: macro F1, AUC, precision/recall of the mistake class (cut-off 0.5)
+   2 training people (   290 reps on average): all camera 0.566 (sd 0.032), fixed camera (webcam-like) 0.512 (sd 0.011), phone 0.574 (sd 0.037)
+   4 training people (   606 reps on average): all camera 0.592 (sd 0.022), fixed camera (webcam-like) 0.591 (sd 0.032), phone 0.585 (sd 0.026)
+   7 training people (  1028 reps on average): all camera 0.607 (sd 0.010), fixed camera (webcam-like) 0.608 (sd 0.038), phone 0.606 (sd 0.011)
+  10 training people (  1443 reps on average): all camera 0.641 (sd 0.026), fixed camera (webcam-like) 0.620 (sd 0.010), phone 0.644 (sd 0.029)
+  13 training people (  1879 reps on average): all camera 0.659 (sd 0.000), fixed camera (webcam-like) 0.642 (sd 0.000), phone 0.662 (sd 0.000)
+
+[curve arm_raise] 42 s

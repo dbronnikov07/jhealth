@@ -1,0 +1,118 @@
+{
+ "model": "soft vote of logistic (C=0.1) + forest (100 trees), balanced",
+ "repeats": 4,
+ "points": {
+  "2": [
+   {
+    "all camera": 0.6454675759023585,
+    "fixed camera (webcam-like)": 0.58293559939999,
+    "phone": 0.640953698521262,
+    "train_reps": 333.42857142857144
+   },
+   {
+    "all camera": 0.577393001735107,
+    "fixed camera (webcam-like)": 0.5934860298895386,
+    "phone": 0.5684502275644766,
+    "train_reps": 231.78571428571428
+   },
+   {
+    "all camera": 0.6090990368710136,
+    "fixed camera (webcam-like)": 0.679136350954006,
+    "phone": 0.583814687576887,
+    "train_reps": 314.2857142857143
+   },
+   {
+    "all camera": 0.599593578540947,
+    "fixed camera (webcam-like)": 0.5857386967163903,
+    "phone": 0.6019658587351098,
+    "train_reps": 293.57142857142856
+   }
+  ],
+  "4": [
+   {
+    "all camera": 0.7139926102397548,
+    "fixed camera (webcam-like)": 0.5825624667729932,
+    "phone": 0.7329186909004337,
+    "train_reps": 670.0714285714286
+   },
+   {
+    "all camera": 0.7138244228519315,
+    "fixed camera (webcam-like)": 0.549370031342757,
+    "phone": 0.7448681673415808,
+    "train_reps": 689.0714285714286
+   },
+   {
+    "all camera": 0.6734528913248921,
+    "fixed camera (webcam-like)": 0.697639039232322,
+    "phone": 0.6624273764952378,
+    "train_reps": 544.5714285714286
+   },
+   {
+    "all camera": 0.6916316965206424,
+    "fixed camera (webcam-like)": 0.6902968257034319,
+    "phone": 0.6762363941851122,
+    "train_reps": 544.5714285714286
+   }
+  ],
+  "7": [
+   {
+    "all camera": 0.7482619430743925,
+    "fixed camera (webcam-like)": 0.7071402918802442,
+    "phone": 0.7377765692820528,
+    "train_reps": 1087.142857142857
+   },
+   {
+    "all camera": 0.7263220491953741,
+    "fixed camera (webcam-like)": 0.6427917200952555,
+    "phone": 0.7313473621572667,
+    "train_reps": 1066.9285714285713
+   },
+   {
+    "all camera": 0.7116081808725448,
+    "fixed camera (webcam-like)": 0.6747757073844031,
+    "phone": 0.7078302842500447,
+    "train_reps": 940.7142857142857
+   },
+   {
+    "all camera": 0.6480264063255653,
+    "fixed camera (webcam-like)": 0.676143560872625,
+    "phone": 0.6198398213015268,
+    "train_reps": 1066.7857142857142
+   }
+  ],
+  "10": [
+   {
+    "all camera": 0.7985549264163891,
+    "fixed camera (webcam-like)": 0.7898266518966498,
+    "phone": 0.791901771108912,
+    "train_reps": 1424.7857142857142
+   },
+   {
+    "all camera": 0.7766832450041734,
+    "fixed camera (webcam-like)": 0.7753456221198156,
+    "phone": 0.7654944388338383,
+    "train_reps": 1485.7857142857142
+   },
+   {
+    "all camera": 0.7814220539045567,
+    "fixed camera (webcam-like)": 0.7709857255743481,
+    "phone": 0.7762887017641149,
+    "train_reps": 1481.2142857142858
+   },
+   {
+    "all camera": 0.7188740971075049,
+    "fixed camera (webcam-like)": 0.7738347178394174,
+    "phone": 0.6893020622676467,
+    "train_reps": 1461.0714285714287
+   }
+  ],
+  "13": [
+   {
+    "all camera": 0.7864685690826361,
+    "fixed camera (webcam-like)": 0.7855835636659412,
+    "phone": 0.7778077307804585,
+    "train_reps": 1905.4285714285713
+   }
+  ]
+ }
+}
