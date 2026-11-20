@@ -17,17 +17,33 @@ export type PlanItem = {
 };
 
 /**
- * Short videos shown before an exercise: how it looks done right, from the front and the side, and the most common
- * way to get it wrong. Real people from an open dataset (public/demo/CREDITS.md), faces blurred by its authors.
+ * Short videos shown before an exercise: how it looks done right, and what does not count yet. Real people, faces not
+ * blurred, open licences (public/demo/CREDITS.md). The "not yet" clips are labelled neutrally: they show a movement
+ * the app would not count, not a person doing something wrong.
  */
-const DEMOS: Record<string, { counts: string; clips: { src: string; label: string; note: string; ok: boolean }[] }> = {
+type Demo = { src: string; label: string; note: string; ok: boolean; wide?: boolean };
+const DEMOS: Record<string, { counts: string; credit: string; clips: Demo[] }> = {
   squat: {
     counts: "A squat counts when your knees bend about 55 degrees or more: sit back as if onto the chair, then stand up tall.",
+    credit: "Videos: SHVETS production, olia danilevich, Pavel Danilyuk (Pexels).",
     clips: [
-      { src: "/demo/squat_good_front.mp4", label: "Right", note: "Hips back, thighs close to level", ok: true },
-      { src: "/demo/squat_good_side.mp4", label: "Right, from the side", note: "Chest up, weight in the heels", ok: true },
-      { src: "/demo/squat_bad_front.mp4", label: "Wrong", note: "Too shallow: this does not count", ok: false },
+      { src: "/demo/squat_good_front.mp4", label: "Counts", note: "Sit back to about chair height", ok: true },
+      { src: "/demo/squat_good_side.mp4", label: "Counts, from the side", note: "Hips back, chest up", ok: true },
+      { src: "/demo/squat_shallow_front.mp4", label: "Doesn't count yet", note: "A small knee bend: go lower", ok: false },
     ],
+  },
+  sit_to_stand: {
+    counts: "A sit-to-stand counts when you sit all the way down and stand up tall. Keep your arms crossed if you can.",
+    credit: "Videos: U.S. CDC STEADI (public domain).",
+    clips: [
+      { src: "/demo/sit_to_stand_good.mp4", label: "Counts", note: "Arms crossed, stand up fully, sit down slowly", ok: true },
+      { src: "/demo/sit_to_stand_hands.mp4", label: "Only if your physio says so", note: "Pushing up with your hands", ok: false },
+    ],
+  },
+  arm_raise: {
+    counts: "An arm raise counts when your straight arm goes out to the side to about shoulder height. Below about 60 degrees it does not count yet.",
+    credit: "Video: SHVETS production (Pexels).",
+    clips: [{ src: "/demo/arm_raise_good.mp4", label: "Counts", note: "Straight arms out to shoulder height, lower slowly", ok: true, wide: true }],
   },
 };
 
@@ -38,14 +54,14 @@ function HowTo({ exerciseId }: { exerciseId: string }) {
     <div className="howto">
       <div className="howto-row">
         {demo.clips.map((c) => (
-          <figure key={c.src} className={c.ok ? "ok" : "wrong"}>
+          <figure key={c.src} className={`${c.ok ? "ok" : "wrong"}${c.wide ? " wide" : ""}`}>
             <video src={c.src} muted loop playsInline autoPlay preload="metadata" aria-label={`${c.label}: ${c.note}`} />
             <figcaption><b>{c.label}</b> {c.note}</figcaption>
           </figure>
         ))}
       </div>
       <p className="howto-counts">{demo.counts}</p>
-      <p className="howto-credit faint small">Videos: Mendeley Data, kgbb3yn47p, CC BY 4.0. Faces blurred by the authors.</p>
+      <p className="howto-credit faint small">{demo.credit}</p>
     </div>
   );
 }

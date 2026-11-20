@@ -860,6 +860,8 @@ textarea { resize: vertical; min-height: 60px; }
 .howto figure { margin: 0; border-radius: 16px; overflow: hidden; background: #0b1240; border: 3px solid #0f7a4a; }
 .howto figure.wrong { border-color: #c62828; }
 .howto video { display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover; }
+.howto figure.wide { grid-column: span 2; }
+.howto figure.wide video { aspect-ratio: 9 / 8; object-fit: contain; background: #0b1240; }
 .howto figcaption { font-size: 14px; line-height: 1.35; color: #ffffff; padding: 8px 10px 10px; }
 .howto figcaption b { display: block; font-size: 15px; color: #7ee2a8; }
 .howto figure.wrong figcaption b { color: #ff8a80; }
