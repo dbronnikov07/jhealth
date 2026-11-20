@@ -93,6 +93,7 @@ export function CameraSession(p: Props) {
   // The spoken conversation, shown under the video: what the patient said and what the coach answered.
   const [turns, setTurns] = useState<{ who: "you" | "coach"; text: string }[]>([]);
   const okayRef = useRef<() => void>(() => {});
+  const lastWordsRef = useRef(false);     // the coach is saying its last words (after "it hurts"): do not cut them off
   const hurtsRef = useRef<() => void>(() => {});
   const target = p.sets * p.reps;
 
@@ -779,7 +780,7 @@ export function CameraSession(p: Props) {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
       stop();
-      if (!finished) {
+      if (!finished && !lastWordsRef.current) {
         stopVoice();
         window.speechSynthesis?.cancel();
       }
@@ -801,6 +802,9 @@ export function CameraSession(p: Props) {
     stopRef.current();
     stopVoice();
     window.speechSynthesis?.cancel();
+    // Said out loud, not only shown: the patient may be two metres from the screen.
+    lastWordsRef.current = true;
+    say(["pain_stop"], "Let's stop here. I've told your physiotherapist.", "now");
     const res = await fetch("/api/session/pain", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

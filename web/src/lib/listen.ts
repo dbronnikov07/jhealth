@@ -44,7 +44,7 @@ export class Vad {
   private loudFrames = 0;
   private startMs = 0;
 
-  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 27, minLoudFrames: 10, maxFrames: 500 };
+  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 24, minLoudFrames: 10, maxFrames: 500 };
 
   get active(): boolean {
     return this.speaking;
