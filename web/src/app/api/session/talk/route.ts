@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { getDb } from "@/lib/db";
 import { assessMessage } from "@/lib/safety";
 import { raiseSafetyAlert } from "@/lib/safety-actions";
-import { forSpeech, liveFacts, speech, splitSentences, ttsTicket, voiceReply, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
+import { forSpeech, formAnswer, liveFacts, speech, splitSentences, ttsTicket, voiceReply, type FormData, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -68,6 +68,8 @@ export async function POST(request: Request) {
     bestDegrees: num(c.best_degrees, 0, 180),
     previousDegrees: num(c.previous_degrees, 0, 180),
     notCounted: num(c.not_counted, 0, 500) ?? 0,
+    form: text(c.form, 500),
+    formData: formDataOf(c.form_data),
     condition: patient.condition && patient.condition !== "Not assessed yet" ? `${patient.condition}${patient.side ? `, ${patient.side} side` : ""}` : null,
     memories: memories.map((m) => `${m.kind}: ${m.fact}`.slice(0, 160)),
     liveFacts: facts,
@@ -86,6 +88,9 @@ export async function POST(request: Request) {
     after(() => processOutbox(patient.id));
     reply = forSpeech(`Thank you for telling me, ${ctx.firstName}. Please stop and rest now. I've told your physiotherapist.`);
     action = "stop";
+  } else if (formAnswer(heard, ctx.firstName, ctx.formData)) {
+    // "Am I doing it right?": answered from the camera's own numbers, no AI in between.
+    reply = forSpeech(formAnswer(heard, ctx.firstName, ctx.formData)!);
   } else {
     reply = event === "prepare" ? (await voiceReply(event, heard, ctx, { keepLines: true })).text : (await voiceReply(event, heard, ctx)).text;
   }
@@ -103,4 +108,22 @@ export async function POST(request: Request) {
   }
   const tickets = audio ? [] : splitSentences(reply).map(ttsTicket).filter((t) => t !== null);
   return Response.json({ reply, action, audio: audio ? audio.toString("base64") : null, tts: tickets.length ? tickets : null });
+}
+
+/** The session's form numbers as sent by the page, checked field by field (anything odd means "not given"). */
+function formDataOf(x: unknown): FormData | null {
+  if (!x || typeof x !== "object") return null;
+  const f = x as Record<string, unknown>;
+  const counted = num(f.counted, 0, 500);
+  if (counted === null) return null;
+  return {
+    counted,
+    good: Math.min(counted, num(f.good, 0, 500) ?? 0),
+    topFault: text(f.top_fault, 80),
+    topFaultCount: num(f.top_fault_count, 0, 500) ?? 0,
+    lastFault: text(f.last_fault, 80),
+    lastScore: num(f.last_score, 0, 100),
+    hands: num(f.hands, 0, 500) ?? 0,
+    small: num(f.small, 0, 500) ?? 0,
+  };
 }

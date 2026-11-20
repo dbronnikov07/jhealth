@@ -9,7 +9,7 @@
 //
 // Like sound, the microphone must be started by a tap: startListening() is called from the "Start with camera" tap.
 
-export type Command = "call_911" | "call_contact" | "help" | "okay" | "pain";
+export type Command = "call_911" | "call_contact" | "help" | "okay" | "pain" | "pause" | "resume";
 
 /** Which command, if any, a piece of heard text is. `contactName` is the emergency contact ("Mom", "Anna Lee"). */
 export function matchCommand(heard: string, contactName: string | null = null): Command | null {
@@ -22,6 +22,10 @@ export function matchCommand(heard: string, contactName: string | null = null): 
   if (/ (help me|i need help|help|i fell|i've fallen|i have fallen|i fell down|i can't get up|i cannot get up) /.test(t)) return "help";
   if (/ (i'm|i am|im) (ok|okay|fine|all right|alright|good) /.test(t) || /^ (ok|okay|fine|i'm fine) $/.test(t)) return "okay";
   if (/ (it hurts|that hurts|it's hurting|ouch|pain) /.test(t)) return "pain";
+  // Pause and resume only as a short phrase of their own, so "should I pause between reps?" stays a question.
+  const words = t.trim().split(" ").length;
+  if (words <= 5 && / (pause|take a break|i need a break|give me a (minute|second|moment)|wait a (minute|second|moment)|hold on|stop the camera|camera off|turn off the camera) /.test(t)) return "pause";
+  if (words <= 5 && / (resume|continue|i'm back|i am back|im back|let's continue|lets continue|let's go|keep going|camera on|turn on the camera|start again|i'm ready|i am ready) /.test(t)) return "resume";
   return null;
 }
 
@@ -132,7 +136,8 @@ let ctx: AudioContext | null = null;
 let voiceBase = "";                          // "" = this site; "http://127.0.0.1:8799" = the fast voice helper on this laptop
 let coachSpeaking: () => boolean = () => false;
 let stream: MediaStream | null = null;
-let node: ScriptProcessorNode | null = null;
+let node: AudioNode | null = null;
+let capture: "worklet" | "script" | null = null;
 let vad = new Vad();
 let ticket: Ticket | null = null;
 let handler: Handler | null = null;
@@ -282,28 +287,84 @@ export function startListening(): void {
   }
   starting = true;
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  ctx = ctx ?? new AC();                       // created inside the tap, as phones require
+  // 16 kHz from the start: the browser then converts the microphone's 44 or 48 kHz properly (with a filter).
+  // Created inside the tap, as phones require.
+  const make16k = () => { try { return new AC({ sampleRate: 16000 }); } catch { return new AC(); } };
+  ctx = ctx ?? make16k();
   void ctx.resume();
   navigator.mediaDevices
     .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }, video: false })
-    .then((s) => {
-      stream = s;
-      const source = ctx!.createMediaStreamSource(s);
-      const resampler = new Resampler(ctx!.sampleRate);
-      node = ctx!.createScriptProcessor(2048, 1, 1);
-      node.onaudioprocess = (e) => resampler.push(e.inputBuffer.getChannelData(0), onFrame);
-      const mute = ctx!.createGain();
-      mute.gain.value = 0;                     // the processor must reach the output to run; nothing is played
-      source.connect(node);
-      node.connect(mute);
-      mute.connect(ctx!.destination);
-      setState({ on: true, error: null });
-    })
+    .then((s) => connectMicrophone(s, AC))
     .catch((e: unknown) => {
       const name = (e as { name?: string } | null)?.name ?? "";
       setState({ on: false, error: MIC_ERRORS[name] ?? "The microphone could not start. Tap Talk to try again." });
     })
     .finally(() => { starting = false; });
+}
+
+/** Wire a microphone stream into the detector: on the audio thread where the browser can (no lost samples), else the old way. */
+async function connectMicrophone(s: MediaStream, AC: typeof AudioContext): Promise<void> {
+  stream = s;
+  let source: MediaStreamAudioSourceNode;
+  try {
+    source = ctx!.createMediaStreamSource(s);
+  } catch {
+    // Firefox cannot join a 16 kHz context to a 48 kHz microphone: use the device's own rate and convert here.
+    ctx = new AC();
+    void ctx.resume();
+    source = ctx.createMediaStreamSource(s);
+  }
+  const c = ctx!;
+  const resampler = new Resampler(c.sampleRate);
+  const feed = (chunk: Float32Array) => resampler.push(chunk, onFrame);
+  const mute = c.createGain();
+  mute.gain.value = 0;                       // the capture node must reach the output to run; nothing is played
+  const forceOld = typeof window !== "undefined" && (window as unknown as { __motivaOldCapture?: boolean }).__motivaOldCapture === true;
+  try {
+    if (forceOld || !c.audioWorklet) throw new Error("no worklet");
+    await c.audioWorklet.addModule("/listen-worklet.js");
+    const w = new AudioWorkletNode(c, "motiva-capture", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: "explicit" });
+    w.port.onmessage = (e: MessageEvent<Float32Array>) => feed(e.data);
+    source.connect(w);
+    w.connect(mute);
+    node = w;
+    capture = "worklet";
+  } catch {
+    const sp = c.createScriptProcessor(4096, 1, 1);
+    sp.onaudioprocess = (e) => feed(e.inputBuffer.getChannelData(0));
+    source.connect(sp);
+    sp.connect(mute);
+    node = sp;
+    capture = "script";
+  }
+  mute.connect(c.destination);
+  setState({ on: true, error: null });
+}
+
+/** How the microphone is being read: "worklet" (audio thread) or "script" (older browsers). For diagnostics. */
+export function captureMode(): string | null {
+  return capture ? `${capture} @ ${ctx?.sampleRate ?? 0} Hz` : null;
+}
+
+/**
+ * Development only: use a sound file as the microphone, through the SAME capture path as a real one (audio thread
+ * and all), so capture can be tested while the page is busy tracking a video.
+ */
+export async function fakeMicrophoneForTest(url: string): Promise<void> {
+  const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  node?.disconnect();
+  node = null;
+  stream?.getTracks().forEach((t) => t.stop());
+  try { ctx = new AC({ sampleRate: 16000 }); } catch { ctx = new AC(); }
+  const c = ctx;
+  await c.resume();
+  const buf = await c.decodeAudioData(await (await fetch(url)).arrayBuffer());
+  const dest = c.createMediaStreamDestination();
+  await connectMicrophone(dest.stream, AC);
+  const play = c.createBufferSource();
+  play.buffer = buf;
+  play.connect(dest);
+  play.start(c.currentTime + 0.6);
 }
 
 /** The Talk button: make sure the microphone is on (this is a tap, so the browser allows it) and treat the next

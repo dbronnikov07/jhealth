@@ -12,6 +12,7 @@ const PATHS = {
   stop: "M7 7h10v10H7z",
   arrow: "M5 12h14M13 6l6 6-6 6",
   chevron: "M9 6l6 6-6 6",
+  pause: "M9 5v14M15 5v14",
   down: "M12 5v14M6 13l6 6 6-6",
   chat: "M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-5 4V6.5z",
   chart: "M4 4v16h16M8 15l3.5-4 3 2.5L20 7",

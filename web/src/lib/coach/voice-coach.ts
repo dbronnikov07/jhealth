@@ -20,12 +20,57 @@ export type VoiceContext = {
   quality: number | null;       // average quality 0 to 100 so far
   bestDegrees: number | null;   // deepest knee bend (or highest arm) this session
   previousDegrees: number | null;
-  notCounted: number;           // movements too small to count
+  notCounted: number;           // movements that did not count (too small, or pushed with the hands)
+  form?: string | null;         // what the camera saw so far, in words: good reps, each mistake and how often
+  formData?: FormData | null;   // the same as numbers, for answering "am I doing it right?" without the AI
   condition: string | null;     // e.g. "Total knee replacement, right side"
   memories: string[];           // what the coach knows: goals, preferences, pain reported, from the chat
   lastSession: string | null;   // e.g. "2 days ago: chair squat, 20 reps, knee bend 66 degrees"
   liveFacts?: string[];         // the time now, and the weather when they ask about it (liveFacts below)
 };
+
+/** What the camera has judged so far in this session. The tips are the app's own cue texts. */
+export type FormData = {
+  counted: number;              // repetitions that counted
+  good: number;                 // of those, with no mistake
+  topFault: string | null;      // the mistake seen most, as its cue ("Knees out, over your toes")
+  topFaultCount: number;
+  lastFault: string | null;     // the last counted repetition's mistake, if any
+  lastScore: number | null;     // its score, 0 to 100
+  hands: number;                // movements not counted because the hands pushed
+  small: number;                // movements not counted because they were too small
+};
+
+const FORM_QUESTION = new RegExp([
+  "\\b(am i|are we|i am|i'm) doing (it|this|that|them|these|everything)? ?(all )?(right|correct|correctly|ok|okay|well|good|properly|fine|wrong)\\b",
+  "\\bhow am i doing\\b", "\\bhow('s| is| was| are) (my|the) (form|technique|squats?|posture|reps?|repetitions?)\\b",
+  "\\b(is|was|does) (this|that|it|my form) (look )?(right|correct|ok|okay|good|fine)\\b",
+  "\\bwhat (should|can|do) i (fix|improve|change|do better)\\b", "\\bany (mistakes?|corrections?|tips)\\b",
+  "\\bdoing (it|this) (right|correct|correctly)\\b", "\\bdo(es)? (it|i|that) look (right|good|ok|okay)\\b",
+].join("|"), "i");
+
+const lower = (cue: string) => cue.charAt(0).toLowerCase() + cue.slice(1);
+
+/**
+ * "Am I doing it right?" answered from what the camera measured, in code: instantly, with the real numbers, and with
+ * the tip in the app's own words. (The AI reworded "Knees out, over your toes" into "keep your knees behind your
+ * toes", which is different advice.) Returns null when the sentence is not a question about form.
+ */
+export function formAnswer(heard: string | null, firstName: string, f: FormData | null | undefined): string | null {
+  if (!heard || !f || !FORM_QUESTION.test(heard)) return null;
+  const notCounted = f.hands + f.small;
+  if (f.counted === 0 && notCounted === 0) return `I'm watching, ${firstName}. Do one repetition and I'll tell you how it looks.`;
+  if (f.hands > 0 && f.hands >= f.topFaultCount && f.hands >= f.small) {
+    return `${f.hands === 1 ? "One" : f.hands} didn't count because your hands pushed. Cross your arms on your chest, and stand up with your legs.`;
+  }
+  if (f.counted === 0) return `Not yet, ${firstName}. Those were too small to count. Go a little further, as far as is comfortable.`;
+  const clean = `${f.good} of ${f.counted}`;
+  if (!f.topFault) {
+    return `Yes, ${firstName}, it looks good. ${f.counted === 1 ? "That one was clean" : `${clean} were clean`}${f.lastScore !== null ? `, and the last one scored ${f.lastScore} out of 100` : ""}.`;
+  }
+  const lastFine = f.lastFault === null ? " Your last one was good." : "";
+  return `${clean} were clean, ${firstName}. The thing to fix: ${lower(f.topFault)}.${lastFine}`;
+}
 
 export const VOICE_SYSTEM_PROMPT = `You are the Motiva Health voice coach. You speak out loud, in real time, to a patient doing a home exercise in front of their phone or tablet camera. They are usually an older adult recovering from knee or hip surgery, standing about two metres away.
 
@@ -37,6 +82,13 @@ How you talk:
 - Use the real numbers you are given (repetitions, degrees, quality). Never invent numbers.
 - Plain words. No lists, no emoji, no dashes, no semicolons, no stage directions.
 - If they ask how to do the exercise, explain one thing at a time, simply.
+- If they ask whether they are doing it right, how their form is, or what to fix: you DO see them, through "Form so
+  far". Say what the camera saw: that it looks good with one real number, or the mistake seen most and its fix in a
+  few words. Give the fix in the camera's own words (for example "Knees out, over your toes"): never reword a tip
+  into different advice. If some movements did not count, say why. If nothing is counted yet, say you are watching
+  and ask them to do one repetition.
+- No filler. Never say you did not understand unless the words make no sense at all; if a word seems misheard, answer
+  the most likely meaning.
 - Talk like a friendly, well-informed person. Answer any question properly and briefly: small talk, general
   knowledge, the time, the weather. For the weather and the time use the live facts you are given, with the real
   numbers; never invent weather or news, and if you do not know something, say so in a few words. After a non-exercise
@@ -92,9 +144,10 @@ export function buildVoiceMessages(event: VoiceEvent, heard: string | null, c: V
   const facts = [
     `Patient: ${c.firstName}. Exercise: ${c.exercise}.`,
     `Repetitions counted so far today: ${c.repsDone} of ${c.target} in all, over ${c.sets} ${c.sets === 1 ? "set" : "sets"}.`,
-    c.notCounted ? `Movements too small to count: ${c.notCounted}.` : null,
+    c.notCounted ? `Movements that did not count: ${c.notCounted}.` : null,
     c.quality !== null ? `Average quality so far: ${c.quality} out of 100.` : null,
     c.bestDegrees !== null ? `Best range this session: ${c.bestDegrees} degrees${c.previousDegrees !== null ? `, last time ${c.previousDegrees} degrees` : ""}.` : null,
+    c.form ? `Form so far, as the camera saw it: ${c.form}` : null,
     c.lastCue ? `Last form tip given: "${c.lastCue}".` : null,
     c.condition ? `Their rehab: ${c.condition}.` : null,
     c.lastSession ? `Last session: ${c.lastSession}.` : null,

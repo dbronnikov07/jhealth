@@ -44,6 +44,9 @@ SET_PHRASES = {
     "two_more": "Two more.",
     "last_one": "Last one!",
     "idle": "Whenever you're ready.",
+    "not_counted_hands": "That one didn't count. Hands off your legs. Cross your arms.",
+    "paused": "Paused. The camera is off. Say continue, or tap Resume, when you're back.",
+    "resumed": "Welcome back. Carry on when you're ready.",
     "m1": "Nice and smooth.",
     "m2": "Great form.",
     "m3": "Keep it up.",
@@ -119,9 +122,12 @@ def main():
     ap.add_argument("--voice", default="af_heart")
     ap.add_argument("--speed", type=float, default=0.95)
     ap.add_argument("--samples", type=Path, help="write one test phrase per voice into this folder and stop")
+    ap.add_argument("--only", help="record only these clips (comma separated), keep the rest as they are")
     args = ap.parse_args()
     from kokoro_onnx import Kokoro
     model, voices = TTS / "kokoro-v1.0.onnx", TTS / "voices-v1.0.bin"
+    if not model.exists():
+        model = TTS / "kokoro-v1.0.int8.onnx"          # the smaller model the fast voice helper uses
     if not model.exists() or not voices.exists():
         sys.exit(f"voice model not found in {TTS}; see the set-up lines at the top of this file")
     kokoro = Kokoro(str(model), str(voices))
@@ -140,8 +146,11 @@ def main():
 
     OUT.mkdir(parents=True, exist_ok=True)
     table = lines()
+    only = set(args.only.split(",")) if args.only else None
     total = 0
     for key, text in table.items():
+        if only is not None and key not in only:
+            continue
         samples, rate = speak(text, args.voice)
         write_mp3(trim(samples, rate), rate, OUT / f"{key}.mp3")
         total += (OUT / f"{key}.mp3").stat().st_size

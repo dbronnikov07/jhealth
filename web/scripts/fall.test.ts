@@ -6,15 +6,16 @@ import { matchCommand } from "../src/lib/listen.ts";
 import { FallWatch } from "../src/lib/pose/fall.ts";
 
 const FPS = 15;
-function run(w: FallWatch, frames: { lean?: number; hip?: number | null; gone?: boolean }[], from = 0): number[] {
+type F = { lean?: number; hip?: number | null; gone?: boolean; torso?: number; feet?: number };
+function run(w: FallWatch, frames: F[], from = 0): number[] {
   const hits: number[] = [];
   frames.forEach((f, i) => {
     const t = from + i / FPS;
-    if (f.gone ? w.missing(t) : w.seen(t, f.lean ?? 10, f.hip ?? 0.5)) hits.push(i);
+    if (f.gone ? w.missing(t) : w.seen(t, f.lean ?? 10, f.hip ?? 0.5, { torso: f.torso, hipsAboveFeet: f.feet })) hits.push(i);
   });
   return hits;
 }
-const hold = (n: number, f: { lean?: number; hip?: number | null; gone?: boolean }) => Array.from({ length: Math.round(n * FPS) }, () => f);
+const hold = (n: number, f: F) => Array.from({ length: Math.round(n * FPS) }, () => f);
 
 test("standing, then lying on the floor for a second, is a possible fall (asked once)", () => {
   const w = new FallWatch();
@@ -33,10 +34,40 @@ test("someone already lying down at the start (a floor exercise) is not a fall",
 });
 
 test("dropping fast and vanishing from the picture is a possible fall; walking out of it is not", () => {
-  const drop = [...hold(2, { lean: 10, hip: 0.5 }), { lean: 30, hip: 0.6 }, { lean: 45, hip: 0.68 }, { lean: 60, hip: 0.76 }, ...hold(2, { gone: true })];
+  const drop = [...hold(2, { lean: 10, hip: 0.5 }), { lean: 30, hip: 0.6 }, { lean: 45, hip: 0.68 }, { lean: 60, hip: 0.76 }, ...hold(3, { gone: true })];
   assert.equal(run(new FallWatch(), drop).length, 1);
-  const walkOut = [...hold(2, { lean: 10, hip: 0.5 }), ...hold(2, { gone: true })];
+  const walkOut = [...hold(2, { lean: 10, hip: 0.5 }), ...hold(4, { gone: true })];
   assert.deepEqual(run(new FallWatch(), walkOut), []);
+});
+
+test("walking up to the camera, or bowing to reach the laptop, is not a fall", () => {
+  // Coming closer: the hips slide down the picture fast, but the body grows on screen. Then they are out of view.
+  const approach = [...hold(2, { lean: 10, hip: 0.5, torso: 0.25 }), { hip: 0.6, torso: 0.3 }, { hip: 0.7, torso: 0.36 }, { hip: 0.8, torso: 0.43 }, ...hold(5, { gone: true })];
+  assert.deepEqual(run(new FallWatch(), approach), []);
+  // The same drop with the body the same size is still a possible fall.
+  const fall = [...hold(2, { lean: 10, hip: 0.5, torso: 0.25 }), { hip: 0.6, torso: 0.25 }, { hip: 0.7, torso: 0.24 }, { hip: 0.8, torso: 0.22 }, ...hold(5, { gone: true })];
+  assert.equal(run(new FallWatch(), fall).length, 1);
+  // A deep bow: trunk nearly level for three seconds, hips still 0.8 m above the feet.
+  assert.deepEqual(run(new FallWatch(), [...hold(2, { lean: 8, feet: 0.85 }), ...hold(3, { lean: 80, feet: 0.8 })]), []);
+  // On the floor: trunk level and hips down at foot height.
+  assert.equal(run(new FallWatch(), [...hold(2, { lean: 8, feet: 0.85 }), ...hold(3, { lean: 85, feet: 0.1 })]).length, 1);
+});
+
+test("after a pause the fall watch starts fresh", () => {
+  const w = new FallWatch();
+  run(w, hold(2, { lean: 8 }));
+  w.reset();
+  assert.deepEqual(run(w, hold(3, { lean: 85 }), 10), []);     // not seen upright since the reset
+});
+
+test("pause and resume are short phrases of their own", () => {
+  assert.equal(matchCommand("pause"), "pause");
+  assert.equal(matchCommand("Hold on."), "pause");
+  assert.equal(matchCommand("turn off the camera"), "pause");
+  assert.equal(matchCommand("I'm back"), "resume");
+  assert.equal(matchCommand("Continue."), "resume");
+  assert.equal(matchCommand("should I pause between the repetitions or not"), null);
+  assert.equal(matchCommand("can I continue this tomorrow with my physio"), null);
 });
 
 test("spoken commands: only a few phrases do anything", () => {

@@ -34,7 +34,13 @@ def load(name):
 tts, stt = load("tts"), load("stt")
 if (CACHE / "kokoro-v1.0.int8.onnx").exists():
     tts.MODEL_PATH = str(CACHE / "kokoro-v1.0.int8.onnx")
-if (CACHE / "whisper" / "ggml-base.en.bin").exists():
+# On this laptop the bigger Whisper (small.en) is fast enough and hears accents and distance much better.
+# (The 5-bit version: 190 MB on disk and about half the memory, which matters on an 8 GB laptop.)
+SMALL = Path.home() / "jhealth-cache" / "stt" / "ggml-small.en-q5_1.bin"
+if SMALL.exists() and os.environ.get("STT_MODEL", "small.en") == "small.en":
+    stt.MODEL_PATH = str(SMALL)
+    stt.MODEL_NAME = "small.en"
+elif (CACHE / "whisper" / "ggml-base.en.bin").exists():
     stt.MODEL_PATH = str(CACHE / "whisper" / "ggml-base.en.bin")
 
 
@@ -80,5 +86,5 @@ t = time.perf_counter()
 tts.model()
 stt.model()
 print(f"Models ready in {time.perf_counter() - t:.1f} s (voice threads: {tts.threads()}).", flush=True)
-print("Fast voice helper on http://127.0.0.1:8799 (speech to text: Whisper base.en, voice: Kokoro heart).", flush=True)
+print(f"Fast voice helper on http://127.0.0.1:8799 (speech to text: Whisper {getattr(stt, 'MODEL_NAME', 'base.en')}, voice: Kokoro heart).", flush=True)
 ThreadingHTTPServer(("127.0.0.1", 8799), Both).serve_forever()

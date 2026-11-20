@@ -26,6 +26,10 @@ MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base
 MODEL_PATH = "/tmp/ggml-base.en.bin"
 MODEL_SHA256 = "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
 MAX_BYTES = 16000 * 2 * 12
+# Words Whisper should expect. Without it, a question about "the weather" at two metres from a laptop came back as
+# "the name of the map" (live log, 20 November). A short hint of the vocabulary, not sentences to copy.
+PROMPT = ("A patient talks to Motiva, their rehab coach, during chair squats and sit-to-stand: repetitions, knee bend, "
+          "form, the camera, the weather today, how are you, can you hear me.")
 _model = None
 # One transcription at a time per instance: whisper.cpp is not safe to call from two threads at once, and two
 # overlapping requests crashed the function twice in the live log (20 November, 00:58).
@@ -55,8 +59,11 @@ def _load():
         from pywhispercpp.model import Model
         m = Model(MODEL_PATH, print_realtime=False, print_progress=False, n_threads=max(1, min(4, os.cpu_count() or 1)))
         import numpy as np
-        m.transcribe(np.zeros(16000, dtype=np.float32), language="en", single_segment=True, no_context=True, audio_ctx=146)
-        _model = m      # the first transcription is the slow one: done here, during the warm-up call
+        # The first real transcription is the slow one (2 to 3 s with the bigger model), so it is done here, on two
+        # seconds of faint noise with the same settings as a real request. Silence is not enough: it returns early.
+        noise = (np.random.default_rng(0).standard_normal(32000) * 0.02).astype(np.float32)
+        m.transcribe(noise, language="en", single_segment=True, no_context=True, suppress_blank=True, audio_ctx=228, initial_prompt=PROMPT)
+        _model = m
     return _model
 
 
@@ -122,7 +129,8 @@ class handler(BaseHTTPRequestHandler):
             with _lock:
                 segments = m.transcribe(
                     audio, language="en", single_segment=True, no_context=True, suppress_blank=True,
-                    audio_ctx=min(1500, int(seconds * 50) + 96),      # only as much context as there is audio: faster
+                    audio_ctx=min(1500, int(seconds * 50) + 128),     # only as much context as there is audio: faster
+                    initial_prompt=PROMPT,
                 )
             text = clean(" ".join(s.text for s in segments))
             self._timing = f"stt;dur={(time.perf_counter() - t0) * 1000:.0f}"

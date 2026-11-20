@@ -174,6 +174,46 @@ function handsLow(f: Frame): boolean {
   return (Math.min(f[15][1], f[16][1]) - hipY) / torso > -0.1;
 }
 
+/**
+ * Did the hands stay low (on the thighs, the knees, the chair, or hanging) for most of the way back up? Standing up
+ * should be done by the legs: arms crossed on the chest, or reaching forward. Such a repetition does not count.
+ */
+function pushedWithHands(c: RepContext, signal: (f: Frame) => number): boolean {
+  const s = c.frames.map(signal);
+  let v = 0;
+  for (let i = 1; i < s.length; i++) if (s[i] < s[v]) v = i;
+  const rise = c.frames.slice(v);
+  return rise.length >= 3 && rise.filter(handsLow).length / rise.length >= 0.5;
+}
+
+/** A repetition with one of these mistakes is shown and named, but not counted. */
+export const NOT_COUNTED_FAULTS: Fault[] = ["uses_hands"];
+export const HANDS_NOT_COUNTED = "That one didn't count. Hands off your legs: cross your arms.";
+
+/** What the camera checks on every repetition, in the order shown on screen. `fails` are the mistakes that turn it red. */
+export const CHECKS: Record<string, { label: string; fails: Fault[] }[]> = {
+  squat: [
+    { label: "Depth", fails: ["not_deep"] },
+    { label: "Knees out", fails: ["knees_in"] },
+    { label: "No hands", fails: ["uses_hands"] },
+    { label: "Stand tall", fails: ["not_upright"] },
+    { label: "Tempo", fails: ["too_fast", "steady"] },
+  ],
+  sit_to_stand: [
+    { label: "Full sit", fails: [] },
+    { label: "Knees out", fails: ["knees_in"] },
+    { label: "No hands", fails: ["uses_hands"] },
+    { label: "Stand tall", fails: ["not_upright"] },
+    { label: "Slow down", fails: ["sit_slowly", "too_fast", "steady"] },
+  ],
+  arm_raise: [
+    { label: "Height", fails: ["not_high"] },
+    { label: "Straight arm", fails: ["bent_elbow"] },
+    { label: "Still body", fails: ["body_sway"] },
+    { label: "Tempo", fails: ["too_fast", "steady"] },
+  ],
+};
+
 /** A standing thigh more than this far from vertical (degrees) at the top of a sit-to-stand: not fully up. */
 export const UPRIGHT_THIGH = 25;
 const kneeStraighter = (f: Frame) => 360 - Math.max(...knees(f));
@@ -192,6 +232,7 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     liveWarning: (f, isDown) => isDown && kneeBoth(f) < 150 && kneesCaving(f),
     liveWarningFault: "knees_in",
     fault: (c) => {
+      if (pushedWithHands(c, kneeBoth)) return "uses_hands";
       if (shareOf(c.liveFlags) >= 0.25) return "knees_in";
       // The live goal is 70 degrees of knee bend (lib/pose/live.ts); more than 10 short of it is called out.
       if (180 - c.rep.minKnee < SQUAT_SHALLOW_BEND) return "not_deep";
@@ -217,14 +258,13 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     liveWarning: (f, isDown) => isDown && kneeBoth(f) < 150 && kneesCaving(f),
     liveWarningFault: "knees_in",
     fault: (c) => {
+      // The instructions say arms crossed. Hands down at the hips or lower for most of the stand-up means pushing
+      // up on the thighs or the chair (or just not crossing them, which gets the same answer): it does not count.
+      if (pushedWithHands(c, thighSignal)) return "uses_hands";
       if (shareOf(c.liveFlags) >= 0.25) return "knees_in";
       const s = c.frames.map(thighSignal);
       let v = 0;
       for (let i = 1; i < s.length; i++) if (s[i] < s[v]) v = i;
-      // The instructions say arms crossed. Hands down at the hips or lower for most of the stand-up means pushing
-      // up on the thighs or the chair (or just not crossing them, which gets the same cue).
-      const rise = c.frames.slice(v);
-      if (rise.length >= 3 && rise.filter(handsLow).length / rise.length >= 0.5) return "uses_hands";
       if (180 - c.rep.topKnee > UPRIGHT_THIGH) return "not_upright";
       // Sitting down is the half people rush: the lowering phase should take about a second or more.
       let top = 0;

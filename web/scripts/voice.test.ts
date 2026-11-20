@@ -59,3 +59,16 @@ test("a short answer with an early comma starts speaking after the comma", async
   assert.deepEqual(splitSentences("I am doing great, thanks for asking! How are you feeling?"), ["I am doing great,", "thanks for asking!", "How are you feeling?"]);
 });
 
+test("'am I doing it right?' is answered from the camera's numbers, in the app's own words", async () => {
+  const { formAnswer } = await import("../src/lib/coach/voice-coach.ts");
+  const base = { counted: 6, good: 4, topFault: "Knees out, over your toes", topFaultCount: 2, lastFault: null, lastScore: 91, hands: 0, small: 0 };
+  assert.equal(formAnswer("Am I doing it correctly?", "Dana", base), "4 of 6 were clean, Dana. The thing to fix: knees out, over your toes. Your last one was good.");
+  assert.equal(formAnswer("am I doing correctly", "Dana", base)?.includes("knees out, over your toes"), true);   // as Whisper may hear it
+  assert.match(formAnswer("How is my form?", "Dana", { ...base, good: 6, topFault: null, topFaultCount: 0 })!, /^Yes, Dana, it looks good\. 6 of 6 were clean, and the last one scored 91 out of 100\.$/);
+  assert.match(formAnswer("how am I doing", "Dana", { ...base, hands: 3 })!, /^3 didn't count because your hands pushed/);
+  assert.match(formAnswer("is this right?", "Dana", { ...base, counted: 0, good: 0, topFault: null, topFaultCount: 0, lastScore: null })!, /^I'm watching, Dana/);
+  // not a question about form: left to the coach
+  assert.equal(formAnswer("What's the weather today?", "Dana", base), null);
+  assert.equal(formAnswer("How are you?", "Dana", base), null);
+  assert.equal(formAnswer("Am I doing it right?", "Dana", null), null);
+});

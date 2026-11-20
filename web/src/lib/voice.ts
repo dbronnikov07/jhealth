@@ -18,7 +18,7 @@ export const COUNT_CLIPS = 30;
 /** Exercises with their own "Camera's ready. Let's do ..." line. */
 export const START_CLIPS = ["squat", "sit_to_stand", "arm_raise"];
 /** Set phrases that are not cues. */
-export const PHRASE_CLIPS = ["start", "halfway", "set_done", "all_done", "three_more", "two_more", "last_one", "idle"];
+export const PHRASE_CLIPS = ["start", "halfway", "set_done", "all_done", "three_more", "two_more", "last_one", "idle", "not_counted_hands", "paused", "resumed"];
 /** Said while the patient gets into the picture. */
 export const SETUP_CLIPS = ["setup_find_you", "setup_step_back", "setup_step_back_arm", "setup_hold"];
 /** One of these follows every third good repetition, so the count does not sound like a machine. */

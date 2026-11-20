@@ -132,9 +132,9 @@ test("standing tall is judged at the angle a single camera really measures", () 
   // Real home clips: a person standing normally measures 150 to 160 degrees at the knee, not 180.
   assert.equal(UPRIGHT_KNEE, 145);
   for (const exercise of ["squat"]) {
-    const normal = run(exercise, movement(152, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k })));
+    const normal = run(exercise, movement(152, 90, 1.5, 0.5, 1.5).map((k) => armsCrossed(legs({ kneeDeg: k }))));
     assert.deepEqual(normal, { reps: 1, faults: [null] }, `${exercise}: standing at 152 degrees is standing`);
-    const stooped = run(exercise, movement(140, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k })));
+    const stooped = run(exercise, movement(140, 90, 1.5, 0.5, 1.5).map((k) => armsCrossed(legs({ kneeDeg: k }))));
     assert.deepEqual(stooped, { reps: 1, faults: ["not_upright"] }, `${exercise}: 140 degrees is not upright`);
   }
 });
@@ -143,7 +143,7 @@ test("knees caving in is only judged when the person faces the camera", () => {
   assert.ok(facingCamera(legs({ kneeDeg: 170 })) > 0.99);
   assert.ok(facingCamera(legs({ kneeDeg: 170, yaw: 45 })) > FACING_MIN);
   assert.ok(facingCamera(legs({ kneeDeg: 170, yaw: 85 })) < FACING_MIN);
-  const squat = (yaw: number) => run("squat", movement(165, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k, yaw, kneesTogether: k < 150 })));
+  const squat = (yaw: number) => run("squat", movement(165, 90, 1.5, 0.5, 1.5).map((k) => turn(armsCrossed(legs({ kneeDeg: k, kneesTogether: k < 150 })), yaw)));
   assert.deepEqual(squat(0), { reps: 1, faults: ["knees_in"] });
   assert.deepEqual(squat(30), { reps: 1, faults: ["knees_in"] });
   assert.deepEqual(squat(85), { reps: 1, faults: [null] });     // side on: the camera cannot see it, so say nothing
@@ -157,6 +157,24 @@ test("a small bob of the knees is not a squat: it does not count", () => {
   assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(110)), true);  // thighs at 70 degrees: sat on the chair
   assert.equal(countsAsRep(EXERCISES.arm_raise, rep(130)), false);    // arm lifted 50 degrees
   assert.equal(countsAsRep(EXERCISES.arm_raise, rep(95)), true);      // 85 degrees: about shoulder height
+});
+
+/** Turn a body away from the camera by `yaw` degrees (90 = side on). */
+function turn(f: Frame, yaw: number): Frame {
+  const a = rad(yaw);
+  return f.map(([x, y, z]) => [x * Math.cos(a) + z * Math.sin(a), y, -x * Math.sin(a) + z * Math.cos(a)] as Vec);
+}
+
+test("a chair squat pushed up with the hands is named, and does not count", async () => {
+  const { NOT_COUNTED_FAULTS, CHECKS } = await import("../src/lib/pose/exercises.ts");
+  const hands = run("squat", movement(165, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k })));           // hands down by the thighs
+  assert.deepEqual(hands, { reps: 1, faults: ["uses_hands"] });
+  const crossed = run("squat", movement(165, 90, 1.5, 0.5, 1.5).map((k) => armsCrossed(legs({ kneeDeg: k }))));
+  assert.deepEqual(crossed, { reps: 1, faults: [null] });
+  assert.ok(NOT_COUNTED_FAULTS.includes("uses_hands"));
+  // every mistake a profile can name has a box on the on-screen checklist
+  for (const id of ["squat", "sit_to_stand", "arm_raise"]) assert.ok(CHECKS[id].length >= 4, id);
+  assert.ok(CHECKS.squat.some((c) => c.fails.includes("uses_hands")));
 });
 
 /** Arms crossed over the chest: both wrists at chest height, in front of the body. */
