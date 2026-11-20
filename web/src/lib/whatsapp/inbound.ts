@@ -22,7 +22,7 @@ type WebhookBody = {
 };
 
 const WELCOME =
-  "Hi, this is the jHealth coach. I help you do the exercises your physiotherapist prescribes, and I tell them how it's going.\n" +
+  "Hi, this is the Motiva coach. I help you do the exercises your physiotherapist prescribes, and I tell them how it's going.\n" +
   "Your physiotherapist will send your plan here.\n\n" +
   "When would you like your daily reminder?";
 

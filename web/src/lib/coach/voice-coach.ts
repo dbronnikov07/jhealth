@@ -4,6 +4,7 @@
 // What it may do, and what it never does, is the same as the chat coach: it encourages, explains the exercise and
 // answers questions; it never diagnoses, never changes the plan, never gives medical advice. Pain and red flags are
 // handled by fixed rules before the AI sees anything (lib/safety.ts), and falls by the camera (lib/pose/fall.ts).
+import { createHmac } from "node:crypto";
 import { adaptionConfig, chatText } from "./adaption";
 
 export type VoiceEvent = "heard" | "start" | "set_done" | "finished";
@@ -22,7 +23,7 @@ export type VoiceContext = {
   notCounted: number;           // movements too small to count
 };
 
-export const VOICE_SYSTEM_PROMPT = `You are the jHealth voice coach. You speak out loud, in real time, to a patient doing a home exercise in front of their phone or tablet camera. They are usually an older adult recovering from knee or hip surgery, standing about two metres away.
+export const VOICE_SYSTEM_PROMPT = `You are the Motiva Health voice coach. You speak out loud, in real time, to a patient doing a home exercise in front of their phone or tablet camera. They are usually an older adult recovering from knee or hip surgery, standing about two metres away.
 
 How you talk:
 - One or two short sentences, at most 35 words in all. This is speech, not text.
@@ -78,13 +79,12 @@ export function fallbackLine(event: VoiceEvent, c: VoiceContext): string {
   return "Sorry, I didn't catch that. Let's keep going.";
 }
 
-export const VOICE_MODEL = () => process.env.ADAPTION_VOICE_MODEL || "deepseek-v4-flash";
+export const VOICE_MODEL = () => process.env.ADAPTION_VOICE_MODEL || "gemma-4-31b-it";
 
 /**
- * A spoken conversation needs a fast answer. With an OpenAI key the reply comes from OpenAI's small chat model
- * (under a second, OPENAI_CHAT_MODEL, default gpt-4o-mini); otherwise, or if that fails, from Adaption
- * (deepseek-v4-flash answered in about 3 s in our test on 20 November; glm-5.3-flash and qwen3.8-27b spent the whole
- * budget thinking and returned nothing).
+ * A spoken conversation needs a fast answer. Adaption's gemma-4-31b-it answered in 0.3 to 0.5 s in our test on
+ * 20 November (deepseek-v4-flash took about 3 s because it reasons first; glm-5.3-flash and qwen3.8-27b spent the
+ * whole budget thinking and returned nothing). With an OpenAI key, OpenAI's small chat model is tried first.
  */
 async function openaiChat(messages: { role: "system" | "user"; content: string }[]): Promise<string | null> {
   const key = process.env.OPENAI_API_KEY;
@@ -111,7 +111,7 @@ export async function voiceReply(event: VoiceEvent, heard: string | null, c: Voi
   const cfg = adaptionConfig();
   if (!cfg) return { text: fallbackLine(event, c), fromAi: false };
   try {
-    // This model thinks before it answers (about 150 to 300 tokens here); with less room it sometimes returns nothing.
+    // Room for a model that thinks first (deepseek-v4-flash spends 150 to 300 tokens on it) if one is configured.
     const r = await chatText(cfg, messages, { model: VOICE_MODEL(), maxTokens: 1200, timeoutMs: 9000 });
     const text = forSpeech(r.content ?? "");
     return text.length >= 2 ? { text, fromAi: true } : { text: fallbackLine(event, c), fromAi: false };
@@ -121,7 +121,19 @@ export async function voiceReply(event: VoiceEvent, heard: string | null, c: Voi
 }
 
 /**
- * The answer as speech: OpenAI text-to-speech, mp3, or null when no key is set (the browser then reads it out).
+ * A ticket for our own voice (api/tts.py, Kokoro "heart" on Vercel): the text, an expiry a minute away, and an
+ * HMAC with TTS_SECRET, so that endpoint speaks only what this coach wrote. Null without TTS_SECRET.
+ */
+export function ttsTicket(text: string): { text: string; exp: number; sig: string } | null {
+  const secret = process.env.TTS_SECRET;
+  if (!secret || !text) return null;
+  const exp = Math.floor(Date.now() / 1000) + 60;
+  const sig = createHmac("sha256", secret).update(`${exp}.${text}`).digest("hex");
+  return { text, exp, sig };
+}
+
+/**
+ * The answer as speech: OpenAI text-to-speech, mp3, or null when no key is set (our own voice or the browser's is used).
  *   OPENAI_API_KEY    required for the natural voice
  *   OPENAI_TTS_VOICE  optional, default "coral" (warm)
  */

@@ -1,5 +1,5 @@
 // The Mac bridge's only door into the server (web/scripts/imessage-bridge.mjs). One POST endpoint, three actions:
-//   { action: "inbound", messages: [{ handle, text, guid }] }   texts patients sent to jHealth
+//   { action: "inbound", messages: [{ handle, text, guid }] }   texts patients sent to Motiva Health
 //   { action: "claim" }                                        replies waiting to go out (and a heartbeat)
 //   { action: "ack", results: [{ id, ok, error? }] }           what happened to them
 // Every call needs  Authorization: Bearer <IMESSAGE_BRIDGE_SECRET>  (constant-time compare). Without the secret set
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         // Never a cold message: wait until the patient writes (requeue_after_reply sends it then).
         await db.query(
           "update messages set status = 'failed', error_code = 'window', error = $2 where id = $1",
-          [m.id, "Waiting for the patient: jHealth only texts people who wrote to it in the last 24 hours. It goes out as soon as they write."],
+          [m.id, "Waiting for the patient: Motiva Health only texts people who wrote to it in the last 24 hours. It goes out as soon as they write."],
         );
         continue;
       }

@@ -10,7 +10,7 @@ export function LoginForm({ next }: { next: string }) {
     <form action={action} className="lg-form" noValidate>
       <input type="hidden" name="next" value={next} />
       {/* Lets password managers file the password under a name; never shown. */}
-      <input className="sr-only" type="text" name="username" autoComplete="username" value="jHealth dashboard" readOnly tabIndex={-1} aria-hidden />
+      <input className="sr-only" type="text" name="username" autoComplete="username" value="Motiva Health dashboard" readOnly tabIndex={-1} aria-hidden />
       <label htmlFor="lg-password">Dashboard password</label>
       <div className={`lg-field${state.error ? " has-error" : ""}`}>
         <Icon name="lock" size={18} />

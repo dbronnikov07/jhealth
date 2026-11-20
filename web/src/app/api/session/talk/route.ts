@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { getDb } from "@/lib/db";
 import { assessMessage } from "@/lib/safety";
 import { raiseSafetyAlert } from "@/lib/safety-actions";
-import { forSpeech, speech, voiceReply, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
+import { forSpeech, speech, ttsTicket, voiceReply, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -73,5 +73,6 @@ export async function POST(request: Request) {
     "insert into voice_turns (patient_id, event, exercise_id, heard, reply) values ($1, $2, $3, $4, $5)",
     [patient.id, event, exerciseId, heard, reply.slice(0, 600)],
   );
-  return Response.json({ reply, action, audio: audio ? audio.toString("base64") : null });
+  // Speech: OpenAI's voice if a key is set; otherwise a signed ticket for our own voice (api/tts.py).
+  return Response.json({ reply, action, audio: audio ? audio.toString("base64") : null, tts: audio ? null : ttsTicket(reply) });
 }

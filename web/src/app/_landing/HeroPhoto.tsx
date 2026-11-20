@@ -1,4 +1,4 @@
-// The landing page's hero: a real person exercising at home, with what jHealth's camera session actually measures
+// The landing page's hero: a real person exercising at home, with what Motiva Health's camera session actually measures
 // drawn over him. The points are the output of our own MediaPipe pose model (heavy, still-image mode) run on this
 // very photo (ml: scratch run 19 Nov 2026, see public/photos/CREDITS.md): not a drawing, not a mock-up.
 import Image from "next/image";

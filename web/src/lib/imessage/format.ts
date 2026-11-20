@@ -45,7 +45,7 @@ export function matchQuickReply(text: string, offered: Button[]): Button | null 
   return offered.find((b) => b.title.toLowerCase() === t) ?? null;
 }
 
-/** The link that opens Messages with jHealth's address and a first message already typed (iPhone, iPad, Mac). */
-export function textUsLink(address: string, body = "Hi jHealth! My physio asked me to text you."): string {
+/** The link that opens Messages with Motiva Health's address and a first message already typed (iPhone, iPad, Mac). */
+export function textUsLink(address: string, body = "Hi Motiva! My physio asked me to text you."): string {
   return `sms:${address}?&body=${encodeURIComponent(body)}`;
 }

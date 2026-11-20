@@ -1,5 +1,19 @@
 {
   "framework": "nextjs",
-  "regions": ["yul1"],
-  "crons": [{ "path": "/api/cron/reminders", "schedule": "0 22 * * *" }]
+  "regions": [
+    "yul1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 22 * * *"
+    }
+  ],
+  "functions": {
+    "api/tts.py": {
+      "memory": 2048,
+      "maxDuration": 60,
+      "includeFiles": "api/voices-heart.npz"
+    }
+  }
 }

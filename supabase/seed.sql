@@ -1,4 +1,4 @@
--- Demo data for jHealth. Safe to run more than once.
+-- Demo data for Motiva Health. Safe to run more than once.
 --
 -- Real:       one demo doctor and the exercise library.
 -- SIMULATED:  20 patients with a few weeks of sessions, messages and memories. They are marked
@@ -8,8 +8,8 @@
 -- The random numbers are seeded, so every run produces the same patients.
 
 insert into doctors (id, name, clinic, is_default)
-values ('00000000-0000-4000-8000-0000000000d1', 'Dr. Demo, PT', 'jHealth demo clinic', true)
-on conflict (id) do nothing;
+values ('00000000-0000-4000-8000-0000000000d1', 'Dr. Demo, PT', 'Motiva Health demo clinic', true)
+on conflict (id) do update set clinic = excluded.clinic;
 
 -- Instructions are draft wording for the demo. A physiotherapist should review them before real use.
 insert into exercises (id, name, body_area, instructions, tracking, model_key, default_sets, default_reps) values

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   jHealth: one system for two readers.
+   Motiva Health: one system for two readers.
    - The physio reads a dense, calm board under an ink bar, where only status carries colour.
    - The patient (55+, on a phone, 2.5 m from the screen) reads big, high-contrast type with one obvious next step.
    Type: Inter for words, Outfit for headings and every measured number (tabular figures). Light only.
@@ -395,7 +395,7 @@ textarea { resize: vertical; min-height: 60px; }
 .add-note { margin-top: 14px; display: flex; gap: 8px; }
 .add-note input { flex: 1; min-width: 0; }
 
-/* WhatsApp thread, as the physio sees it: the patient on the left, jHealth on the right */
+/* WhatsApp thread, as the physio sees it: the patient on the left, Motiva Health on the right */
 .chat {
   list-style: none; margin: 0; display: flex; flex-direction: column; gap: 6px; padding: 14px 12px;
   max-height: 560px; overflow-y: auto; overscroll-behavior: contain;
@@ -869,3 +869,14 @@ textarea { resize: vertical; min-height: 60px; }
   .howto-row { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 46%; overflow-x: auto; scroll-snap-type: x mandatory; }
   .howto figure { scroll-snap-align: start; }
 }
+
+/* ---------- Motiva Health logo ---------- */
+.motiva-logo { display: inline-flex; align-items: center; gap: 0.45em; line-height: 1; color: #2c3947; }
+.motiva-logo .motiva-mark { display: block; height: 1.22em; width: auto; }
+.motiva-tile { display: inline-grid; place-items: center; background: #ffffff; border-radius: 10px; }
+.motiva-tile .motiva-mark { height: 1em; }
+.motiva-word { display: grid; gap: 0.12em; }
+.motiva-word b { font-family: var(--font-display), sans-serif; font-weight: 650; font-size: 1em; letter-spacing: -0.02em; }
+.motiva-word small { font-size: 0.42em; font-weight: 600; letter-spacing: 0.42em; text-transform: uppercase; color: #6b747d; padding-left: 0.1em; }
+.topbar .motiva-logo { color: #ffffff; }
+.topbar .motiva-word small { color: #b9c4d8; }

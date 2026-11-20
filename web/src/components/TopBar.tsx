@@ -3,7 +3,7 @@ import { signOut } from "@/app/login/actions";
 
 import { imessageBridgeOnline } from "@/lib/data";
 import { whatsappConfig } from "@/lib/whatsapp/client";
-import { Goniometer } from "./Goniometer";
+import { Logo } from "./Logo";
 
 function initials(name: string): string {
   const words = name.replace(/^(dr|mr|mrs|ms)\.?\s+/i, "").split(/[\s,]+/).filter(Boolean);
@@ -16,8 +16,7 @@ export async function TopBar({ doctor, mode }: { doctor?: { name: string; clinic
   return (
     <header className="topbar">
       <Link href="/doctor" className="brand">
-        <Goniometer value={62} size={28} />
-        <span className="wordmark">j<span>Health</span></span>
+        <Logo size={26} tile />
       </Link>
       <span className="sub">Physio dashboard</span>
       <div className="right">

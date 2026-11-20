@@ -1,0 +1,4 @@
+# Only for api/tts.py (the coach's voice on Vercel). The website itself is Node.js.
+kokoro-onnx==0.6.1
+onnxruntime==1.32.0
+soundfile==0.14.0

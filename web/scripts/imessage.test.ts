@@ -36,6 +36,6 @@ test("a reply is matched to the offered answer by number or by word", () => {
   assert.equal(matchQuickReply("2", []), null);
 });
 
-test("the Text us link opens Messages with jHealth and a first message", () => {
-  assert.equal(textUsLink("jhealth.coach@gmail.com", "Hi jHealth!"), "sms:jhealth.coach@gmail.com?&body=Hi%20jHealth!");
+test("the Text us link opens Messages with Motiva and a first message", () => {
+  assert.equal(textUsLink("coach@example.com", "Hi Motiva!"), "sms:coach@example.com?&body=Hi%20Motiva!");
 });

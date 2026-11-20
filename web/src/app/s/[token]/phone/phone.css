@@ -1,6 +1,6 @@
 /* The demo phone (/s/<token>/phone): full screen on a phone, a device on the ink stage on a laptop.
    Colours come from the shared tokens in globals.css, so light and dark mode follow the system. The patient's own
-   bubbles use the jHealth accent, not a messenger's green: this is our chat, standing in for WhatsApp. */
+   bubbles use the Motiva Health accent, not a messenger's green: this is our chat, standing in for WhatsApp. */
 
 .dp-page {
   min-height: 100dvh;

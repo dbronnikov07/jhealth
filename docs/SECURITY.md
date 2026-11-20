@@ -1,6 +1,6 @@
 # Security
 
-What protects patient data in jHealth, how it was tested, and what must be set before anyone outside this laptop can reach the app. Checked on 19 November 2026.
+What protects patient data in Motiva Health, how it was tested, and what must be set before anyone outside this laptop can reach the app. Checked on 19 November 2026.
 
 ## What is exposed, and to whom
 
@@ -93,4 +93,5 @@ A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API
 - `POST /api/session/talk` takes a 64-character session token, one of four events, at most 300 characters of heard text and a few numbers (each clamped), refuses bodies over 8 KB, and answers at most 40 turns per patient every 10 minutes (counted in `voice_turns`). `scripts/attack.sh` checks a made-up token and an unknown event.
 - Pain and red-flag words in what the patient says go to the fixed safety rules (`lib/safety.ts`) before any AI: alert, remembered fact, fixed answer, session stopped.
 - What leaves the device: the browser's speech service (Apple's or Google's) turns speech into text; that text and the session numbers go to the AI that writes the answer (OpenAI when `OPENAI_API_KEY` is set, otherwise Adaption); the answer's text goes to OpenAI's text-to-speech. The video never leaves the device. Conversations are stored in `voice_turns` (row level security on, no web API rights) so the physiotherapist can read them.
+- The coach's voice is made on our own server (`web/api/tts.py`, Kokoro-82M, open model): no paid service and nothing sent to a third party for speech. It speaks only text signed by `/api/session/talk` (HMAC-SHA256 with `TTS_SECRET`, valid one minute, at most 400 characters), so it cannot be used to make the site say anything else. `scripts/attack.sh` checks that unsigned text is refused. The model file is downloaded from its GitHub release and checked against its SHA-256 before use.
 

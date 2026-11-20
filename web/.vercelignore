@@ -8,6 +8,8 @@
 !next.config.ts
 !tsconfig.json
 !vercel.json
+!api
+!requirements.txt
 public/test
 **/.env*
 **/.DS_Store

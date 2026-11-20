@@ -5,13 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { Goniometer } from "@/components/Goniometer";
+import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
 import { dashboardAccess, safeNext } from "@/lib/auth-core";
 import { LoginForm } from "./LoginForm";
 import "./login.css";
 
-export const metadata: Metadata = { title: "Sign in · jHealth physio dashboard", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Sign in · Motiva Health physio dashboard", robots: { index: false, follow: false } };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   await connection();
@@ -31,10 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
       <section className="lg-panel">
         <div className="lg-card">
-          <Link href="/" className="lg-brand" aria-label="jHealth home">
-            <Goniometer value={62} size={30} />
-            <span>j<span>Health</span></span>
-          </Link>
+          <Link href="/" className="lg-brand" aria-label="Motiva Health home"><Logo size={30} /></Link>
           <h1>Sign in to the physio dashboard</h1>
           <p className="lg-lede">For the clinic team. Patients never need an account: their private link arrives in the chat.</p>
           {configured ? (
@@ -48,7 +45,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <li><Icon name="lock" size={16} /> Patient data stays in Canada, encrypted in transit.</li>
             <li><Icon name="shield" size={16} /> 10 wrong passwords lock that connection out for 15 minutes.</li>
           </ul>
-          <Link href="/" className="lg-back">← Back to the jHealth site</Link>
+          <Link href="/" className="lg-back">← Back to the Motiva Health site</Link>
         </div>
       </section>
     </main>

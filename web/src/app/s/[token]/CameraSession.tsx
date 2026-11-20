@@ -102,6 +102,7 @@ export function CameraSession(p: Props) {
     const ctx = canvas.getContext("2d")!;
     const profile = profileFor(p.exerciseId);
     preloadVoice(sessionClips(p.exerciseId, target, Object.keys(CUE)));   // small files; ready before the first repetition
+    fetch("/api/tts", { method: "GET" }).catch(() => {});                  // wakes the voice server while the camera starts
     const counter = new RepCounter(profile.counter);
     const frames: Frame[] = [];
     const kneesInFlags: boolean[] = [];
@@ -173,11 +174,18 @@ export function CameraSession(p: Props) {
           }),
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { reply: string; action: "none" | "stop"; audio: string | null };
+        const data = (await res.json()) as {
+          reply: string; action: "none" | "stop"; audio: string | null; tts: { text: string; exp: number; sig: string } | null;
+        };
         addTurn("coach", data.reply);
-        const url = data.audio
+        let url = data.audio
           ? URL.createObjectURL(new Blob([Uint8Array.from(atob(data.audio), (ch) => ch.charCodeAt(0))], { type: "audio/mpeg" }))
           : null;
+        if (!url && data.tts) {
+          // Our own voice (api/tts.py): the server signed the text; the browser fetches the audio.
+          const spoken = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data.tts) }).catch(() => null);
+          if (spoken?.ok && spoken.headers.get("content-type")?.includes("audio")) url = URL.createObjectURL(await spoken.blob());
+        }
         const when = event === "heard" ? "now" : "queue";
         if (!url || !playUrl(url, when)) say([], data.reply, when);
         if (data.action === "stop") {

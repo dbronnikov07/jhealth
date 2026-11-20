@@ -3,20 +3,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { Goniometer } from "@/components/Goniometer";
+import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
 import { getDb } from "@/lib/db";
 import { SessionApp, type PlanItem } from "./SessionApp";
 
 // What iMessage shows as the link preview when the coach texts this page. Nothing personal: the same for everyone.
 export const metadata: Metadata = {
-  title: "Your exercises · jHealth",
+  title: "Your exercises · Motiva Health",
   robots: { index: false, follow: false },
   openGraph: {
     title: "Today's exercises from your physio",
     description: "Tap to start. Your phone camera counts every rep, and the video stays on your phone.",
-    images: [{ url: "/photos/og-session.jpg", width: 1200, height: 630, alt: "An older man doing a squat with jHealth's tracking on him" }],
-    siteName: "jHealth",
+    images: [{ url: "/photos/og-session.jpg", width: 1200, height: 630, alt: "An older man doing a squat with Motiva Health's tracking on him" }],
+    siteName: "Motiva Health",
   },
 };
 
@@ -61,7 +61,7 @@ export default async function SessionPage({
   return (
     <main className="page patient">
       <header className="pt-head">
-        <span className="brand"><Goniometer value={62} size={32} /><span className="wordmark">j<span>Health</span></span></span>
+        <span className="brand"><Logo size={30} /></span>
         {patient.channel === "demo" ? (
           <a className="pt-kicker" href={`/s/${token}/phone`}>← Back to the chat</a>
         ) : (

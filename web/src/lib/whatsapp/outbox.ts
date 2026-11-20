@@ -64,7 +64,7 @@ export async function processOutbox(patientId?: string) {
           ? buttonsPayload(to, m.body ?? "", quick)     // tappable answers: reminder time, "what got in the way?"
           : // A new plan, or a message inviting the patient to start now, carries the Start button.
             (m.payload?.type === "new_plan" || m.payload?.start_button === true) && url
-            ? ctaPayload(to, m.body ?? "", "Start session", url, "jHealth · your physiotherapist's plan")
+            ? ctaPayload(to, m.body ?? "", "Start session", url, "Motiva Health · your physiotherapist's plan")
             : textPayload(to, m.body ?? "");
       providerId = await sendToWhatsApp(cfg, payload);
     } catch (error) {

@@ -1,4 +1,4 @@
-# Recording guide: clips for the jHealth demo models (three camera exercises)
+# Recording guide: clips for the Motiva Health demo models (three camera exercises)
 
 The public datasets have healthy adults in a lab, filmed by fixed cameras. Our demo has our own laptop camera, our own room and our own chair. A model trained on clips recorded **the way the demo is filmed** will be better at the demo than any amount of public data, and because every teammate does the *same named mistakes*, the labels are far cleaner too. This is also the honest test for the slide: the score is measured on a teammate the model never saw.
 

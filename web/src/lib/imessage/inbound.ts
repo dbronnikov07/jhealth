@@ -1,5 +1,5 @@
 // An iMessage from a patient, as forwarded by the Mac bridge. Runs the same code as WhatsApp (ingestMessage):
-// pain rule first, then welcome, quick replies or the AI coach. Someone texting jHealth for the first time becomes a
+// pain rule first, then welcome, quick replies or the AI coach. Someone texting Motiva for the first time becomes a
 // patient on the iMessage channel, linked to the default doctor.
 import { getDb } from "../db";
 import { quickReplyAction, TIME_BUTTONS, WHY_BUTTONS, type Button } from "../quick-replies";

@@ -1,4 +1,4 @@
-# jHealth
+# Motiva Health
 
 A rehab coach that lives in WhatsApp. The physiotherapist prescribes exercises; the patient gets a daily message with a Start button; a browser page watches each repetition through the camera and scores it; the physiotherapist sees who is doing the work and who is stalling.
 
@@ -137,13 +137,13 @@ Tests: `npm run test:unit` (pain rule, message formats, signatures) and `npm run
 
 ## iMessage (the main channel)
 
-Patients text jHealth in iMessage, like Boardy and folk: on the website, **Text jHealth on iMessage** opens Messages with
+Patients text Motiva Health in iMessage, like Boardy and folk: on the website, **Text Motiva Health on iMessage** opens Messages with
 the first message already typed (on a laptop, scan the QR code with the iPhone camera). Whoever texts becomes a patient,
 gets the welcome, picks a reminder time by replying 1, 2 or 3, and gets the plan with a link to the camera page, which
 iMessage shows as a preview card. Everything behind it is the same code as WhatsApp: pain rule, quick replies, AI coach,
 dashboard.
 
-**How it is wired (free, no number to buy):** jHealth has its own Apple ID, signed into Messages on a Mac. A small bridge
+**How it is wired (free, no number to buy):** Motiva Health has its own Apple ID, signed into Messages on a Mac. A small bridge
 on that Mac (`web/scripts/imessage-bridge.mjs`, using the open-source [imsg](https://github.com/steipete/imsg) CLI)
 posts each new text to the server and sends the replies the server queues. The Mac only connects out to the server, so
 nothing on it is reachable from the internet. The Mac has to stay on and online while patients are texting.
@@ -156,7 +156,7 @@ cd ~/jhealth/web && npm run imessage:bridge
 
 The dashboard's top bar says **iMessage connected** while the bridge is running.
 
-**Rules that keep the Apple ID safe:** jHealth never texts someone who has not written to it in the last 24 hours (a
+**Rules that keep the Apple ID safe:** Motiva Health never texts someone who has not written to it in the last 24 hours (a
 held message goes out as soon as they write); at most one send every 1.5 seconds and 300 a day; group chats are ignored.
 Settings: `IMESSAGE_ADDRESS` (the bot's address, shown on the site) and `IMESSAGE_BRIDGE_SECRET` (shared by bridge and
 server), both on Vercel and in `web/.env.local`.
@@ -212,7 +212,7 @@ The Gemma models are not usable here: with the strict answer format they wrote o
 
 ## Keeping patients going (engagement)
 
-Competitor research (Sword, Hinge, Kaia, Kemtai, Exer, Physitrack, Medbridge, Limber, Phio) found no WhatsApp-first rehab coach, and that nearly all published adherence evidence is self-reported. jHealth counts reps by camera, and adds the engagement ideas that have evidence behind them (`web/src/lib/engagement.ts`, `web/src/lib/quick-replies.ts`, `web/src/lib/reminders.ts`, all unit-tested):
+Competitor research (Sword, Hinge, Kaia, Kemtai, Exer, Physitrack, Medbridge, Limber, Phio) found no WhatsApp-first rehab coach, and that nearly all published adherence evidence is self-reported. Motiva Health counts reps by camera, and adds the engagement ideas that have evidence behind them (`web/src/lib/engagement.ts`, `web/src/lib/quick-replies.ts`, `web/src/lib/reminders.ts`, all unit-tested):
 
 - **After every session**, the WhatsApp summary celebrates real progress: the first session, streaks of 3/5/7/14/21/30 days, 5/10/25/50/100 sessions, a new personal best range of motion, the smoothest session yet. It also shows a **weekly goal** ("This week: 2 of 5 planned days"), which is kinder than a fragile daily streak.
 - **The patient picks the reminder time** at welcome (Morning / Afternoon / Evening buttons).
@@ -400,5 +400,5 @@ Models and a worked example for testing a JavaScript port are in [`ml/models/`](
 - **Licence (new datasets).** REHAB26 is CC BY-NC like REHAB24-6; IntelliRehabDS (CC BY 4.0) and UI-PRMD (public domain) allow commercial use.
 - **Who was filmed.** Mostly healthy adults aged 20 to 60 in labs (IntelliRehabDS adds stroke patients), not older patients at home. The test scores are for people like them.
 - **Camera angles are not clinical measurements.** A single camera is off by several degrees on a knee angle. Show trends over weeks.
-- **jHealth does not diagnose or change the plan.** The physiotherapist prescribes. jHealth coaches, measures and reports.
+- **Motiva Health does not diagnose or change the plan.** The physiotherapist prescribes. Motiva coaches, measures and reports.
 - **The AI coach can still say something odd.** Code checks catch medicine, the Start button and the pain hold, not tone or every wrong statement. The physio sees every reply, and the wording rules are a draft for clinical review.

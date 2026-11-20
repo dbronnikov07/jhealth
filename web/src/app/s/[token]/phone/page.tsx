@@ -7,7 +7,7 @@ import { getDb } from "@/lib/db";
 import { DemoPhone } from "./DemoPhone";
 import "./phone.css";
 
-export const metadata: Metadata = { title: "Demo phone · jHealth", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Demo phone · Motiva Health", robots: { index: false, follow: false } };
 
 export default async function DemoPhonePage({ params }: { params: Promise<{ token: string }> }) {
   await connection();

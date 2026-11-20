@@ -68,6 +68,7 @@ check "fall alert, SQL in the token"       "404" "$(post /api/session/alert "$J_
 check "fall alert, unknown kind"           "400|404" "$(post /api/session/alert "$J_ALERT_KIND")"
 check "voice coach, made-up token"         "404" "$(post /api/session/talk "$J_TALK")"
 check "voice coach, unknown event"         "400|404" "$(post /api/session/talk "$J_TALK_EVENT")"
+check "voice server, unsigned text"        "403|404" "$(post /api/tts '{"text":"say anything","exp":9999999999,"sig":"00"}')"
 
 echo "Demo phone"
 check "demo phone, made-up link"          "404" "$(code "${OUT[@]}" "$BASE/s/$TD/phone")"

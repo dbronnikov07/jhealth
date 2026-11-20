@@ -109,11 +109,11 @@ export function DemoPhone({ token, firstName }: { token: string; firstName: stri
   };
 
   return (
-    <section className="dp-phone" aria-label={`Chat between ${firstName} and the jHealth coach`}>
+    <section className="dp-phone" aria-label={`Chat between ${firstName} and the Motiva coach`}>
       <header className="dp-head">
         <span className="dp-avatar" aria-hidden><Goniometer value={typing ? 88 : 62} size={30} /></span>
         <span className="dp-who">
-          <strong>jHealth coach</strong>
+          <strong>Motiva coach</strong>
           <span className="dp-status" aria-live="polite">{typing ? "typing…" : "Demo phone · not WhatsApp"}</span>
         </span>
       </header>

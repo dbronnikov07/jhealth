@@ -1,4 +1,4 @@
-# jHealth system design
+# Motiva Health system design
 
 One page for the pitch and for anyone joining the team. Plain-words history: `docs/HOW_WE_BUILT_IT.md`. How to run things: `README.md`.
 
@@ -16,7 +16,7 @@ flowchart LR
   end
   subgraph Meta["Meta WhatsApp Cloud API"]
   end
-  subgraph Server["jHealth server (Next.js)"]
+  subgraph Server["Motiva Health server (Next.js)"]
     WH["/api/whatsapp<br/>signature check → pain rule → AI coach"]
     SE["/api/session<br/>numbers only → streaks, personal bests"]
     CR["/api/cron/reminders<br/>reminders, comeback nudges, weekly card"]
@@ -100,7 +100,7 @@ The route to higher camera accuracy is the team's own clips in the demo setup (`
 - Per-clinic dashboards: the schema already links every patient to a doctor; add clinics and logins (Supabase Auth).
 - A model per clinic population: retrain from consented session data with the same scripts; the honest test is unchanged.
 
-## 9. How jHealth compares (public sources, 19 November 2026)
+## 9. How Motiva Health compares (public sources, 19 November 2026)
 
 | | No app install | Camera rep scoring | Extra hardware | Patient's own physio | Chat | WhatsApp |
 |---|---|---|---|---|---|---|
@@ -112,7 +112,7 @@ The route to higher camera accuracy is the team's own clips in the demo setup (`
 | Medbridge | no | assessments only | no | yes | ? | SMS reminders |
 | Limber | no | no (self-report) | no | yes | staff | ? |
 | Phio (NHS) | no | no (self-report) | no | NHS clinician | triage bot + clinician | no |
-| **jHealth** | **yes** | **yes** | **no** | **yes** | **AI, every message visible to the physio** | **yes** |
+| **Motiva Health** | **yes** | **yes** | **no** | **yes** | **AI, every message visible to the physio** | **yes** |
 
 What we can honestly claim in the pitch:
 1. Nothing to install: it lives in WhatsApp, which older patients already use.

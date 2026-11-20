@@ -1,9 +1,9 @@
-// The public front page: what jHealth is, for judges, clinics and patients. Static, no patient data.
+// The public front page: what Motiva Health is, for judges, clinics and patients. Static, no patient data.
 // Photos: free-licence stock (public/photos/CREDITS.md), to be replaced by the team's own.
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Goniometer } from "@/components/Goniometer";
+import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
 import { QrCode } from "@/components/QrCode";
 import { textUsLink } from "@/lib/imessage/format";
@@ -11,7 +11,7 @@ import { HeroPhoto } from "./_landing/HeroPhoto";
 import "./landing.css";
 
 export const metadata: Metadata = {
-  title: "jHealth · Home rehab, coached by the phone camera",
+  title: "Motiva Health · Home rehab, coached by the phone camera",
   description:
     "The physio sends an exercise plan to the patient's chat. The phone camera counts every rep and corrects form out loud, the video never leaves the phone, and the physio sees the results.",
 };
@@ -35,7 +35,7 @@ const PATIENTS = [
   { name: "Priya S.", status: "Stalling", tone: "warn", days: 1, bend: "64°" },
 ] as const;
 
-// jHealth's iMessage address (the bot's own Apple ID). Without it, the page simply has no "Text jHealth" parts.
+// Motiva Health's iMessage address (the bot's own Apple ID). Without it, the page simply has no "Text Motiva" parts.
 const IMESSAGE = process.env.IMESSAGE_ADDRESS?.trim() || null;
 
 export default function Landing() {
@@ -46,10 +46,7 @@ export default function Landing() {
 
       <header className="lp-nav-wrap">
         <nav className="lp-nav" aria-label="Main">
-          <Link href="/" className="lp-brand" aria-label="jHealth home">
-            <Goniometer value={62} size={28} />
-            <span>jHealth</span>
-          </Link>
+          <Link href="/" className="lp-brand" aria-label="Motiva Health home"><Logo size={28} /></Link>
           <div className="lp-nav-links">
             <a href="#how">How it works</a>
             <a href="#exercises">Exercises</a>
@@ -74,7 +71,7 @@ export default function Landing() {
             <div className="lp-actions">
               {textUs ? (
                 <>
-                  <a href={textUs} className="lp-btn lp-btn-white">Text jHealth on iMessage <Icon name="arrow" size={18} /></a>
+                  <a href={textUs} className="lp-btn lp-btn-white">Text Motiva on iMessage <Icon name="arrow" size={18} /></a>
                   <Link href="/doctor" className="lp-btn lp-btn-glass">Physio dashboard</Link>
                 </>
               ) : (
@@ -98,7 +95,7 @@ export default function Landing() {
             </div>
             <div className="lp-stage-photo"><HeroPhoto /></div>
             <div className="lp-card lp-card-msg" aria-hidden>
-              <p className="lp-card-label">jHealth coach · 9:00</p>
+              <p className="lp-card-label">Motiva coach · 9:00</p>
               <p>Morning Daniel! Today: chair squats, 2 sets of 10. You reached 81° last time.</p>
               <span className="lp-card-cta">Start session</span>
             </div>
@@ -129,12 +126,12 @@ export default function Landing() {
               <div className="lp-start-card">
                 <div className="lp-start-copy">
                   <h2 id="start-title">Start in iMessage</h2>
-                  <p>Text jHealth like you would text a friend. The coach answers, sends your plan, and checks in every day at the time you pick.</p>
-                  <a href={textUs} className="lp-btn lp-btn-dark">Text jHealth <Icon name="arrow" size={18} /></a>
+                  <p>Text Motiva like you would text a friend. The coach answers, sends your plan, and checks in every day at the time you pick.</p>
+                  <a href={textUs} className="lp-btn lp-btn-dark">Text Motiva <Icon name="arrow" size={18} /></a>
                   <p className="lp-start-address">or send a message to <b>{IMESSAGE}</b></p>
                 </div>
                 <div className="lp-start-qr">
-                  <QrCode text={textUs} size={168} label="QR code: scan with your iPhone camera to text jHealth" />
+                  <QrCode text={textUs} size={168} label="QR code: scan with your iPhone camera to text Motiva Health" />
                   <span>Scan with your iPhone camera</span>
                 </div>
               </div>
@@ -319,7 +316,7 @@ export default function Landing() {
               </li>
               <li>
                 <h3>Not a diagnosis</h3>
-                <p>jHealth coaches, counts and reports. Angles from one camera show a trend over weeks, not a clinical measurement.</p>
+                <p>Motiva coaches, counts and reports. Angles from one camera show a trend over weeks, not a clinical measurement.</p>
               </li>
             </ul>
           </div>
@@ -344,7 +341,7 @@ export default function Landing() {
       <footer className="lp-footer">
         <div className="lp-wrap lp-footer-grid">
           <div>
-            <span className="lp-brand"><Goniometer value={62} size={24} /><span>jHealth</span></span>
+            <span className="lp-brand"><Logo size={24} /></span>
             <p>Home rehab, coached by the phone camera. Built at YHacks 2026.</p>
             <p className="lp-fine">A prototype, not a medical device. In an emergency, call 911.</p>
           </div>
@@ -358,7 +355,7 @@ export default function Landing() {
             </ul>
           </nav>
           <nav aria-labelledby="ft-more">
-            <h2 id="ft-more">jHealth</h2>
+            <h2 id="ft-more">Motiva Health</h2>
             <ul>
               <li><Link href="/doctor">Physio dashboard</Link></li>
               <li><Link href="/privacy">Privacy policy</Link></li>

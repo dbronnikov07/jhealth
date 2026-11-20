@@ -1,10 +1,10 @@
-# jHealth
+# Motiva Health
 
 Home rehab, coached by the phone camera. A physiotherapist prescribes exercises; the patient opens a link from a chat message; the phone or laptop camera counts every repetition, coaches it out loud while it happens, and scores it; the physiotherapist sees who is doing the work and who is stalling.
 
 Built for YHacks 2026 (Pillar 2, Healthcare). Live: **https://jhealth-beta.vercel.app**
 
-![A squat tracked by jHealth's pose model](web/public/photos/og-session.jpg)
+![A squat tracked by Motiva Health's pose model](web/public/photos/og-session.jpg)
 
 *The points and lines are the output of our own pose pipeline on this photo.*
 
@@ -137,7 +137,7 @@ The app only says "that one was off" when the model is confident. On phone foota
 
 ### Rules and model together
 
-A rules-only squat corrector (angle thresholds per frame) gives instant feedback but has no measurable accuracy and no notion of an unseen person. jHealth uses rules for what must be instant and explainable (depth, knees, elbow), and a tested model for the overall quality score. The rules are measured too: on 127 home sit-to-stand clips they were wrong more often than we thought, and two of them were corrected ([docs/SIT_TO_STAND_CAMERA.md](docs/SIT_TO_STAND_CAMERA.md)).
+A rules-only squat corrector (angle thresholds per frame) gives instant feedback but has no measurable accuracy and no notion of an unseen person. Motiva Health uses rules for what must be instant and explainable (depth, knees, elbow), and a tested model for the overall quality score. The rules are measured too: on 127 home sit-to-stand clips they were wrong more often than we thought, and two of them were corrected ([docs/SIT_TO_STAND_CAMERA.md](docs/SIT_TO_STAND_CAMERA.md)).
 
 ## Honest limits
 
@@ -146,11 +146,11 @@ A rules-only squat corrector (angle thresholds per frame) gives instant feedback
 - **A webcam is a stand-in.** REHAB24-6's fixed cameras stand in for a laptop webcam; no labelled laptop recordings exist yet.
 - **Angles from one camera are a trend, not a clinical measurement.**
 - **Licences.** REHAB24-6 and REHAB26 are CC BY-NC: research and prototype use only.
-- **jHealth does not diagnose or change the plan.** The physiotherapist prescribes; jHealth coaches, measures and reports.
+- **Motiva Health does not diagnose or change the plan.** The physiotherapist prescribes; Motiva coaches, measures and reports.
 
 ## The rest of the product
 
-- **Chat.** Patients text jHealth in iMessage (a small bridge on a Mac, `web/scripts/imessage-bridge.mjs`), or use the demo phone, a chat page on the site with the same coach and rules. Pain of 7/10 or a red flag stops the plan, sends a fixed safety reply and alerts the physio.
+- **Chat.** Patients text Motiva Health in iMessage (a small bridge on a Mac, `web/scripts/imessage-bridge.mjs`), or use the demo phone, a chat page on the site with the same coach and rules. Pain of 7/10 or a red flag stops the plan, sends a fixed safety reply and alerts the physio.
 - **Dashboard.** Patients, plans, sessions, alerts, the chat thread. Sign-in with a signed session cookie.
 - **Security.** Tested with 51 scripted attacks (`web/scripts/attack.sh`); the database is locked to the server. See [`docs/SECURITY.md`](docs/SECURITY.md).
 - **Hosting.** Next.js on Vercel (Montreal), Postgres on Supabase (Canada).

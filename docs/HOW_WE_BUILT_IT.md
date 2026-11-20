@@ -1,12 +1,12 @@
-# How jHealth was built, in plain words
+# How Motiva Health was built, in plain words
 
 This is the whole story of this project, from the first message to now, written for someone who has never trained a model before. It says what was done, how, why, what went wrong and what the numbers mean. The more technical diary is `docs/WORKLOG.md`; the "how do I run it" guide is `README.md`.
 
 ---
 
-## 1. What jHealth is
+## 1. What Motiva Health is
 
-jHealth helps people do their physiotherapy exercises at home after a knee or hip operation, and tells their physiotherapist how it is going.
+Motiva Health helps people do their physiotherapy exercises at home after a knee or hip operation, and tells their physiotherapist how it is going.
 
 - **The patient** gets a WhatsApp message with a **Start session** button. The button opens a web page on their phone or laptop. The page turns on the camera, counts their repetitions, scores each one, and speaks short tips ("Knees out, over your toes").
 - **The physiotherapist** has a dashboard that shows every patient: who is exercising, who stopped, whose progress has stalled, who reported pain.
@@ -111,7 +111,7 @@ In the browser: MediaPipe's heavy model, a live rep counter (checked against the
 Before, a normal message ("ok I'm ready") got no answer. Now Adaption's hosted language models answer, paid with the team's Adaption credits (about 0.5 credits per 1,000 replies). Order of trust: the pain rule first (an AI never sees those messages), then the AI writes a reply and suggests facts to remember, then code checks the answer (medicine mentioned → replaced; Start button only if the plan has a camera exercise and no pain alert is open; pain facts can never be overwritten). Five models were compared on 18 tricky made-up messages; GLM 5.3 Flash passed 18 of 18.
 
 ### 4.14 Connecting the real WhatsApp
-Started in the evening: Meta developer account, the "jHealth Coach" app and a business portfolio. Meta refused the portfolio because the Facebook account was created minutes earlier ("try again in an hour"). An hour later it went through: the **JHealth** business portfolio exists, and creating the app only waits for Meta to ask for the Facebook password again (which only the account owner types). The app runs, and a free Cloudflare tunnel gives Meta a public address; the dashboard is locked to the laptop unless a password is set, so patient pages are never public.
+Started in the evening: Meta developer account, the "Motiva Health Coach" app and a business portfolio. Meta refused the portfolio because the Facebook account was created minutes earlier ("try again in an hour"). An hour later it went through: the **JHealth** business portfolio exists, and creating the app only waits for Meta to ask for the Facebook password again (which only the account owner types). The app runs, and a free Cloudflare tunnel gives Meta a public address; the dashboard is locked to the laptop unless a password is set, so patient pages are never public.
 
 ---
 
@@ -198,7 +198,7 @@ A design helper rebuilt the look of the whole app (`web/src/app/globals.css` and
 **What the competitors do** (public pages and papers only; full table in `docs/SYSTEM_DESIGN.md`):
 - Sword and Hinge are paid by employers and insurers and use their own physiotherapists, apps and sometimes hardware. Kaia was bought by Sword. Kemtai and Exer score movement by camera for clinics. Physitrack, Medbridge and Limber mostly rely on patients reporting what they did.
 - **Nobody found does rehab on WhatsApp**, with the patient's own physiotherapist and camera-scored reps together.
-- Almost all published adherence evidence is self-reported. Text reminders raise adherence a little in trials (for example 1.8 vs 1.3 exercise days a week in a knee arthritis trial), but no trial counted the reps. jHealth does.
+- Almost all published adherence evidence is self-reported. Text reminders raise adherence a little in trials (for example 1.8 vs 1.3 exercise days a week in a knee arthritis trial), but no trial counted the reps. Motiva Health does.
 
 **What we built from it:**
 - **Celebrations after every session**: first session, streaks, session counts, a new personal best angle, the smoothest session yet. At most two lines, biggest news first.
@@ -227,7 +227,7 @@ The quality score shown to the patient is unchanged; below the cut-off the app s
 
 **Why our numbers are believable.** Every number in this project is measured on people the model never saw, with the test described. A project that quotes "95% accuracy" without saying it tested on new people is usually measuring the lazy test (section 3), which on our data inflates 0.70 to 0.90.
 
-**About IMUs, LiDAR and ARKit.** Smartwatches and LiDAR can measure movement more precisely, but patients would need the device. A plain laptop or phone camera works for everyone who has WhatsApp, which is the point of jHealth.
+**About IMUs, LiDAR and ARKit.** Smartwatches and LiDAR can measure movement more precisely, but patients would need the device. A plain laptop or phone camera works for everyone who has WhatsApp, which is the point of Motiva Health.
 
 ---
 

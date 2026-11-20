@@ -9,7 +9,7 @@ const display = Outfit({ subsets: ["latin"], variable: "--font-display", display
 export const metadata: Metadata = {
   // Absolute addresses for link previews (iMessage, WhatsApp): the live site, or this computer in development.
   metadataBase: new URL(process.env.PUBLIC_APP_URL || "http://localhost:3100"),
-  title: "jHealth · Physio dashboard",
+  title: "Motiva Health · Physio dashboard",
   description: "Prescribe home exercises and follow every patient's progress between visits.",
 };
 

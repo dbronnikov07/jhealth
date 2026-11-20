@@ -58,7 +58,7 @@ Two things about this data matter for everything below:
 ## 4. What was done, step by step
 
 ### 4.1 Reading the inputs (17:45 to 17:55)
-- Read the old pitch deck (`jHealth.pdf`, in Russian). It is the earlier Russian-market pitch for lower-limb rehabilitation. The Canadian plan you pasted replaces it, so I did not build for it.
+- Read the old pitch deck (`Motiva Health.pdf`, in Russian). It is the earlier Russian-market pitch for lower-limb rehabilitation. The Canadian plan you pasted replaces it, so I did not build for it.
 - Checked the hackathon page: YHacks 2026 is for ages 13 to 17, build days run Nov 15 to 20, and the pitch is on campus on Nov 21. It does not list rules, judging criteria or a pitch length, and it does not mention Adaption Labs or Higgsfield. The pasted notes say "24 hours", but the real window is days.
 - Checked the dataset on Zenodo and read its label file: 1,072 labelled repetitions, license CC BY-NC (non-commercial research only).
 
@@ -183,7 +183,7 @@ In order of how much each is likely to help the demo:
 - **Who was filmed:** healthy adults aged 25 to 50 in a lab, not older patients at home. The scores above are for people like them.
 - **One camera is a rough ruler.** The same repetition filmed by two cameras gives knee angles that differ by about 12 degrees, and a hip-lift angle by about 20. Show trends over weeks, never a clinical measurement.
 - **We compared several models on the same test and kept the best,** so the best number is slightly flattering. A fresh person never used for comparison, such as your own recordings, is the fair check.
-- **jHealth does not diagnose.** The physiotherapist prescribes; jHealth measures, coaches and reports.
+- **Motiva Health does not diagnose.** The physiotherapist prescribes; Motiva Health measures, coaches and reports.
 
 ## 9. How to rerun, and where
 
