@@ -82,7 +82,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(403, b"not signed")
         try:
             import soundfile as sf
-            samples, rate = model().create(text, voice="af_heart", speed=0.97, lang="en-us")
+            samples, rate = model().create(text, voice="af_heart", speed=1.05, lang="en-us")   # a touch brisk: shorter to make
             buf = io.BytesIO()
             sf.write(buf, samples, rate, format="MP3")
             self._send(200, buf.getvalue(), "audio/mpeg")

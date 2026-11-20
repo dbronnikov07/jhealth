@@ -51,3 +51,9 @@ test("the spoken coach's answer is cut into sentences, so speech can start soone
     ["Go only as deep as is comfortable", "for your knee today, and keep the movement slow and steady.", "Great work."],
   );
 });
+
+test("a short answer with an early comma starts speaking after the comma", async () => {
+  const { splitSentences } = await import("../src/lib/coach/voice-coach.ts");
+  assert.deepEqual(splitSentences("I am doing great, thanks for asking! How are you feeling?"), ["I am doing great,", "thanks for asking!", "How are you feeling?"]);
+});
+

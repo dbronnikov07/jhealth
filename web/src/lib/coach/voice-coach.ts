@@ -61,9 +61,10 @@ export function splitSentences(text: string): string[] {
   // our voice server needs about 1.5 s per second of speech.
   const first = parts[0] ?? "";
   const words = first.split(" ");
-  if (words.length > 9) {
+  const earlyComma = words.findIndex((w, i) => i >= 2 && i <= 9 && w.endsWith(","));
+  if (words.length > 9 || (words.length > 5 && earlyComma >= 0 && words.length - earlyComma - 1 >= 2)) {
     // Best: after an early comma. Next best: before a small linking word, where a speaker would breathe anyway.
-    const commaWord = words.findIndex((w, i) => i >= 2 && i <= 9 && w.endsWith(","));
+    const commaWord = earlyComma;
     const linkWord = words.findIndex((w, i) => i >= 4 && i <= 9 && /^(and|but|so|for|to|with|then|while|until|because|if)$/i.test(w));
     const cut = commaWord >= 0 ? commaWord + 1 : linkWord >= 0 ? linkWord : 6;
     if (words.length - cut >= 3) parts.splice(0, 1, words.slice(0, cut).join(" "), words.slice(cut).join(" "));
