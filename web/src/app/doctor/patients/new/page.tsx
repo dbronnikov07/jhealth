@@ -14,7 +14,7 @@ export default async function NewPatientPage() {
         <Link href="/doctor" className="back">← All patients</Link>
         <header className="record">
           <h1>Add patient</h1>
-          <p className="muted">Next you choose their exercises. The plan goes to them on WhatsApp with a Start button.</p>
+          <p className="muted">Next you choose their exercises. The coach sends them the plan with a link to start.</p>
         </header>
         <section className="card" style={{ maxWidth: 600 }}>
           <NewPatientForm />

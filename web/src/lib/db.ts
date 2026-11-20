@@ -54,7 +54,12 @@ export const jsonbAsText = {
 /** The driver settings the app uses for a cloud database (also used by scripts/db-remote.mjs to check them). */
 export function postgresOptions(ssl: false | "require") {
   // prepare: false is required by Supabase's transaction pooler (port 6543), which serverless hosts should use.
-  return { prepare: false, max: 5, idle_timeout: 20, ssl, types: { jsonbAsText } } as const;
+  // max_pipeline: 1 sends one query at a time per connection. By default the driver pipelines extra queries onto
+  // busy connections, and through Supabase's pooler those queries never get an answer: a page that runs more
+  // queries at once than there are connections (the patient page runs 8, max is 5) hung until Vercel killed it
+  // after 300 s (19 Nov 2026, "Add patient" stuck on "Saving…"). Extra queries now wait for a free connection.
+  // query_timeout (seconds) is the backstop: a silent database gives an error page, never a five-minute spinner.
+  return { prepare: false, max: 5, max_pipeline: 1, query_timeout: 20, idle_timeout: 20, ssl, types: { jsonbAsText } } as const;
 }
 
 async function connect(): Promise<Db> {
