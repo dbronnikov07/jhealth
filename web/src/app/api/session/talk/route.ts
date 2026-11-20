@@ -32,14 +32,15 @@ export async function POST(request: Request) {
     [token],
   );
   if (!patient) return Response.json({ error: "invalid link" }, { status: 404 });
-  const [recent] = await db.query<{ n: number }>(
-    "select count(*)::int as n from voice_turns where patient_id = $1 and created_at > now() - interval '10 minutes'",
-    [patient.id],
-  );
-  if ((recent?.n ?? 0) >= TURNS_PER_10_MIN) return Response.json({ error: "too many" }, { status: 429 });
-
+  // Asked for together: every round trip to the database is time the patient waits for the coach to answer.
   // What makes it personal: what the coach has learned in the chat, and how the last session went.
-  const [memories, [last], facts] = await Promise.all([
+  const c = (body.context ?? {}) as Record<string, unknown>;
+  const exerciseId = typeof c.exercise_id === "string" && /^[a-z0-9_]{1,60}$/.test(c.exercise_id) ? c.exercise_id : null;
+  const [[recent], memories, [last], facts, [exercise]] = await Promise.all([
+    db.query<{ n: number }>(
+      "select count(*)::int as n from voice_turns where patient_id = $1 and created_at > now() - interval '10 minutes'",
+      [patient.id],
+    ),
     db.query<{ kind: string; fact: string }>(
       "select kind, fact from memories where patient_id = $1 and superseded_by is null order by created_at desc limit 6",
       [patient.id],
@@ -52,10 +53,9 @@ export async function POST(request: Request) {
       [patient.id],
     ),
     event === "heard" ? liveFacts(heard) : Promise.resolve([] as string[]),
+    exerciseId ? db.query<{ name: string }>("select name from exercises where id = $1", [exerciseId]) : Promise.resolve([] as { name: string }[]),
   ]);
-  const c = (body.context ?? {}) as Record<string, unknown>;
-  const exerciseId = typeof c.exercise_id === "string" && /^[a-z0-9_]{1,60}$/.test(c.exercise_id) ? c.exercise_id : null;
-  const [exercise] = exerciseId ? await db.query<{ name: string }>("select name from exercises where id = $1", [exerciseId]) : [];
+  if ((recent?.n ?? 0) >= TURNS_PER_10_MIN) return Response.json({ error: "too many" }, { status: 429 });
   const ctx: VoiceContext = {
     firstName: patient.first_name,
     exercise: exercise?.name ?? "the exercise",
@@ -100,10 +100,11 @@ export async function POST(request: Request) {
   if (event === "heard" && !safety) reply = withoutName(reply, ctx.firstName);
   const say = (t: string) => forVoice(t, ctx.firstName);
   const audio = event === "prepare" ? null : await speech(say(reply));
-  await db.query(
+  // Written after the answer has left: the patient does not wait for our log.
+  after(() => db.query(
     "insert into voice_turns (patient_id, event, exercise_id, heard, reply) values ($1, $2, $3, $4, $5)",
     [patient.id, event, exerciseId, heard, reply.slice(0, 600)],
-  );
+  ).catch((e) => console.warn("[talk] could not log the turn:", e instanceof Error ? e.message : e)));
   // Speech: OpenAI's voice if a key is set; otherwise a signed ticket for our own voice (api/tts.py).
   if (event === "prepare") {
     // Five personal lines for during the set, each its own speech ticket; the browser makes them in the background.

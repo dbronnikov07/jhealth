@@ -21,8 +21,10 @@ export const START_CLIPS = ["squat", "sit_to_stand", "arm_raise"];
 export const PHRASE_CLIPS = ["start", "halfway", "set_done", "all_done", "three_more", "two_more", "last_one", "idle", "not_counted_hands", "paused", "resumed"];
 /** Said while the patient gets into the picture. */
 export const SETUP_CLIPS = ["setup_find_you", "setup_step_back", "setup_step_back_arm", "setup_hold"];
-/** One of these follows every third good repetition, so the count does not sound like a machine. */
-export const MOTIVATION = ["m1", "m2", "m3", "m4", "m5"];
+/** One of these follows every good repetition: the phone is two metres away, so the coach is heard, not read. */
+export const MOTIVATION = ["m1", "m6", "m2", "m3", "m8", "m4", "m5", "m7"];
+/** After a repetition that got a cue: encouragement that does not claim the form was good. */
+export const KEEP_GOING = ["m6", "m3", "m4", "m7"];
 /** A possible fall, a call for help, and what follows. */
 /** Said at once when the patient finishes a sentence, while the spoken coach's answer is being made. */
 export const ACK_CLIPS = ["ack_ok", "ack_question", "ack_got_it"];
@@ -30,9 +32,9 @@ export const EMERGENCY_CLIPS = ["fall_check", "help_check", "ask_help", "tap_911
   "fall_ask", "help_ask", "ask_again", "decline_ok", "confirm_911"];
 
 /**
- * What to say after repetition number `rep`: the count, then the cue if a rule objected, then one line about where we
- * are: the set is done, "three more", "two more", "last one", halfway, or now and then some encouragement.
- * A person counting says "Seven. Great form.", not "Nice. That's seven." twenty times in a row.
+ * What to say after repetition number `rep`: the count, then the cue if a rule objected, then one line: where we are
+ * (the set is done, "three more", "two more", "last one", halfway) or else a word of encouragement.
+ * A person counting says "Seven. Great form." and "Eight. Keep going!", never the same line twice in a row.
  */
 export function repClips(
   rep: number,
@@ -47,7 +49,7 @@ export function repClips(
   else if (at.leftInSet === 2) clips.push("two_more");
   else if (at.leftInSet === 3) clips.push("three_more");
   else if (!fault && at.halfway) clips.push("halfway");
-  else if (!fault && rep % 3 === 0) clips.push(MOTIVATION[(rep / 3 - 1) % MOTIVATION.length]);
+  else clips.push(fault ? KEEP_GOING[(rep - 1) % KEEP_GOING.length] : MOTIVATION[(rep - 1) % MOTIVATION.length]);
   return clips;
 }
 

@@ -209,3 +209,23 @@ test("sit-to-stand: pushing up with the hands is named, standing half-way is nam
   assert.deepEqual(halfUp, { reps: 1, faults: ["not_upright"] });
 });
 
+
+test("arms crossed are never 'pushing', however far the body leans forward", () => {
+  // Standing up from a chair, the chest comes down over the thighs: crossed wrists end up low and close to the legs.
+  const low = (crossed: boolean) => (f: Frame): Frame => {
+    const g = f.map((p) => [...p] as Vec);
+    const side = crossed ? -1 : 1;                       // the left shoulder is at x = +0.18
+    g[15] = [side * 0.1, -0.06, -0.2];
+    g[16] = [-side * 0.1, -0.06, -0.2];
+    return g;
+  };
+  const stand = (crossed: boolean) => run("sit_to_stand", movement(170, 40, 1.6, 0.6, 1.6).map((k) => low(crossed)(legs({ kneeDeg: k }))));
+  assert.deepEqual(stand(true), { reps: 1, faults: [null] });               // crossed, low: counts
+  assert.deepEqual(stand(false), { reps: 1, faults: ["uses_hands"] });      // the same height, each hand on its own leg
+  const squat = (crossed: boolean) => run("squat", movement(165, 90, 1.5, 0.5, 1.5).map((k) => low(crossed)(legs({ kneeDeg: k }))));
+  assert.deepEqual(squat(true), { reps: 1, faults: [null] });
+  assert.deepEqual(squat(false), { reps: 1, faults: ["uses_hands"] });
+  // seen from 45 degrees it is still read along the shoulders
+  const turned = run("sit_to_stand", movement(170, 40, 1.6, 0.6, 1.6).map((k) => turn(low(true)(legs({ kneeDeg: k })), 45)));
+  assert.deepEqual(turned, { reps: 1, faults: [null] });
+});

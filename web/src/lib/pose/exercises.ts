@@ -204,8 +204,22 @@ function handOnLeg(f: Frame): boolean {
 }
 
 /**
+ * Arms crossed (or hands together in front): the wrists have met or swapped sides, measured along the shoulder line
+ * (the left wrist is no longer clearly left of the right one). Hands that push sit on their own side: on the thighs,
+ * the knees, the seat or the armrests. This does not depend on how far the body leans, which the height rules do: in
+ * the forward lean of standing up, the chest comes down over the thighs, so arms crossed on the chest looked "low"
+ * and "near a thigh" and honest repetitions were refused (live session, 20 November: 3 of about 15 counted).
+ */
+export function armsCrossed(f: Frame): boolean {
+  const u: Vec = [f[12][0] - f[11][0], f[12][1] - f[11][1], f[12][2] - f[11][2]];     // left shoulder to right shoulder
+  const width2 = u[0] * u[0] + u[1] * u[1] + u[2] * u[2] + 1e-9;
+  const along = (w: Vec) => ((w[0] - f[11][0]) * u[0] + (w[1] - f[11][1]) * u[1] + (w[2] - f[11][2]) * u[2]) / width2;   // 0 = left shoulder, 1 = right
+  return along(f[15]) - along(f[16]) > -0.15;
+}
+
+/**
  * Share of the push (from the lowest point until four fifths of the way back up) during which the hands are low or
- * on a leg. The push is where the hands help; the moment after standing up says nothing.
+ * on a leg, and not crossed. The push is where the hands help; the moment after standing up says nothing.
  */
 export function handsShare(c: RepContext, signal: (f: Frame) => number): number {
   const s = c.frames.map(signal);
@@ -216,7 +230,7 @@ export function handsShare(c: RepContext, signal: (f: Frame) => number): number 
   let e = v;
   while (e < s.length - 1 && s[e] < upTo) e++;
   const push = c.frames.slice(v, Math.max(e, v + 2) + 1);
-  return push.filter((f) => handsLow(f) || handOnLeg(f)).length / Math.max(1, push.length);
+  return push.filter((f) => !armsCrossed(f) && (handsLow(f) || handOnLeg(f))).length / Math.max(1, push.length);
 }
 
 /** At or above this share of the push with the hands low or on a leg, the repetition was pushed up. */

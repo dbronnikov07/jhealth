@@ -73,6 +73,32 @@ def _load():
     return _model
 
 
+_last_used = time.time()
+
+
+def stay_warm():
+    """On the fast voice helper, a model left idle for a while answers its next request two seconds late (measured:
+    2.5 s, then 0.2 s). The session page looks in every 25 s; if nothing was transcribed lately, half a second of
+    faint noise is run through the model in the background, so the patient's next sentence is fast."""
+    global _last_used
+    if not USE_PROMPT or time.time() - _last_used < 20:
+        return
+    _last_used = time.time()
+
+    def run():
+        try:
+            import numpy as np
+            noise = (np.random.default_rng(1).standard_normal(8000) * 0.02).astype(np.float32)
+            m = model()
+            with _lock:
+                m.transcribe(noise, language="en", single_segment=True, no_context=True, suppress_blank=True, audio_ctx=153,
+                             initial_prompt=PROMPT)
+        except Exception:
+            pass
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 def allowed(exp, sig):
     secret = os.environ.get("TTS_SECRET", "")
     try:
@@ -136,6 +162,7 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             model()
+            stay_warm()
             self._send(204)
         except Exception:
             self._send(503, b'{"error":"speech model not available"}')
@@ -155,6 +182,8 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(200, b'{"text": ""}')
             m = model()
             t0 = time.perf_counter()
+            global _last_used
+            _last_used = time.time()
             with _lock:
                 segments = m.transcribe(
                     audio, language="en", single_segment=True, no_context=True, suppress_blank=True,

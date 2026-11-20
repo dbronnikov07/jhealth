@@ -14,7 +14,7 @@ import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
 import { isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
-import { MOTIVATION, playUrl, playVoice, preloadVoice, repClips, sessionClips, spokeDuring, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
+import { playUrl, playVoice, preloadVoice, repClips, sessionClips, spokeDuring, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
 import { captureMode, emergencyAnswer, fakeMicrophoneForTest, fastVoiceWanted, feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, voiceFetch, watchListening, type ListenState } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
 
@@ -62,15 +62,28 @@ function speak(text: string, interrupt = false) {
  * Say something in the coach's recorded voice (lib/voice.ts). `text` is what the browser's own voice says instead
  * when the recording is not available: sound was never unlocked by a tap, or a clip did not download.
  */
-/** True while the patient is speaking or waiting for an answer: counting and cues stay on screen, not in their ear. */
-let holdSpeech: () => boolean = () => false;
+/**
+ * Why the coach should wait a moment before counting or cueing out loud: the patient is "talking", or their question
+ * waits for its "answer". The line is kept and said as soon as that is over (see `held`), never silently dropped:
+ * the phone stands two metres away, so what is only on the screen is as good as not said.
+ */
+let holdSpeech: () => "talking" | "answer" | null = () => null;
+/** The newest count or cue that had to wait, and since when. */
+let held: { clips: string[]; text: string; when: "next" | "queue"; at: number } | null = null;
+/** The count and the cues are short and matter: until this time, noise in the room does not cut them off. */
+let cueUntil = 0;
 
 /** One line of the on-screen form log: a counted repetition, or a movement that did not count and why. */
 type LogRow = { n: number | null; score: number | null; text: string; tone: "good" | "warn" | "bad"; fault: Fault | null; small: boolean };
 
 function say(clips: string[], text: string, when: "now" | "next" | "queue" = "queue") {
-  if (when !== "now" && holdSpeech()) return;
+  if (when !== "now" && holdSpeech()) {
+    held = { clips, text, when, at: performance.now() };
+    return;
+  }
+  held = null;
   rememberSaid(text);
+  cueUntil = performance.now() + 500 + 900 * Math.max(1, clips.length);
   if (playVoice(clips, when)) {
     if (when !== "queue" && typeof window !== "undefined") window.speechSynthesis?.cancel();
     return;
@@ -130,7 +143,7 @@ export function CameraSession(p: Props) {
       });
     };
     lookForHelper();
-    const keepWarm = window.setInterval(() => { if (!finished) warm(); }, 180_000);
+    const keepWarm = window.setInterval(() => { if (!finished) warm(); }, 25_000);   // an idle speech model answers its next request seconds late
     // Which speech servers are in use (the fast helper, or our hosted ones), and how the microphone is read.
     const showVoicePath = () => {
       const base = getVoiceBase();
@@ -256,7 +269,9 @@ export function CameraSession(p: Props) {
         } else if (data.tts) {
           // Our own voice (api/tts.py), one sentence at a time: the first plays while the next is being made.
           let first = true;
-          for (let waited = 0; isHearing() && waited < 3000; waited += 100) await new Promise((r) => setTimeout(r, 100));
+          // If the patient is still talking, the answer waits for them, but only briefly: in a noisy room the
+          // microphone "hears" something all the time, and the answer came three seconds late.
+          for (let waited = 0; isHearing() && waited < 500; waited += 100) await new Promise((r) => setTimeout(r, 100));
           for (const ticket of data.tts) {
             const spoken = await voiceFetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ticket) });
             const ok = spoken?.ok && spoken.headers.get("content-type")?.includes("audio");
@@ -355,7 +370,7 @@ export function CameraSession(p: Props) {
           if (heard === lastAsked.text && Date.now() - lastAsked.at < 5000) return;
           lastAsked = { text: heard, at: Date.now() };
           askedAt = 0;
-          answerPendingUntil = performance.now() + 7000;
+          answerPendingUntil = performance.now() + 5000;
           stopVoice();                                                                 // the patient talks: the coach stops
           void talk("heard", heard);
         }
@@ -386,11 +401,31 @@ export function CameraSession(p: Props) {
     // turned into text, or while their question waits for its answer. The screen still shows everything.
     holdSpeech = () => {
       const now = performance.now();
-      if (hearingSince && now - hearingSince > 250 && now - hearingSince < 7000) return true;
-      return transcribing || answerPendingUntil > now;
+      if (answerPendingUntil > now) return "answer";
+      if (hearingSince && now - hearingSince > 250 && now - hearingSince < 4000) return "talking";
+      return transcribing ? "talking" : null;
     };
     const bargeIn = window.setInterval(() => {
-      if (hearingSince && performance.now() - hearingSince > 500 && voiceBusy()) stopVoice();
+      const now = performance.now();
+      // The patient talks over the coach's answer: the coach stops. The count and the cues (a second or two) are
+      // finished instead: in a room with other voices they were cut off again and again, and nothing was heard.
+      if (hearingSince && now - hearingSince > 500 && voiceBusy() && now > cueUntil) stopVoice();
+      // A count that waited: said when the patient has stopped talking, or after 1.2 s if the room just is noisy.
+      // One that waited for an answer for over three seconds is old news and is left out.
+      if (held) {
+        const why = holdSpeech();
+        const waited = now - held.at;
+        if (!why || (why === "talking" && waited > 1200)) {
+          const h = held;
+          held = null;
+          if (waited < 3000) {
+            const hold = holdSpeech;
+            holdSpeech = () => null;
+            say(h.clips, h.text, h.when);
+            holdSpeech = hold;
+          }
+        }
+      }
     }, 100);
     setCoachSpeaking(voiceBusy);
     if (process.env.NODE_ENV !== "production") {
@@ -869,13 +904,13 @@ export function CameraSession(p: Props) {
           const allDone = n >= target;
           const setDone = !allDone && n % p.reps === 0;
           const spoken = repSpokenText(n, named, named ? CUE[named] : null);
-          // The count, the cue if there is one, and where we are in the set. No filler praise in between.
-          const clips = repClips(n, named, { allDone, setDone, leftInSet: p.reps - (((n - 1) % p.reps) + 1), halfway: target >= 8 && n * 2 === target })
-            .filter((c) => !MOTIVATION.includes(c));
+          // The count, the cue if there is one, then where we are in the set or a word of encouragement: every
+          // repetition is answered out loud, because the screen is too far away to read.
+          const clips = repClips(n, named, { allDone, setDone, leftInSet: p.reps - (((n - 1) % p.reps) + 1), halfway: target >= 8 && n * 2 === target });
           say(
             clips,
             allDone ? `${spoken} Nice work. That's all of them.`
-              : setDone ? `${spoken} Set ${n / p.reps} is done. Take a breather, then continue.` : spoken,
+              : setDone ? `${spoken} Set ${n / p.reps} is done. Take a breather, then continue.` : `${spoken} Keep going.`,
             "next",       // a warning still being spoken finishes its sentence before the count
           );
           bestDegrees = Math.max(bestDegrees ?? 0, Math.round(profile.repMeasure(rep)));
@@ -947,7 +982,8 @@ export function CameraSession(p: Props) {
       onHeard(null);
       stopListening();
       unwatchListening();
-      holdSpeech = () => false;
+      holdSpeech = () => null;
+      held = null;
     };
     // The session runs once per mount; its inputs do not change while it runs.
     // eslint-disable-next-line react-hooks/exhaustive-deps

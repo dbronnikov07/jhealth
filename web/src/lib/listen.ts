@@ -52,7 +52,7 @@ export type Utterance = { audio: Float32Array; startMs: number; endMs: number };
 
 /**
  * Voice activity detection on 20 ms frames of 16 kHz audio: loud enough above the room's own noise for long enough
- * is speech; half a second of quiet ends it. Pure (no browser APIs), unit-tested in scripts/listen.test.ts.
+ * is speech; about a third of a second of quiet ends it. Pure (no browser APIs), unit-tested in scripts/listen.test.ts.
  */
 export class Vad {
   static readonly FRAME = 320;                 // 20 ms at 16 kHz
@@ -65,7 +65,7 @@ export class Vad {
   private loudFrames = 0;
   private startMs = 0;
 
-  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 22, minLoudFrames: 10, maxFrames: 500 };
+  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 18, minLoudFrames: 10, maxFrames: 500 };   // 18 frames: 0.36 s of quiet ends a sentence
 
   get active(): boolean {
     return this.speaking;

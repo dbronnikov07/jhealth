@@ -9,14 +9,14 @@ import { ACK_CLIPS, COUNT_CLIPS, EMERGENCY_CLIPS, MOTIVATION, PHRASE_CLIPS, SETU
 const VOICE = new URL("../public/voice/", import.meta.url);
 
 test("after a repetition the coach counts, then names a mistake, then says where we are", () => {
-  assert.deepEqual(repClips(2, null), ["n2"]);                                          // a good rep: just the count
-  assert.deepEqual(repClips(3, null), ["n3", "m1"]);                                    // every third: some encouragement
-  assert.deepEqual(repClips(6, null), ["n6", "m2"]);
+  assert.deepEqual(repClips(1, null), ["n1", "m1"]);                                    // a good rep: the count and some encouragement
+  assert.deepEqual(repClips(2, null), ["n2", "m6"]);                                    // never the same line twice in a row
+  assert.deepEqual(repClips(3, null), ["n3", "m2"]);
   assert.deepEqual(repClips(7, null, { leftInSet: 3 }), ["n7", "three_more"]);
   assert.deepEqual(repClips(9, "too_fast", { leftInSet: 1 }), ["n9", "too_fast", "last_one"]);
-  assert.deepEqual(repClips(4, "not_deep"), ["n4", "not_deep"]);
+  assert.deepEqual(repClips(4, "not_deep"), ["n4", "not_deep", "m7"]);                  // a cue, then "keep going", never "great form"
   assert.deepEqual(repClips(5, null, { halfway: true }), ["n5", "halfway"]);
-  assert.deepEqual(repClips(5, "too_fast", { halfway: true }), ["n5", "too_fast"]);     // the cue matters more
+  assert.deepEqual(repClips(5, "too_fast", { halfway: true }), ["n5", "too_fast", "m6"]); // the cue matters more
   assert.deepEqual(repClips(10, null, { setDone: true, halfway: true }), ["n10", "set_done"]);
   assert.deepEqual(repClips(20, "not_upright", { allDone: true }), ["n20", "not_upright", "all_done"]);
 });

@@ -102,6 +102,29 @@ def signed(text, exp, sig):
     return hmac.compare_digest(want, sig)
 
 
+# Set by the fast voice helper (scripts/voice-dev.py): after a quiet spell the first sentence took twice as long to
+# make (0.8 s for "Three.", then 0.3 s), so the session page's keep-warm call makes a short one in the background.
+KEEP_WARM = False
+_last_used = time.time()
+
+
+def stay_warm():
+    global _last_used
+    if not KEEP_WARM or time.time() - _last_used < 20:
+        return
+    _last_used = time.time()
+
+    def run():
+        try:
+            k = model()
+            with _lock:
+                k.create("Okay.", voice="af_heart", speed=1.05, lang="en-us")
+        except Exception:
+            pass
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, code, body=b"", kind="text/plain"):
         self.send_response(code)
@@ -117,6 +140,7 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             model()
+            stay_warm()
             self._send(204)
         except Exception:
             self._send(503, b"voice not available")
@@ -136,6 +160,8 @@ class handler(BaseHTTPRequestHandler):
             import soundfile as sf
             k = model()
             t0 = time.perf_counter()
+            global _last_used
+            _last_used = time.time()
             with _lock:
                 samples, rate = k.create(text, voice="af_heart", speed=1.05, lang="en-us")   # a touch brisk: shorter to make
             t1 = time.perf_counter()
