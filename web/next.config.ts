@@ -39,6 +39,16 @@ const nextConfig: NextConfig = {
   // This folder is the project root (there is an unrelated package-lock.json in the home folder).
   turbopack: { root: __dirname },
   poweredByHeader: false,                                            // do not advertise the framework
+  // Development only: the voice functions (api/tts.py, api/stt.py) are Python and run on Vercel. Locally,
+  // `npm run voice:dev` serves them on port 8799 and these two addresses are passed through to it.
+  async rewrites() {
+    return isDev
+      ? [
+          { source: "/api/tts", destination: "http://127.0.0.1:8799/api/tts" },
+          { source: "/api/stt", destination: "http://127.0.0.1:8799/api/stt" },
+        ]
+      : [];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

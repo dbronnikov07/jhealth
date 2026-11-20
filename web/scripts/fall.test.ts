@@ -55,12 +55,14 @@ test("spoken commands: only a few phrases do anything", () => {
   assert.equal(matchCommand("call me later"), null);
 });
 
-test("the coach's own voice is taken out of what the microphone heard; the patient's words stay", async () => {
-  const { rememberSaid, withoutEcho } = await import("../src/lib/echo.ts");
+test("a sentence made of the coach's own recent words is an echo; the patient's words are not", async () => {
+  const { rememberSaid, isEcho, looksLikeNoise } = await import("../src/lib/echo.ts");
   rememberSaid("Seven.", 1000);
   rememberSaid("Great form.", 1000);
-  assert.equal(withoutEcho("seven how are you", 2000), "how are you");
-  assert.equal(withoutEcho("great form it's a sharp pain", 2000), "it's a sharp pain");
-  assert.equal(withoutEcho("seven", 2000), "");                     // only the coach: nothing for the coach to answer
-  assert.equal(withoutEcho("seven how are you", 20000), "seven how are you");  // long ago: not an echo any more
+  assert.equal(isEcho("7 great form", 2000), true);                  // the recogniser writes "7" for "seven"
+  assert.equal(isEcho("seven how are you", 2000), false);            // mostly new words: the patient
+  assert.equal(isEcho("it's a sharp pain", 2000), false);
+  assert.equal(isEcho("seven", 20000), false);                       // long ago: not an echo any more
+  assert.equal(looksLikeNoise("Thank you.", 0.6), true);             // what Whisper writes for a cough
+  assert.equal(looksLikeNoise("Thank you.", 2.0), false);
 });

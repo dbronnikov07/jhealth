@@ -172,6 +172,14 @@ export function ttsTicket(text: string): { text: string; exp: number; sig: strin
   return { text, exp, sig };
 }
 
+/** The session page's permission to use our speech-to-text (api/stt.py) for three hours. Null without TTS_SECRET. */
+export function sttTicket(): { exp: number; sig: string } | null {
+  const secret = process.env.TTS_SECRET;
+  if (!secret) return null;
+  const exp = Math.floor(Date.now() / 1000) + 3 * 3600;
+  return { exp, sig: createHmac("sha256", secret).update(`stt.${exp}`).digest("hex") };
+}
+
 /**
  * The answer as speech: OpenAI text-to-speech, mp3, or null when no key is set (our own voice or the browser's is used).
  *   OPENAI_API_KEY    required for the natural voice

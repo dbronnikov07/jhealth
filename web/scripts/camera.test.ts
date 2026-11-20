@@ -15,10 +15,17 @@ test("camera preflight accepts a complete body and blocks cropped joints", () =>
   assert.notEqual(poseSetupIssue("sit_to_stand", hidden), null);
   assert.equal(poseSetupIssue("sit_to_stand", hidden, DURING_SET), null);
 
-  body[27] = { x: 0.5, y: 1.04, visibility: 0.99 };
-  assert.match(poseSetupIssue("sit_to_stand", body) ?? "", /feet/);
+  // Feet below the picture are fine (the frame may end below the knees); knees out of it are not.
+  body[27] = { x: 0.5, y: 1.04, visibility: 0.2 };
+  body[28] = { x: 0.5, y: 1.04, visibility: 0.2 };
+  assert.equal(poseSetupIssue("sit_to_stand", body), null);
+  assert.equal(poseSetupIssue("squat", body), null);
+  body[25] = { x: 0.5, y: 1.03, visibility: 0.9 };
+  assert.match(poseSetupIssue("squat", body) ?? "", /knees/);
+  body[25] = { x: 0.5, y: 0.5, visibility: 0.99 };
 
   body[27] = { x: 0.5, y: 0.5, visibility: 0.99 };
+  body[28] = { x: 0.5, y: 0.5, visibility: 0.99 };
   body[15] = { x: 0.5, y: 0.5, visibility: 0.1 };
   body[16] = { x: 0.5, y: 0.5, visibility: 0.1 };
   assert.match(poseSetupIssue("arm_raise", body) ?? "", /hands and wrists/);

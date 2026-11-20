@@ -15,10 +15,10 @@ export async function TopBar({ doctor, mode }: { doctor?: { name: string; clinic
   const imessage = await imessageBridgeOnline().catch(() => false);
   return (
     <header className="topbar">
-      <Link href="/doctor" className="brand">
+      <Link href="/" className="brand" aria-label="Motiva Health: back to the website" title="Back to the website">
         <Logo size={26} tile />
       </Link>
-      <span className="sub">Physio dashboard</span>
+      <Link href="/doctor" className="sub">Physio dashboard</Link>
       <div className="right">
         <span className="env" title={mode === "local" ? "PGlite: Postgres running on this computer" : "Supabase Postgres"}>
           <i aria-hidden /> {mode === "local" ? "Local database" : "Supabase"}

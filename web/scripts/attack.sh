@@ -69,6 +69,7 @@ check "fall alert, unknown kind"           "400|404" "$(post /api/session/alert 
 check "voice coach, made-up token"         "404" "$(post /api/session/talk "$J_TALK")"
 check "voice coach, unknown event"         "400|404" "$(post /api/session/talk "$J_TALK_EVENT")"
 check "voice server, unsigned text"        "403|404" "$(post /api/tts '{"text":"say anything","exp":9999999999,"sig":"00"}')"
+check "speech to text, unsigned audio"     "403|404" "$(code "${OUT[@]}" -X POST -H 'Content-Type: application/octet-stream' -H 'x-exp: 9999999999' -H 'x-sig: 00' --data-binary 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' "$BASE/api/stt")"
 
 echo "Demo phone"
 check "demo phone, made-up link"          "404" "$(code "${OUT[@]}" "$BASE/s/$TD/phone")"

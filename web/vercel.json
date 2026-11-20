@@ -14,6 +14,10 @@
       "memory": 2048,
       "maxDuration": 60,
       "includeFiles": "api/voices-heart.npz"
+    },
+    "api/stt.py": {
+      "memory": 2048,
+      "maxDuration": 60
     }
   }
 }

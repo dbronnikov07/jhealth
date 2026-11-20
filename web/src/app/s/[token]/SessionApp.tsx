@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { CameraSession, type SessionSummary } from "./CameraSession";
 import { unlockVoice } from "@/lib/voice";
-import { startListening } from "@/lib/listen";
+import { configureListening, startListening, type Ticket } from "@/lib/listen";
 
 export type PlanItem = {
   exercise_id: string;
@@ -66,8 +66,9 @@ function HowTo({ exerciseId }: { exerciseId: string }) {
   );
 }
 
-export function SessionApp({ token, items, source, step = false, emergency = null }: {
+export function SessionApp({ token, items, source, step = false, emergency = null, listenTicket = null }: {
   token: string; items: PlanItem[]; source: string | null; step?: boolean; emergency?: { name: string; phone: string } | null;
+  listenTicket?: Ticket | null;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, string>>(
@@ -144,14 +145,14 @@ export function SessionApp({ token, items, source, step = false, emergency = nul
             {done[item.exercise_id] ? (
               <span className="done-badge"><Icon name="check" /> {done[item.exercise_id]}</span>
             ) : item.tracking === "camera" ? (
-              <button className="btn primary" onClick={() => { unlockVoice(); startListening(); setActive(item.exercise_id); }}><Icon name="camera" /> Start with camera</button>
+              <button className="btn primary" onClick={() => { unlockVoice(); configureListening(listenTicket); startListening(); setActive(item.exercise_id); }}><Icon name="camera" /> Start with camera</button>
             ) : (
               <button className="btn" onClick={() => markDone(item)} disabled={busy === item.exercise_id}>
                 {busy === item.exercise_id ? "Saving…" : <><Icon name="check" /> Mark done</>}
               </button>
             )}
             {item.tracking === "camera" && !done[item.exercise_id] && (
-              <span className="ex-hint"><Icon name="distance" /> Stand about 2.5 m from the camera so your whole body, feet included, is visible.</span>
+              <span className="ex-hint"><Icon name="distance" /> Stand about 2 m back, so the camera sees you from your shoulders to your knees. On a laptop, tilt the screen.</span>
             )}
           </div>
         </li>

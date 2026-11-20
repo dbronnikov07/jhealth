@@ -8,6 +8,7 @@ export type ScreenLandmark = { x: number; y: number; visibility?: number };
 const TORSO = [11, 12, 23, 24];
 const LEFT_LEG = [23, 25, 27];
 const RIGHT_LEG = [24, 26, 28];
+const KNEES = [25, 26];
 const LEFT_ARM = [11, 13, 15];
 const RIGHT_ARM = [12, 14, 16];
 
@@ -30,18 +31,23 @@ export function poseSetupIssue(
       && (p.visibility ?? 1) >= minVisibility
       && p.x >= edge && p.x <= 1 - edge && p.y >= edge && p.y <= 1 - edge;
   });
-  // Squat/sit-to-stand need both legs: their signal and quality features use both.
+  // Squat/sit-to-stand need shoulders, hips and both knees in the picture. The feet may be out of it: with the frame
+  // cut just below the knees the tracker still places the ankles well enough that all 7 test squats were counted and
+  // the knee bend stayed within 8 degrees of the full-frame value (20 November 2026). Asking for the feet forced
+  // people nearly 3 m back from a laptop.
   // Extension and arm raise are intentionally one-sided, so side-on phone footage is
   // accepted when the working leg/arm is clear rather than demanding an occluded far side.
   const usable = exerciseId === "seated_knee_extension"
     ? visible(TORSO) && (visible(LEFT_LEG) || visible(RIGHT_LEG))
     : exerciseId === "arm_raise"
       ? visible(TORSO) && (visible(LEFT_ARM) || visible(RIGHT_ARM))
-      : visible([...TORSO, ...LEFT_LEG, ...RIGHT_LEG]);
+      : visible([...TORSO, ...KNEES]);
   if (usable) return null;
   return exerciseId === "arm_raise"
     ? "Step back so your upper body, hips, hands and wrists are in view."
-    : "Step back so your whole body, knees and feet are in view.";
+    : exerciseId === "seated_knee_extension"
+      ? "Step back so your whole leg is in view."
+      : "Step back a little: I need to see you from your shoulders down to your knees.";
 }
 
 /**

@@ -75,6 +75,15 @@ let unlocked = false;
 let queue: string[] = [];
 let busy = false;
 let lastEnded = 0;                              // when the last clip finished (performance.now)
+const spoke: { start: number; end: number }[] = [];   // when the coach was audible, most recent last
+const closeSpoke = () => { const s = spoke[spoke.length - 1]; if (s && s.end === Infinity) s.end = performance.now(); };
+
+/** The share (0..1) of the time between two moments (performance.now) during which the coach was audible. */
+export function spokeDuring(startMs: number, endMs: number): number {
+  let overlap = 0;
+  for (const s of spoke) overlap += Math.max(0, Math.min(endMs, s.end) - Math.max(startMs, s.start));
+  return endMs > startMs ? Math.min(1, overlap / (endMs - startMs)) : 0;
+}
 let turn = 0;                                   // guards against a late "play() was interrupted" from an older clip
 const loaded = new Map<string, string>();       // clip -> object URL, ready to play at once
 const requested = new Set<string>();
@@ -84,7 +93,8 @@ function audio(): HTMLAudioElement | null {
   if (!player) {
     player = new Audio();
     player.preload = "auto";
-    player.addEventListener("ended", () => { lastEnded = performance.now(); });
+    player.addEventListener("ended", () => { lastEnded = performance.now(); closeSpoke(); });
+    player.addEventListener("pause", closeSpoke);
     player.addEventListener("ended", playNext);
     player.addEventListener("error", playNext);
   }
@@ -102,6 +112,9 @@ function playNext(): void {
   }
   busy = true;
   const mine = ++turn;
+  closeSpoke();
+  spoke.push({ start: performance.now(), end: Infinity });
+  while (spoke.length > 40) spoke.shift();
   a.src = url;
   a.play().catch((e: unknown) => {
     if ((e as { name?: string } | null)?.name === "NotAllowedError") {

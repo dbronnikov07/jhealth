@@ -7,6 +7,7 @@ import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
 import { getDb } from "@/lib/db";
 import { SessionApp, type PlanItem } from "./SessionApp";
+import { sttTicket } from "@/lib/coach/voice-coach";
 
 // What iMessage shows as the link preview when the coach texts this page. Nothing personal: the same for everyone.
 export const metadata: Metadata = {
@@ -78,6 +79,7 @@ export default async function SessionPage({
         <SessionApp
           token={token} items={items} source={source} step={!!source && query.step === "1"}
           emergency={patient.emergency_name && patient.emergency_phone ? { name: patient.emergency_name, phone: patient.emergency_phone } : null}
+          listenTicket={sttTicket()}
         />
       )}
       <div className="reassure">

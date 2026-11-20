@@ -906,3 +906,16 @@ textarea { resize: vertical; min-height: 60px; }
 .btn.danger { background: #a8201a; border-color: #a8201a; color: #ffffff; }
 .btn.danger:hover { background: #8e1b16; }
 
+/* Top bar: Sign out is always reachable. The name gives way first (ellipsis), and the clinic hides on narrower screens. */
+.topbar .right { min-width: 0; }
+.topbar .right > form { flex: none; }
+.topbar .signout { flex: none; white-space: nowrap; }
+.topbar .who { min-width: 0; }
+.topbar .who .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.topbar a.sub { text-decoration: none; }
+.topbar a.sub:hover { color: #ffffff; }
+@media (max-width: 1280px) { .topbar .who .clinic { display: none; } }
+@media (max-width: 1040px) { .topbar .who .name { display: none; } }
+.talk-bar .heard.hearing { color: #0f7a4a; font-weight: 650; }
+.mic-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #0f7a4a; margin-right: 8px; animation: talk-pulse 0.8s ease-in-out infinite alternate; }
+

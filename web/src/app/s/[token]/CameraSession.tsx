@@ -13,9 +13,9 @@ import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
-import { rememberSaid, withoutEcho } from "@/lib/echo";
-import { MOTIVATION, playUrl, playVoice, preloadVoice, registerUrl, repClips, sessionClips, stopVoice, voiceReady } from "@/lib/voice";
-import { matchCommand, onHeard, pushing, stopListening, talkNow, watchListening, type ListenState } from "@/lib/listen";
+import { isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
+import { MOTIVATION, playUrl, playVoice, preloadVoice, registerUrl, repClips, sessionClips, spokeDuring, stopVoice, voiceReady } from "@/lib/voice";
+import { feedAudioForTest, matchCommand, onHeard, pushing, stopListening, talkNow, watchListening, type ListenState } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
@@ -87,7 +87,7 @@ export function CameraSession(p: Props) {
   const [modelNote, setModelNote] = useState<string | null>(null);
   const [setupIssue, setSetupIssue] = useState<string | null>("Checking that the camera can see the joints needed for this exercise…");
   const [emergency, setEmergency] = useState<Emergency | null>(null);
-  const [listen, setListen] = useState<ListenState>({ on: false, error: null, pushing: false });
+  const [listen, setListen] = useState<ListenState>({ on: false, error: null, pushing: false, hearing: false, working: false });
   const listening = listen.on;
   const [heardLive, setHeardLive] = useState<string>("");
   // The spoken conversation, shown under the video: what the patient said and what the coach answered.
@@ -107,8 +107,9 @@ export function CameraSession(p: Props) {
     const profile = profileFor(p.exerciseId);
     preloadVoice(sessionClips(p.exerciseId, target, Object.keys(CUE)));   // small files; ready before the first repetition
     // Wake the voice server while the camera starts, and keep it awake during the session (a cold start costs ~3 s).
-    fetch("/api/tts", { method: "GET" }).catch(() => {});
-    const keepWarm = window.setInterval(() => { if (!finished) fetch("/api/tts", { method: "GET" }).catch(() => {}); }, 180_000);
+    const warm = () => { for (const u of ["/api/tts", "/api/stt"]) fetch(u, { method: "GET" }).catch(() => {}); };
+    warm();
+    const keepWarm = window.setInterval(() => { if (!finished) warm(); }, 180_000);
     const counter = new RepCounter(profile.counter);
     const frames: Frame[] = [];
     const kneesInFlags: boolean[] = [];
@@ -140,7 +141,7 @@ export function CameraSession(p: Props) {
     // changes and again every 9 s while it stays the same, so a patient standing 2 m away hears what to do.
     const SETUP_TEXT = {
       setup_find_you: "I can't see you yet. Stand in front of the camera.",
-      setup_step_back: "Step back a little, so I can see all of you, feet too.",
+      setup_step_back: "Step back a little. I need to see you from your shoulders down to your knees.",
       setup_step_back_arm: "Step back a little, so I can see your arms and your hips.",
       setup_hold: "That's it. Hold still for a second.",
     };
@@ -280,25 +281,26 @@ export function CameraSession(p: Props) {
     // What the microphone hears. Ignored while the coach is talking, and the same command twice within 4 s counts once.
     let lastCommand = { what: "", at: 0 };
     let lastAsked = { text: "", at: 0 };
-    onHeard((heard, final) => {
+    onHeard((heard, when) => {
       if (finished || cancelled) return;
-      // The patient's words: what was heard minus what the coach itself just said (the microphone hears both).
-      const own = withoutEcho(heard);
-      if (own) setHeardLive(own);
-      const command = matchCommand(own, p.emergency?.name ?? null);
+      // The browser's echo cancellation takes the coach's voice out of the microphone. Second guard: a sentence heard
+      // while the coach was talking, made of the coach's own words, is dropped. So is what a cough turns into.
+      if (spokeDuring(when.startMs, when.endMs) > 0.5 && isEcho(heard)) return;
+      if (looksLikeNoise(heard, (when.endMs - when.startMs) / 1000)) return;
+      setHeardLive(heard);
+      const command = matchCommand(heard, p.emergency?.name ?? null);
       if (!command) {
-        // Not a command: when the sentence is complete, the coach answers it. After the Talk button one word is
-        // enough; otherwise two, so a stray "okay" in the room does not start a conversation.
-        const words = own.split(/\s+/).filter(Boolean).length;
-        const push = pushing();
-        if (final && !emergencyOn && words >= (push ? 1 : 2)) {
-          if (own === lastAsked.text && Date.now() - lastAsked.at < 5000) return;     // Safari sometimes repeats a final result
-          lastAsked = { text: own, at: Date.now() };
-          stopVoice();                                                                 // the patient talks over the coach: the coach stops
+        // Not a command: the coach answers it. After the Talk button one word is enough; otherwise two, so a stray
+        // "okay" in the room does not start a conversation.
+        const words = heard.split(/\s+/).filter(Boolean).length;
+        if (!emergencyOn && words >= (pushing() ? 1 : 2)) {
+          if (heard === lastAsked.text && Date.now() - lastAsked.at < 5000) return;
+          lastAsked = { text: heard, at: Date.now() };
+          stopVoice();                                                                 // the patient talks: the coach stops
           // A short "Okay." at once, so the patient knows they were heard while the answer is being made.
-          const ack = /^(how|what|why|when|where|can|should|is|are|do|does|did|will|am|could|would)\b/i.test(own) ? "ack_question" : Math.random() < 0.5 ? "ack_ok" : "ack_got_it";
+          const ack = /^(how|what|why|when|where|can|should|is|are|do|does|did|will|am|could|would)\b/i.test(heard) ? "ack_question" : Math.random() < 0.5 ? "ack_ok" : "ack_got_it";
           say([ack], ack === "ack_question" ? "Good question." : "Okay.", "now");
-          void talk("heard", own);
+          void talk("heard", heard);
         }
         return;
       }
@@ -312,6 +314,10 @@ export function CameraSession(p: Props) {
       else if (command === "pain") hurtsRef.current();
     });
     const unwatchListening = watchListening(setListen);
+    if (process.env.NODE_ENV !== "production") {
+      // Development only: window.__motivaSay("/test/q1.wav") plays a sound file into the listener as if spoken.
+      (window as unknown as { __motivaSay?: (url: string) => Promise<void> }).__motivaSay = feedAudioForTest;
+    }
 
     // A patient who stands ready but does not start hears "Whenever you're ready" now and then (at most 3 times).
     let lastProgressAt = 0;
@@ -813,7 +819,7 @@ export function CameraSession(p: Props) {
         {status === "loading" && (
           <div className="stage-loading">
             <span className="spinner" aria-hidden />
-            <p>Getting the camera ready<small>Stand about 2.5 m back, so your whole body fits.</small></p>
+            <p>Getting the camera ready<small>Stand about 2 m back, so I can see you from shoulders to knees.</small></p>
           </div>
         )}
         {status === "running" && setupIssue && (
@@ -878,15 +884,17 @@ export function CameraSession(p: Props) {
         >
           <Icon name="chat" /> {listen.pushing ? "Listening… say it now" : "Talk to the coach"}
         </button>
-        <p className="heard" aria-live="polite">
+        <p className={`heard${listen.hearing ? " hearing" : ""}`} aria-live="polite">
           {listen.error ? <span className="mic-error">{listen.error}</span>
-            : heardLive ? <>Heard: <b>{heardLive}</b></>
-              : listening ? "Listening. Ask anything, or say how you feel." : "Tap the button and speak."}
+            : listen.hearing ? <><i className="mic-dot" aria-hidden /> I&apos;m listening…</>
+              : listen.working ? "Got it, one moment…"
+                : heardLive ? <>You said: <b>{heardLive}</b></>
+                  : listening ? "The microphone is on. Just talk: ask anything, or say how you feel." : "Tap the button and speak."}
         </p>
       </div>
       <p className="voice-hint faint small">
         {listening
-          ? <>Talk to the coach any time: ask how deep to go, say how it feels. <b>&ldquo;Help&rdquo;</b>, <b>&ldquo;call 911&rdquo;</b>{p.emergency ? <>, <b>&ldquo;call {p.emergency.name}&rdquo;</b></> : null} and <b>&ldquo;it hurts&rdquo;</b> work too. Your browser&apos;s speech service turns what you say into text and the coach&apos;s AI answers it; the video stays on this device.</>
+          ? <>Talk to the coach any time: ask how deep to go, say how it feels. <b>&ldquo;Help&rdquo;</b>, <b>&ldquo;call 911&rdquo;</b>{p.emergency ? <>, <b>&ldquo;call {p.emergency.name}&rdquo;</b></> : null} and <b>&ldquo;it hurts&rdquo;</b> work too. What you say is turned into text on our server and not kept; the video stays on this device.</>
           : <>If you fall, the camera asks if you are okay and offers to call for help.</>}
       </p>
       {emergency && (

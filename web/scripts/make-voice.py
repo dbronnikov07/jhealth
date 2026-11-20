@@ -50,7 +50,7 @@ SET_PHRASES = {
     "m4": "You've got this.",
     "m5": "Looking strong.",
     "setup_find_you": "I can't see you yet. Stand in front of the camera.",
-    "setup_step_back": "Step back a little, so I can see all of you, feet too.",
+    "setup_step_back": "Step back a little. I need to see you from your shoulders down to your knees.",
     "setup_step_back_arm": "Step back a little, so I can see your arms and your hips.",
     "setup_hold": "That's it. Hold still for a second.",
     "fall_check": "Are you okay? It looks like you went down.",
