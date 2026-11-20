@@ -846,3 +846,26 @@ textarea { resize: vertical; min-height: 60px; }
 @keyframes asked { to { outline-color: rgb(255 176 32 / 0.35); } }
 @media (prefers-reduced-motion: reduce) { .emergency-card .btn.asked { animation: none; } }
 .voice-hint { margin-top: 10px; }
+
+/* The spoken conversation under the video: the last few things said, so it can be read from across the room. */
+.talk { display: grid; gap: 8px; margin-top: 14px; }
+.talk p { font-size: 18px; line-height: 1.4; padding: 10px 14px; border-radius: 16px; max-width: 760px; }
+.talk p b { font-weight: 750; margin-right: 6px; }
+.talk p.you { background: var(--surface-2, #eef1f8); justify-self: end; }
+.talk p.coach { background: #e8f0ff; color: #0b1240; }
+
+/* "How to do it" before a camera exercise: right and wrong, side by side, looping like a GIF. */
+.howto { margin: 14px 0 6px; }
+.howto-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.howto figure { margin: 0; border-radius: 16px; overflow: hidden; background: #0b1240; border: 3px solid #0f7a4a; }
+.howto figure.wrong { border-color: #c62828; }
+.howto video { display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover; }
+.howto figcaption { font-size: 14px; line-height: 1.35; color: #ffffff; padding: 8px 10px 10px; }
+.howto figcaption b { display: block; font-size: 15px; color: #7ee2a8; }
+.howto figure.wrong figcaption b { color: #ff8a80; }
+.howto-counts { margin-top: 10px; font-weight: 600; }
+.howto-credit { margin-top: 4px; }
+@media (max-width: 520px) {
+  .howto-row { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 46%; overflow-x: auto; scroll-snap-type: x mandatory; }
+  .howto figure { scroll-snap-align: start; }
+}

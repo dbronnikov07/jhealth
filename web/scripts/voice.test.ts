@@ -23,10 +23,10 @@ test("after a repetition the coach counts, then names a mistake, then says where
 
 test("a session asks only for clips that exist", () => {
   const cues = Object.keys(CUE);
-  assert.deepEqual(sessionClips("squat", 3, []), ["n1", "n2", "n3", ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, "start_squat"]);
+  assert.deepEqual(sessionClips("squat", 3, []), ["n1", "n2", "n3", ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, "start_squat", "not_counted_squat"]);
   assert.ok(!sessionClips("seated_knee_extension", 3, []).some((c) => c.startsWith("start_")));   // no own line: generic "start"
   assert.equal(sessionClips("squat", 99, []).filter((c) => /^n\d+$/.test(c)).length, COUNT_CLIPS);
-  const every = [...sessionClips("squat", COUNT_CLIPS, cues), ...START_CLIPS.map((id) => `start_${id}`)];
+  const every = [...sessionClips("squat", COUNT_CLIPS, cues), ...START_CLIPS.flatMap((id) => [`start_${id}`, `not_counted_${id}`])];
   for (const clip of every) {
     const file = new URL(`${clip}.mp3`, VOICE);
     assert.ok(existsSync(file), `public/voice/${clip}.mp3 is missing: run scripts/make-voice.py`);

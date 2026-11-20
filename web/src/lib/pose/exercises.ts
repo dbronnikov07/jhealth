@@ -106,7 +106,19 @@ export type ExerciseProfile = {
   liveWarning?(f: Frame, isDown: boolean): boolean;
   liveWarningFault?: Fault;
   fault(c: RepContext): Fault | null;
+  /**
+   * A movement only counts as a repetition when repMeasure reaches this (degrees). Below it the app says it did not
+   * count and why, instead of counting a little bob of the knees as a squat.
+   */
+  minCount: number;
+  /** Said and shown when a movement did not count. */
+  notCounted: string;
 };
+
+/** Does this finished movement count as a repetition? */
+export function countsAsRep(profile: ExerciseProfile, rep: CompletedRep): boolean {
+  return profile.repMeasure(rep) >= profile.minCount;
+}
 
 /** A squat that bends the knees less than this (degrees) gets "a little deeper". */
 export const SQUAT_SHALLOW_BEND = 60;
@@ -158,6 +170,10 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
       if (c.rep.activeSeconds < 1.2) return "too_fast";
       return null;
     },
+    // Correct squats in the public data reach a knee angle of 87 (fixed camera) to 109 degrees (phones), a bend of
+    // 70 to 90. Under 55 degrees of bend it is not a squat yet, so it does not count.
+    minCount: 55,
+    notCounted: "That one didn't count. Go lower, sit back toward the chair.",
   },
   sit_to_stand: {
     id: "sit_to_stand",
@@ -183,6 +199,9 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
       if (c.rep.activeSeconds < 1.5) return "too_fast";
       return null;
     },
+    // Sitting on a chair bends the knee about 90 degrees: every correct home clip (WLU) reached 83 or more.
+    minCount: 65,
+    notCounted: "That one didn't count. Sit all the way down, then stand up.",
   },
   seated_knee_extension: {
     id: "seated_knee_extension",
@@ -201,6 +220,8 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
       if (returnSeconds(c, kneeStraighter) < 0.8) return "too_fast";
       return null;
     },
+    minCount: 120,
+    notCounted: "That one didn't count. Straighten your knee further.",
   },
   arm_raise: {
     id: "arm_raise",
@@ -225,6 +246,9 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
       if (c.rep.activeSeconds < 1.2) return "too_fast";
       return null;
     },
+    // Shoulder height is 90 degrees; "not high" is named under 75. Under 60 it is not an arm raise yet.
+    minCount: 60,
+    notCounted: "That one didn't count. Lift your arm higher, up to your shoulder.",
   },
 };
 

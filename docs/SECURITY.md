@@ -87,3 +87,10 @@ A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API
 - A possible fall (the camera sees someone who was upright end up lying down, or drop fast and vanish) or a spoken "help" / "call 911" opens an "Are you okay?" screen with buttons to call 911 and the patient's emergency contact. **Nothing calls anyone by itself:** the buttons are ordinary `tel:` links, so the phone asks before dialling.
 - `POST /api/session/alert` takes only a 64-character session token, a kind (`fall` or `help`) and the exercise name (letters and digits only, 60 characters), refuses bodies over 4 KB, and raises at most one red-flag alert per patient every two minutes. `scripts/attack.sh` checks a made-up token, SQL in the token and an unknown kind.
 - The emergency contact (name and number) is stored on the patient row, entered by the physiotherapist, and shown only on the patient's own session page, reached through their private link.
+
+## Spoken coach (added 20 November 2026)
+
+- `POST /api/session/talk` takes a 64-character session token, one of four events, at most 300 characters of heard text and a few numbers (each clamped), refuses bodies over 8 KB, and answers at most 40 turns per patient every 10 minutes (counted in `voice_turns`). `scripts/attack.sh` checks a made-up token and an unknown event.
+- Pain and red-flag words in what the patient says go to the fixed safety rules (`lib/safety.ts`) before any AI: alert, remembered fact, fixed answer, session stopped.
+- What leaves the device: the browser's speech service (Apple's or Google's) turns speech into text; that text and the session numbers go to the AI that writes the answer (OpenAI when `OPENAI_API_KEY` is set, otherwise Adaption); the answer's text goes to OpenAI's text-to-speech. The video never leaves the device. Conversations are stored in `voice_turns` (row level security on, no web API rights) so the physiotherapist can read them.
+

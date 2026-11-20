@@ -52,7 +52,8 @@ export function repClips(
 export function sessionClips(exerciseId: string, target: number, cues: string[]): string[] {
   const numbers = Array.from({ length: Math.min(target, COUNT_CLIPS) }, (_, i) => `n${i + 1}`);
   const start = START_CLIPS.includes(exerciseId) ? [`start_${exerciseId}`] : [];
-  return [...numbers, ...cues, ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, ...start];
+  const notCounted = START_CLIPS.includes(exerciseId) ? [`not_counted_${exerciseId}`] : [];
+  return [...numbers, ...cues, ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, ...start, ...notCounted];
 }
 
 // 0.05 s of silence: playing it inside the tap is what unlocks sound on phones. It is turned into a blob: address
@@ -169,7 +170,14 @@ export function playVoice(clips: string[], when: "now" | "next" | "queue" = "que
  */
 export function voiceBusy(): boolean {
   const synth = typeof window !== "undefined" && window.speechSynthesis?.speaking;
-  return busy || !!synth || performance.now() - lastEnded < 900;
+  return busy || !!synth || performance.now() - lastEnded < 1500;
+}
+
+/** Play speech that was made on the fly (the spoken coach's answer, an object URL). False if sound is locked. */
+export function playUrl(url: string, when: "now" | "next" | "queue" = "queue"): boolean {
+  if (!unlocked) return false;
+  loaded.set(url, url);
+  return playVoice([url], when);
 }
 
 export function stopVoice(): void {

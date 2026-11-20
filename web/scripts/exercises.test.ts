@@ -2,7 +2,7 @@
 // Run:  npm run test:unit
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EXERCISES, FACING_MIN, UPRIGHT_KNEE, facingCamera, profileFor, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
+import { EXERCISES, FACING_MIN, UPRIGHT_KNEE, countsAsRep, facingCamera, profileFor, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
 import type { Frame, Vec } from "../src/lib/pose/features.ts";
 import { RepCounter } from "../src/lib/pose/reps.ts";
 
@@ -147,4 +147,14 @@ test("knees caving in is only judged when the person faces the camera", () => {
   assert.deepEqual(squat(0), { reps: 1, faults: ["knees_in"] });
   assert.deepEqual(squat(30), { reps: 1, faults: ["knees_in"] });
   assert.deepEqual(squat(85), { reps: 1, faults: [null] });     // side on: the camera cannot see it, so say nothing
+});
+
+test("a small bob of the knees is not a squat: it does not count", () => {
+  const rep = (minKnee: number) => ({ startIndex: 0, endIndex: 1, startTime: 0, endTime: 1, minKnee, topKnee: 158, depth: 158 - minKnee, activeSeconds: 2 });
+  assert.equal(countsAsRep(EXERCISES.squat, rep(140)), false);        // knees bent 40 degrees: a couple of centimetres
+  assert.equal(countsAsRep(EXERCISES.squat, rep(118)), true);         // 62 degrees: a real chair squat
+  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(125)), false); // never sat down
+  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(95)), true);   // sat on the chair
+  assert.equal(countsAsRep(EXERCISES.arm_raise, rep(130)), false);    // arm lifted 50 degrees
+  assert.equal(countsAsRep(EXERCISES.arm_raise, rep(95)), true);      // 85 degrees: about shoulder height
 });

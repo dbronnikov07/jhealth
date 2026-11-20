@@ -62,6 +62,14 @@ SET_PHRASES = {
     "told_physio": "I've let your physiotherapist know.",
     "pain_stop": "Let's stop here. I've told your physiotherapist.",
 }
+
+
+def not_counted():
+    """What the app says when a movement was too small to count (the words come from the app, like the cues)."""
+    js = ("import('./src/lib/pose/exercises.ts').then((m) => console.log(JSON.stringify("
+          "Object.fromEntries(['squat', 'sit_to_stand', 'arm_raise'].map((id) => [`not_counted_${id}`, m.EXERCISES[id].notCounted])))))")
+    out = subprocess.run(["node", "--no-warnings", "-e", js], cwd=WEB, capture_output=True, text=True, check=True).stdout
+    return json.loads(out)
 SAMPLE = "Camera's ready. Let's do the chair squat. Take your time. One. Two. Three. Knees out, over your toes. Halfway there. Nice work."
 SAMPLE_VOICES = ["af_heart", "af_bella", "am_michael", "am_fenrir", "bf_emma", "bm_george"]
 
@@ -77,6 +85,7 @@ def lines():
     all_lines = {f"n{i}": f"{word}." for i, word in enumerate(NUMBERS, 1)}
     all_lines.update({key: text if text.endswith((".", "!", "?")) else text + "." for key, text in cues().items()})
     all_lines.update(SET_PHRASES)
+    all_lines.update(not_counted())
     return all_lines
 
 

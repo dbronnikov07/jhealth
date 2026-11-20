@@ -16,6 +16,40 @@ export type PlanItem = {
   done_today: boolean;
 };
 
+/**
+ * Short videos shown before an exercise: how it looks done right, from the front and the side, and the most common
+ * way to get it wrong. Real people from an open dataset (public/demo/CREDITS.md), faces blurred by its authors.
+ */
+const DEMOS: Record<string, { counts: string; clips: { src: string; label: string; note: string; ok: boolean }[] }> = {
+  squat: {
+    counts: "A squat counts when your knees bend about 55 degrees or more: sit back as if onto the chair, then stand up tall.",
+    clips: [
+      { src: "/demo/squat_good_front.mp4", label: "Right", note: "Hips back, thighs close to level", ok: true },
+      { src: "/demo/squat_good_side.mp4", label: "Right, from the side", note: "Chest up, weight in the heels", ok: true },
+      { src: "/demo/squat_bad_front.mp4", label: "Wrong", note: "Too shallow: this does not count", ok: false },
+    ],
+  },
+};
+
+function HowTo({ exerciseId }: { exerciseId: string }) {
+  const demo = DEMOS[exerciseId];
+  if (!demo) return null;
+  return (
+    <div className="howto">
+      <div className="howto-row">
+        {demo.clips.map((c) => (
+          <figure key={c.src} className={c.ok ? "ok" : "wrong"}>
+            <video src={c.src} muted loop playsInline autoPlay preload="metadata" aria-label={`${c.label}: ${c.note}`} />
+            <figcaption><b>{c.label}</b> {c.note}</figcaption>
+          </figure>
+        ))}
+      </div>
+      <p className="howto-counts">{demo.counts}</p>
+      <p className="howto-credit faint small">Videos: Mendeley Data, kgbb3yn47p, CC BY 4.0. Faces blurred by the authors.</p>
+    </div>
+  );
+}
+
 export function SessionApp({ token, items, source, step = false, emergency = null }: {
   token: string; items: PlanItem[]; source: string | null; step?: boolean; emergency?: { name: string; phone: string } | null;
 }) {
@@ -89,6 +123,7 @@ export function SessionApp({ token, items, source, step = false, emergency = nul
             </div>
           </div>
           <p className="ex-how">{item.instructions}</p>
+          {item.tracking === "camera" && !done[item.exercise_id] && <HowTo exerciseId={item.exercise_id} />}
           <div className="ex-action">
             {done[item.exercise_id] ? (
               <span className="done-badge"><Icon name="check" /> {done[item.exercise_id]}</span>

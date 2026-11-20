@@ -33,7 +33,7 @@ type Recognition = {
 
 let rec: Recognition | null = null;
 let wanted = false;
-let handler: ((heard: string) => void) | null = null;
+let handler: ((heard: string, final: boolean) => void) | null = null;
 let listening = false;
 const watchers = new Set<(on: boolean) => void>();
 
@@ -62,7 +62,7 @@ export function startListening(): void {
   rec.lang = "en-US";
   rec.onresult = (e) => {
     setListening(true);
-    for (let i = e.resultIndex; i < e.results.length; i++) handler?.(e.results[i][0].transcript);
+    for (let i = e.resultIndex; i < e.results.length; i++) handler?.(e.results[i][0].transcript, e.results[i].isFinal);
   };
   // Browsers stop listening after a pause; start again for as long as the session wants it.
   rec.onend = () => {
@@ -85,8 +85,8 @@ export function startListening(): void {
   }
 }
 
-/** What to do with heard text (the session sets it). */
-export function onHeard(h: ((heard: string) => void) | null): void {
+/** What to do with heard text (the session sets it). `final` is false while the browser is still listening. */
+export function onHeard(h: ((heard: string, final: boolean) => void) | null): void {
   handler = h;
 }
 

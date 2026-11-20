@@ -5,7 +5,7 @@
 // At the end:     only the numbers are sent to /api/session.
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { CUE, profileFor, ruleQuality, trunkLean, withModelFlag, type Fault } from "@/lib/pose/exercises";
+import { CUE, countsAsRep, profileFor, ruleQuality, trunkLean, withModelFlag, type Fault } from "@/lib/pose/exercises";
 import { repFeatures, type Frame, type Vec } from "@/lib/pose/features";
 import { ANALYSIS_INTERVAL_MS, cameraConstraints, isPhoneDevice, poseSetupIssue } from "@/lib/pose/camera";
 import { bentElbowNow, focusSide, fpsOf, LIVE_GOALS, liveCoach, type LiveState, type LiveTone } from "@/lib/pose/live";
@@ -13,7 +13,7 @@ import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
-import { playVoice, preloadVoice, repClips, sessionClips, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
+import { playUrl, playVoice, preloadVoice, repClips, sessionClips, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
 import { matchCommand, onHeard, stopListening, watchListening } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
 
@@ -86,6 +86,8 @@ export function CameraSession(p: Props) {
   const [setupIssue, setSetupIssue] = useState<string | null>("Checking that the camera can see the joints needed for this exercise…");
   const [emergency, setEmergency] = useState<Emergency | null>(null);
   const [listening, setListening] = useState(false);
+  // The spoken conversation, shown under the video: what the patient said and what the coach answered.
+  const [turns, setTurns] = useState<{ who: "you" | "coach"; text: string }[]>([]);
   const okayRef = useRef<() => void>(() => {});
   const hurtsRef = useRef<() => void>(() => {});
   const target = p.sets * p.reps;
@@ -144,6 +146,53 @@ export function CameraSession(p: Props) {
       setupSaid = { clip, at: now };
       say([clip], SETUP_TEXT[clip], "next");
     };
+    // ---- The spoken coach (api/session/talk): it answers what the patient says, greets them at the start, talks
+    // after each set and gives a spoken summary at the end. The count and the form cues stay instant recordings.
+    let talking = false;
+    let notCountedCount = 0;
+    let lastCueText: string | null = null;
+    let bestDegrees: number | null = null;
+    const addTurn = (who: "you" | "coach", text: string) => setTurns((t) => [...t.slice(-5), { who, text }]);
+    const talk = async (event: "heard" | "start" | "set_done" | "finished", heard?: string, previous?: number | null) => {
+      if (talking && event === "heard") return;
+      talking = true;
+      if (heard) addTurn("you", heard);
+      try {
+        const scores = repResults.map((r) => r.quality).filter((q): q is number => q !== null);
+        const res = await fetch("/api/session/talk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: p.token, event, heard,
+            context: {
+              exercise_id: p.exerciseId, reps_done: repResults.length, target,
+              set: Math.min(p.sets, Math.floor(repResults.length / p.reps) + (event === "set_done" ? 0 : 1)), sets: p.sets,
+              last_cue: lastCueText, quality: scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) : null,
+              best_degrees: bestDegrees, previous_degrees: previous ?? null, not_counted: notCountedCount,
+            },
+          }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { reply: string; action: "none" | "stop"; audio: string | null };
+        addTurn("coach", data.reply);
+        const url = data.audio
+          ? URL.createObjectURL(new Blob([Uint8Array.from(atob(data.audio), (ch) => ch.charCodeAt(0))], { type: "audio/mpeg" }))
+          : null;
+        const when = event === "heard" ? "now" : "queue";
+        if (!url || !playUrl(url, when)) say([], data.reply, when);
+        if (data.action === "stop") {
+          // Pain or a red flag, said out loud: the server already told the physiotherapist.
+          stop();
+          finished = true;
+          p.onPain(data.reply);
+        }
+      } catch {
+        // no answer this time; the session carries on
+      } finally {
+        talking = false;
+      }
+    };
+
     // ---- Emergency: a possible fall, or "help" / "call 911" out loud. Counting stops, the screen asks
     // "Are you okay?" with buttons to call 911 or the emergency contact, the coach asks out loud, and the
     // physiotherapist gets an alert. Nothing calls anyone by itself: the patient answers or taps.
@@ -184,10 +233,14 @@ export function CameraSession(p: Props) {
     };
     // What the microphone hears. Ignored while the coach is talking, and the same command twice within 4 s counts once.
     let lastCommand = { what: "", at: 0 };
-    onHeard((heard) => {
+    onHeard((heard, final) => {
       if (finished || cancelled || voiceBusy()) return;
       const command = matchCommand(heard, p.emergency?.name ?? null);
-      if (!command) return;
+      if (!command) {
+        // Not a command: when the sentence is complete, the coach answers it (one at a time, at least two words).
+        if (final && !emergencyOn && heard.trim().split(/\s+/).length >= 2) void talk("heard", heard.trim());
+        return;
+      }
       const now = performance.now();
       if (command === lastCommand.what && now - lastCommand.at < 4000) return;
       lastCommand = { what: command, at: now };
@@ -258,6 +311,7 @@ export function CameraSession(p: Props) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? `status ${res.status}`);
+        void talk("finished", undefined, data.previous_knee_bend ?? null);   // keeps speaking after this screen closes
         p.onDone(data);
       } catch (e) {
         setStatus("error");
@@ -474,6 +528,7 @@ export function CameraSession(p: Props) {
             lastProgressAt = performance.now();
             const own = `start_${p.exerciseId}`;
             say([voiceReady([own]) ? own : "start"], `Camera's ready. We'll do ${p.exerciseName}: ${target} repetitions. Take your time.`);
+            void talk("start");
           }
           const frame: Frame = world.map((l) => [l.x, l.y, l.z] as Vec);
           const signal = profile.repSignal(frame);
@@ -528,6 +583,18 @@ export function CameraSession(p: Props) {
             };
           }
           if (!rep) return;
+          if (!countsAsRep(profile, rep)) {
+            // Too small to be a repetition: say so and why, and do not count it.
+            lastProgressAt = performance.now();
+            reachedThisRep = false;
+            cueSpokenThisRep = false;
+            repCue = { text: profile.notCounted, tone: "warn" };
+            repCueUntil = performance.now() + 3000;
+            showBanner(repCue);
+            say([`not_counted_${p.exerciseId}`], profile.notCounted, "next");
+            notCountedCount++;
+            return;
+          }
           const slice = frames.slice(rep.startIndex, rep.endIndex + 1);
           const flags = kneesInFlags.slice(rep.startIndex, rep.endIndex + 1);
           let quality: number | null = null;
@@ -574,6 +641,9 @@ export function CameraSession(p: Props) {
               : setDone ? `${spoken} Set ${n / p.reps} is done. Take a breather, then continue.` : spoken,
             "next",       // a warning still being spoken finishes its sentence before the count
           );
+          bestDegrees = Math.max(bestDegrees ?? 0, Math.round(profile.repMeasure(rep)));
+          if (named) lastCueText = CUE[named];
+          if (setDone) void talk("set_done");
           if (n >= target) return finish("target");
         };
 
@@ -628,8 +698,10 @@ export function CameraSession(p: Props) {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
       stop();
-      stopVoice();
-      window.speechSynthesis?.cancel();
+      if (!finished) {
+        stopVoice();
+        window.speechSynthesis?.cancel();
+      }
       window.clearTimeout(emergencyTimer);
       onHeard(null);
       stopListening();
@@ -714,9 +786,16 @@ export function CameraSession(p: Props) {
         <button className="btn end" onClick={() => finishRef.current("ended")} disabled={status === "saving"}><Icon name="stop" /> End session</button>
         <button className="btn hurt" onClick={hurts}><Icon name="hand" /> It hurts</button>
       </div>
+      {turns.length > 0 && (
+        <div className="talk" aria-live="polite" aria-label="Conversation with the coach">
+          {turns.slice(-4).map((t, i) => (
+            <p key={i} className={t.who}><b>{t.who === "you" ? "You" : "Coach"}</b> {t.text}</p>
+          ))}
+        </div>
+      )}
       <p className="voice-hint faint small">
         {listening
-          ? <>Say <b>&ldquo;help&rdquo;</b>, <b>&ldquo;call 911&rdquo;</b>{p.emergency ? <>, <b>&ldquo;call {p.emergency.name}&rdquo;</b></> : null} or <b>&ldquo;it hurts&rdquo;</b> at any time. Your browser&apos;s speech service turns what you say into text; the video stays on this device.</>
+          ? <>Talk to the coach any time: ask how deep to go, say how it feels. <b>&ldquo;Help&rdquo;</b>, <b>&ldquo;call 911&rdquo;</b>{p.emergency ? <>, <b>&ldquo;call {p.emergency.name}&rdquo;</b></> : null} and <b>&ldquo;it hurts&rdquo;</b> work too. Your browser&apos;s speech service turns what you say into text and the coach&apos;s AI answers it; the video stays on this device.</>
           : <>If you fall, the camera asks if you are okay and offers to call for help.</>}
       </p>
       {emergency && (
