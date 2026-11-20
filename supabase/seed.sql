@@ -101,6 +101,9 @@ begin
               'camera');
     end loop;
 
+    -- Where they are in their recovery: phases signed off so far, and a win or two.
+    perform demo_recovery_history(pid);
+
     -- A little conversation history and memory, so the patient pages are not empty.
     if i = 9 then
       insert into messages (patient_id, direction, kind, body, status, created_at)

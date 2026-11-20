@@ -298,7 +298,7 @@ mark {
 
 /* one patient: the whole row opens the record */
 .prow {
-  --cols: 42px minmax(190px, 1.05fr) minmax(220px, 1.6fr) 120px 118px 128px 78px 16px;
+  --cols: 42px minmax(240px, 1.15fr) minmax(200px, 1.5fr) 120px 112px 124px 74px 16px;
   position: relative; display: grid; grid-template-columns: var(--cols); gap: 18px; align-items: center;
   padding: 15px 20px 15px 18px; transition: background-color 0.15s;
 }
@@ -336,7 +336,7 @@ mark {
 .cell-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
 
 @media (max-width: 1180px) {
-  .prow { --cols: 42px minmax(180px, 1fr) minmax(200px, 1.4fr) 116px 112px 120px 16px; }
+  .prow { --cols: 42px minmax(230px, 1fr) minmax(180px, 1.3fr) 112px 108px 116px 16px; }
   .prow .when { display: none; }
 }
 @media (max-width: 920px) {
@@ -962,3 +962,118 @@ textarea { resize: vertical; min-height: 60px; }
 .talk-bar .heard.hearing { color: #0f7a4a; font-weight: 650; }
 .mic-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #0f7a4a; margin-right: 8px; animation: talk-pulse 0.8s ease-in-out infinite alternate; }
 
+
+/* ==========================================================================
+   Recovery phases (lib/phases.ts): the same four segments for everyone, criteria per operation, the physio signs off.
+   ========================================================================== */
+.stepper { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.stepper li { display: grid; gap: 2px; align-content: start; min-width: 0; }
+.stepper .bar { height: 8px; border-radius: 4px; background: var(--surface-3); margin-bottom: 8px; }
+.stepper .done .bar { background: var(--accent); }
+.stepper .now .bar { background: var(--marker); box-shadow: 0 0 0 3px var(--marker-soft); }
+.stepper .n { font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.stepper .done .n { color: var(--accent); }
+.stepper .now .n { color: var(--text); }
+.stepper .name { font-size: 15px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+.stepper .next .name { color: var(--muted); }
+.stepper .clear { font-size: 12.5px; font-weight: 600; color: var(--faint); line-height: 1.3; }
+.stepper .done .clear, .stepper .now .clear { color: var(--green); }
+
+.phase-mini { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.phase-mini .segs { display: inline-flex; gap: 3px; }
+.phase-mini .segs i { width: 14px; height: 5px; border-radius: 3px; background: var(--surface-3); }
+.phase-mini .segs i.done { background: var(--accent); }
+.phase-mini .segs i.now { background: var(--marker); }
+.prow .phase-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.tag.ready { background: var(--marker-soft); color: #6b4a00; }
+
+.recovery .stepper { margin-bottom: 18px; }
+.phase-now { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border); }
+.phase-title { font-size: 16px; }
+.criteria { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.criteria li {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 9px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); font-size: 14.5px;
+}
+.criteria .mark {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  border: 2px solid var(--border-strong); color: #ffffff;
+}
+.criteria .met .mark { background: var(--green-dot); border-color: var(--green-dot); }
+.criteria .physio .mark { border-style: dashed; }
+.criteria .what { font-weight: 600; }
+.criteria .how { font-size: 12.5px; font-weight: 600; color: var(--faint); white-space: nowrap; }
+.criteria .met .how { color: var(--green); }
+.signoff { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.signoff input { flex: 1 1 220px; min-width: 0; }
+.signoff-hint { font-size: 13.5px; color: var(--amber); font-weight: 600; }
+.signoff-hint.ok { color: var(--green); }
+.phase-foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
+.linkish { font: inherit; font-size: 13.5px; font-weight: 700; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.linkish:hover { color: var(--text); }
+.history summary { cursor: pointer; font-size: 13.5px; font-weight: 700; color: var(--accent); }
+.history ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.history li { display: flex; justify-content: space-between; gap: 12px; }
+.recovery .footnote { margin-top: 14px; }
+
+.wins { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.wins li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; }
+.wins li + li { border-top: 1px solid var(--sep); }
+.wins .what { font-weight: 600; }
+.win-src { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+.win-src.patient { background: var(--marker-soft); color: #6b4a00; }
+.win-src.camera { background: var(--accent-soft); color: var(--accent); }
+.win-src.phase { background: var(--green-soft); color: var(--green); }
+
+/* the patient's own page: big and plain */
+.journey { display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 24px; box-shadow: var(--shadow-card); }
+.journey-kicker { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.patient .journey h2 { font-size: 27px; font-weight: 800; letter-spacing: -0.03em; margin-top: -8px; }
+.patient .stepper .name { font-size: 16px; }
+.patient .stepper .clear { font-size: 14px; }
+.journey-next { display: grid; gap: 10px; }
+.journey-goal {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 14px 18px; border-radius: 18px;
+  background: var(--marker-soft); font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+}
+.journey-goal span { font-size: 14px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #6b4a00; }
+.criteria.big li { font-size: 17.5px; padding: 12px 14px; grid-template-columns: 28px minmax(0, 1fr) auto; }
+.criteria.big .mark { width: 26px; height: 26px; font-size: 15px; }
+.criteria.big .how { font-size: 15px; }
+.journey-earned { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 17px; font-weight: 700; color: var(--green); }
+.journey-pace { font-size: 16.5px; color: var(--muted); }
+
+.wins-pt { display: grid; gap: 12px; }
+.patient .wins-pt h2 { font-size: 27px; font-weight: 800; letter-spacing: -0.03em; }
+.wins-pt .wins { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 18px; }
+.wins-pt .wins li { padding: 13px 0; font-size: 18px; }
+.win-dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--marker); color: var(--text); }
+.wins-pt .when { font-size: 15px; color: var(--faint); white-space: nowrap; }
+.win-quick { display: flex; flex-wrap: wrap; gap: 10px; }
+.win-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 10px 18px; border-radius: 999px;
+  font: inherit; font-size: 17px; font-weight: 700; color: var(--text); cursor: pointer;
+  background: var(--surface); border: 2px dashed var(--border-strong); transition: background-color 0.15s, border-color 0.15s;
+}
+.win-chip:hover { background: var(--marker-soft); border-color: var(--marker); border-style: solid; }
+.win-own { display: flex; gap: 10px; flex-wrap: wrap; }
+.win-own input { flex: 1 1 240px; min-height: 56px; font-size: 18px; border-radius: 16px; }
+.patient .win-own .btn { min-height: 56px; font-size: 18px; }
+/* During a camera session the video comes first. */
+.patient:has(.call) .journey, .patient:has(.call) .wins-pt { display: none; }
+
+@media (max-width: 640px) {
+  .stepper { gap: 6px; }
+  .stepper .name { font-size: 13px; }
+  .stepper .clear { display: none; }
+  .patient .stepper .name { font-size: 14px; }
+  .stepper .now .clear { display: block; }
+  .criteria li { grid-template-columns: 24px minmax(0, 1fr); }
+  .criteria .how { grid-column: 2; white-space: normal; }
+  .journey { padding: 20px 18px; }
+  .journey-goal { font-size: 19px; }
+}
+@media (max-width: 920px) {
+  .phase-mini { white-space: normal; align-items: flex-start; }
+  .phase-mini .segs { flex: none; margin-top: 6px; }
+}

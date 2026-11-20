@@ -4,6 +4,8 @@
 import "server-only";
 import { requireDoctor } from "./auth";
 import { getDb } from "./db";
+import { protocolFor } from "./phases";
+import { loadRecovery } from "./recovery";
 
 export type Status = "alert" | "stalling" | "inactive" | "new" | "no_plan" | "on_track";
 
@@ -28,11 +30,15 @@ export type Overview = {
   open_alerts: number;
   status: Status;
   status_reason: string;
+  phase: number;          // 1 to 4, or 5 when every phase is signed off (lib/phases.ts)
+  phase_since: Date;
 };
 
 const OVERVIEW_COLUMNS = `id, display_name, phone, is_simulated, condition, side, prescription_id, days_per_week,
   plan_age_days, days_active_7d, adherence_7d, quality_7d, quality_prev_7d, bend_7d, bend_prev_7d,
-  last_session_at, sessions_total, open_alerts, status, status_reason`;
+  last_session_at, sessions_total, open_alerts, status, status_reason,
+  (select p.phase from patients p where p.id = patient_overview.id) as phase,
+  (select p.phase_since from patients p where p.id = patient_overview.id) as phase_since`;
 
 export async function getDoctor() {
   await requireDoctor();
@@ -182,4 +188,11 @@ export async function imessageBridgeOnline(): Promise<boolean> {
   const db = await getDb();
   const [row] = await db.query<{ fresh: boolean }>("select last_seen > now() - interval '30 seconds' as fresh from bridge_status where name = 'imessage'");
   return row?.fresh === true;
+}
+
+/** Phase sign-offs and the wins log, for the patient record. */
+export async function getRecovery(patientId: string, condition: string) {
+  await requireDoctor();
+  const db = await getDb();
+  return loadRecovery(db, patientId, protocolFor(condition), 20);
 }

@@ -3,11 +3,13 @@ import { connection } from "next/server";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Goniometer } from "@/components/Goniometer";
 import { Icon } from "@/components/Icon";
+import { PhaseMini } from "@/components/PhaseStepper";
 import { QrCode } from "@/components/QrCode";
 import { TopBar } from "@/components/TopBar";
 import { textUsLink } from "@/lib/imessage/format";
 import { getDoctor, listPatients, sessionsThisWeek, type Status } from "@/lib/data";
 import { STATUS_LABEL, timeAgo } from "@/lib/format";
+import { cameraTargetsMet, checkCriteria, phaseAt, protocolFor } from "@/lib/phases";
 
 const IMESSAGE = process.env.IMESSAGE_ADDRESS?.trim() || null;
 
@@ -25,7 +27,13 @@ export default async function Dashboard() {
   const stalling = count("stalling");
   const quiet = count("inactive");
   const today = new Intl.DateTimeFormat("en-CA", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Toronto" }).format(new Date());
-  const others = [stalling ? `${stalling} ${stalling === 1 ? "is" : "are"} stalling` : "", quiet ? `${quiet} ${quiet === 1 ? "has" : "have"} gone quiet` : ""].filter(Boolean);
+  // Camera targets for the current phase all met: worth the physio's look (the camera never signs off by itself).
+  const ready = new Set(patients.filter((p) => {
+    const ph = phaseAt(protocolFor(p.condition), p.phase);
+    return ph !== null && p.prescription_id !== null &&
+      cameraTargetsMet(checkCriteria(ph, { bend: p.bend_7d, days: p.days_active_7d, quality: p.quality_7d }));
+  }).map((p) => p.id));
+  const others = [ready.size ? `${ready.size} ${ready.size === 1 ? "is" : "are"} ready for a phase sign-off` : "", stalling ? `${stalling} ${stalling === 1 ? "is" : "are"} stalling` : "", quiet ? `${quiet} ${quiet === 1 ? "has" : "have"} gone quiet` : ""].filter(Boolean);
   // Groups in the order a physio works through them; real patients stay first inside each group.
   const groups = GROUPS.map((g) => ({ ...g, list: patients.filter((p) => p.status === g.status) })).filter((g) => g.list.length > 0);
 
@@ -43,7 +51,7 @@ export default async function Dashboard() {
                 : <>Nobody needs a <mark>review</mark> today.</>}
             </h1>
             <p className="board-sub">
-              {others.length ? `${others.join(" and ")}. ` : "Everyone else is moving. "}
+              {others.length ? `${others.length > 1 ? `${others.slice(0, -1).join(", ")} and ${others.at(-1)}` : others[0]}. ` : "Everyone else is moving. "}
               A finished session shows up here within seconds.
             </p>
           </div>
@@ -93,6 +101,10 @@ export default async function Dashboard() {
                       <Link className="name" href={`/doctor/patients/${p.id}`}>{p.display_name}</Link>{" "}
                       {p.is_simulated ? <span className="tag">Sim</span> : <span className="tag real">Real</span>}
                       <div className="cond">{p.condition}{p.side ? `, ${p.side}` : ""}</div>
+                      <div className="phase-line">
+                        <PhaseMini protocol={protocolFor(p.condition)} phase={p.phase} />
+                        {ready.has(p.id) && <span className="tag ready">Ready to sign off</span>}
+                      </div>
                     </div>
                     <p className="note"><span className="sr-only">{STATUS_LABEL[p.status]}: </span>{p.status_reason}</p>
                     <div className="cell adh">

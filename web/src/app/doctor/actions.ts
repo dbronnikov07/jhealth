@@ -7,6 +7,7 @@ import { assertUuid, requireDoctor } from "@/lib/auth";
 import { getDb, pgCode, pgMessage } from "@/lib/db";
 import { fictionalPhone } from "@/lib/demo-phone";
 import { normalizePhone } from "@/lib/format";
+import { clampPhase, DONE, protocolFor, signOffMessage } from "@/lib/phases";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
 // values: what was typed, sent back on an error so the form can refill itself (React clears forms after submit).
@@ -157,5 +158,52 @@ export async function resolveAlert(alertId: string) {
     "update alerts set resolved_at = now(), resolved_by = (select id from doctors where is_default) where id = $1 and resolved_at is null",
     [alertId],
   );
+  refresh();
+}
+
+/**
+ * The physiotherapist signs a phase off (or steps back one). Only this moves a patient between phases: the camera
+ * can show a target is met, never decide. `from` is the phase the page showed, so a double click or a second tab
+ * cannot move the patient twice. The patient gets a message with the milestone they reached.
+ */
+export async function changePhase(patientId: string, direction: "next" | "back", form: FormData) {
+  await requireDoctor();
+  assertUuid(patientId);
+  if (direction !== "next" && direction !== "back") return;
+  const from = clampPhase(form.get("from"));
+  const to = direction === "next" ? from + 1 : from - 1;
+  if (to < 1 || to > DONE) return;
+  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  const db = await getDb();
+  const [moved] = await db.query<{ first_name: string; condition: string }>(
+    `with moved as (
+       update patients set phase = $3, phase_since = now() where id = $1 and phase = $2
+       returning id, split_part(trim(display_name), ' ', 1) as first_name, condition
+     ), logged as (
+       insert into phase_signoffs (patient_id, from_phase, to_phase, doctor_id, note)
+       select id, $2, $3, (select id from doctors where is_default), $4 from moved
+       returning id
+     )
+     select m.first_name, m.condition from moved m, logged`,
+    [patientId, from, to, note],
+  );
+  if (moved) {
+    await db.query(
+      "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'text', $2, $3::jsonb, 'queued')",
+      [patientId, signOffMessage(protocolFor(moved.condition), moved.first_name, from, to), JSON.stringify({ type: "phase_signoff", from, to })],
+    );
+    after(() => processOutbox(patientId));
+  }
+  refresh();
+}
+
+/** A real-life win the physio heard about ("First full turn on an exercise bike"), for the patient's wins log. */
+export async function addWin(patientId: string, form: FormData) {
+  await requireDoctor();
+  assertUuid(patientId);
+  const text = String(form.get("win") ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 120);
+  if (text.length < 2) return;
+  const db = await getDb();
+  await db.query("insert into wins (patient_id, text, author) values ($1, $2, 'doctor')", [patientId, text]);
   refresh();
 }

@@ -4,18 +4,21 @@ import { connection } from "next/server";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Goniometer } from "@/components/Goniometer";
 import { Icon } from "@/components/Icon";
+import { PhaseStepper } from "@/components/PhaseStepper";
 import { Sparkline } from "@/components/Sparkline";
 import { StatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/TopBar";
 import {
-  getActivePlan, getDoctor, getPatient, listExercises, listMemories, listMessages, openAlerts, patientLink, recentSessions,
+  getActivePlan, getDoctor, getPatient, getRecovery, listExercises, listMemories, listMessages, openAlerts, patientLink,
+  recentSessions,
 } from "@/lib/data";
+import { cameraTargetsMet, checkCriteria, DONE, nextClearance, PHASES, phaseAt, protocolFor } from "@/lib/phases";
 import { prettyPhone, timeAgo } from "@/lib/format";
 import { QrCode } from "@/components/QrCode";
 import { whatsappConfig } from "@/lib/whatsapp/client";
 import { sessionUrl } from "@/lib/whatsapp/outbox";
 import { maskHandle } from "@/lib/imessage/format";
-import { addNote, resolveAlert, retryMessages } from "../../actions";
+import { addNote, addWin, changePhase, resolveAlert, retryMessages } from "../../actions";
 import { DeleteForm } from "./DeleteForm";
 import { EmergencyForm } from "./EmergencyForm";
 import { PlanForm } from "./PlanForm";
@@ -29,6 +32,8 @@ const OUT_STATUS: Record<string, (connected: boolean) => string> = {
   failed: () => "not sent",
   cancelled: () => "not sent",
 };
+
+const WIN_SOURCE: Record<string, string> = { patient: "Patient", doctor: "You", camera: "Camera", phase: "Sign-off" };
 
 const MEMORY_LABEL: Record<string, string> = {
   pain: "Pain", preference: "Preference", goal: "Goal", barrier: "Barrier", history: "History", clinical_note: "Doctor's note",
@@ -47,10 +52,16 @@ export default async function PatientPage({
   const patient = await getPatient(id);
   if (!patient) notFound();
 
-  const [{ doctor, mode }, plan, exercises, sessions, memories, messages, alerts, link] = await Promise.all([
+  const [{ doctor, mode }, plan, exercises, sessions, memories, messages, alerts, link, recovery] = await Promise.all([
     getDoctor(), getActivePlan(id), listExercises(), recentSessions(id), listMemories(id), listMessages(id), openAlerts(id),
-    patientLink(id),
+    patientLink(id), getRecovery(id, patient.condition),
   ]);
+  const protocol = protocolFor(patient.condition);
+  const phase = phaseAt(protocol, patient.phase);
+  const checked = phase ? checkCriteria(phase, { bend: patient.bend_7d, days: plan ? patient.days_active_7d : null, quality: patient.quality_7d }) : [];
+  const measured = checked.some((c) => c.met !== null);
+  const targetsMet = cameraTargetsMet(checked);
+  const phaseDays = Math.max(0, Math.floor((Date.now() - new Date(patient.phase_since).getTime()) / 86_400_000));
   const token = link?.token ?? null;
   const demo = link?.channel === "demo";
   const imessage = link?.channel === "imessage";
@@ -101,6 +112,70 @@ export default async function PatientPage({
 
         <div className="grid-2">
           <div className="stack">
+            <section className="card recovery">
+              <div className="card-head">
+                <h2>Recovery phase</h2>
+                <span className="faint small">{protocol.label} · you sign off each phase</span>
+              </div>
+              <PhaseStepper protocol={protocol} phase={patient.phase} />
+              {phase ? (
+                <div className="phase-now">
+                  <p className="phase-title">
+                    <b>Phase {patient.phase} of {PHASES}: {phase.name}</b>
+                    <span className="faint"> · {phaseDays === 0 ? "since today" : `for ${phaseDays} ${phaseDays === 1 ? "day" : "days"}`}</span>
+                  </p>
+                  <p className="small muted">Before you sign it off:</p>
+                  <ul className="criteria">
+                    {checked.map((c) => (
+                      <li key={c.text} className={c.met === null ? "physio" : c.met ? "met" : "unmet"}>
+                        <span className="mark" aria-hidden>{c.met ? "✓" : ""}</span>
+                        <span className="what">{c.text}</span>
+                        <span className="how">{c.met === null ? "You check" : `Camera this week: ${c.reading}`}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <form action={changePhase.bind(null, patient.id, "next")} className="signoff">
+                    <input type="hidden" name="from" value={patient.phase} />
+                    <input type="text" name="note" placeholder="Note for the record (optional)" aria-label="Sign-off note" maxLength={500} />
+                    <button className="btn primary" type="submit">
+                      Sign off phase {patient.phase} <Icon name="arrow" size={16} />
+                    </button>
+                  </form>
+                  <p className={`signoff-hint${targetsMet ? " ok" : ""}`}>
+                    {targetsMet
+                      ? `Camera targets met. Signing off unlocks: ${nextClearance(protocol, patient.phase)}. The patient gets a message.`
+                      : measured
+                        ? `Camera targets not met yet. Sign off only if you have checked in person. Unlocks: ${nextClearance(protocol, patient.phase)}.`
+                        : `Signing off unlocks: ${nextClearance(protocol, patient.phase)}. The patient gets a message.`}
+                  </p>
+                </div>
+              ) : (
+                <p className="phase-title"><b>Every phase is signed off: {protocol.done}.</b></p>
+              )}
+              <div className="phase-foot">
+                {patient.phase > 1 && (
+                  <form action={changePhase.bind(null, patient.id, "back")}>
+                    <input type="hidden" name="from" value={patient.phase} />
+                    <button className="linkish" type="submit">Move back to phase {Math.min(patient.phase, DONE) - 1}</button>
+                  </form>
+                )}
+                {recovery.signoffs.length > 0 && (
+                  <details className="history">
+                    <summary>Sign-off history ({recovery.signoffs.length})</summary>
+                    <ul>
+                      {recovery.signoffs.map((s, i) => (
+                        <li key={i}>
+                          <span>{s.to > s.from ? `Phase ${s.from} signed off` : `Moved back to phase ${s.to}`}{s.note ? `: ${s.note}` : ""}</span>
+                          <span className="faint">{timeAgo(s.at)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+              <p className="footnote">Example criteria from common {protocol.label.toLowerCase()} rehab protocols. Adapt them to your patient: the camera only shows targets, you decide.</p>
+            </section>
+
             <section className="card">
               <div className="card-head">
                 <h2>Exercise plan</h2>
@@ -211,6 +286,30 @@ export default async function PatientPage({
                 </ul>
               </section>
             )}
+
+            <section className="card wins-card">
+              <div className="card-head">
+                <h2>Wins</h2>
+                <span className="count">{recovery.winsTotal}</span>
+              </div>
+              {recovery.wins.length === 0 ? (
+                <p className="empty">No wins yet. The patient logs them on their page (&ldquo;Walked around the block&rdquo;), the camera adds new bests, and every sign-off lands here.</p>
+              ) : (
+                <ul className="wins">
+                  {recovery.wins.slice(0, 8).map((w, i) => (
+                    <li key={i}>
+                      <span className={`win-src ${w.source}`}>{WIN_SOURCE[w.source]}</span>
+                      <span className="what">{w.text}</span>
+                      <span className="faint small">{timeAgo(w.at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <form action={addWin.bind(null, patient.id)} className="add-note">
+                <input type="text" name="win" placeholder="A win the patient told you about" aria-label="Log a win" maxLength={120} required minLength={2} />
+                <button className="btn" type="submit">Log</button>
+              </form>
+            </section>
 
             <section className="card">
               <div className="card-head">

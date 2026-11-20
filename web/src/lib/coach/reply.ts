@@ -1,6 +1,7 @@
 // The AI coach's turn: after a patient's ordinary WhatsApp message (the pain rule found nothing), gather what the
 // coach should know, ask the model, check the answer, then save the reply, any new facts and any flag for
 // the physiotherapist. Runs after the webhook has already answered Meta (see app/api/whatsapp/route.ts).
+import { coachLine, protocolFor } from "../phases";
 import { getDb, type Db } from "../db";
 import { currentStreak } from "../engagement";
 import { adaptionConfig, AdaptionError, chatJson } from "./adaption";
@@ -23,8 +24,8 @@ export async function loadContext(db: Db, patientId: string, messageId: string):
   );
   if (!latest || latest.id !== messageId) return null; // the newer message gets its own reply
 
-  const [patient] = await db.query<{ first_name: string; condition: string; side: string | null; language: string }>(
-    "select split_part(trim(display_name), ' ', 1) as first_name, condition, side, language from patients where id = $1",
+  const [patient] = await db.query<{ first_name: string; condition: string; side: string | null; language: string; phase: number }>(
+    "select split_part(trim(display_name), ' ', 1) as first_name, condition, side, language, phase from patients where id = $1",
     [patientId],
   );
   if (!patient) return null;
@@ -79,6 +80,7 @@ export async function loadContext(db: Db, patientId: string, messageId: string):
   const ctx: CoachContext = {
     now: `${when(now, true)} (Toronto time)`,
     patient: { firstName: patient.first_name, condition: patient.condition, side: patient.side, language: patient.language },
+    recovery: coachLine(protocolFor(patient.condition), patient.phase ?? 1),
     plan: plan
       ? { daysPerWeek: plan.days_per_week, startsOn: new Date(plan.starts_on).toISOString().slice(0, 10), notes: plan.notes, exercises }
       : null,

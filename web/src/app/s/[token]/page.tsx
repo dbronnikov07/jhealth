@@ -5,7 +5,11 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
+import { PhaseStepper } from "@/components/PhaseStepper";
 import { getDb } from "@/lib/db";
+import { checkCriteria, earnedClearances, nextClearance, PHASES, phaseAt, protocolFor } from "@/lib/phases";
+import { loadRecovery } from "@/lib/recovery";
+import { logWin } from "./actions";
 import { SessionApp, type PlanItem } from "./SessionApp";
 import { sttTicket } from "@/lib/coach/voice-coach";
 
@@ -40,8 +44,12 @@ export default async function SessionPage({
   const { token } = await params;
   if (!/^[0-9a-f]{64}$/.test(token)) notFound();
   const db = await getDb();
-  const [patient] = await db.query<{ id: string; first_name: string; channel: string; emergency_name: string | null; emergency_phone: string | null }>(
-    "select id, split_part(trim(display_name), ' ', 1) as first_name, channel, emergency_name, emergency_phone from patients where session_token = $1",
+  const [patient] = await db.query<{
+    id: string; first_name: string; channel: string; emergency_name: string | null; emergency_phone: string | null;
+    condition: string; phase: number;
+  }>(
+    `select id, split_part(trim(display_name), ' ', 1) as first_name, channel, emergency_name, emergency_phone, condition, phase
+       from patients where session_token = $1`,
     [token],
   );
   if (!patient) notFound();
@@ -58,6 +66,19 @@ export default async function SessionPage({
       order by pe.position`,
     [patient.id],
   );
+  const protocol = protocolFor(patient.condition);
+  const phase = phaseAt(protocol, patient.phase);
+  const [[week], recovery] = await Promise.all([
+    db.query<{ bend_7d: number | null; days_active_7d: number; quality_7d: number | null }>(
+      "select bend_7d, days_active_7d, quality_7d from patient_overview where id = $1",
+      [patient.id],
+    ),
+    loadRecovery(db, patient.id, protocol, 6),
+  ]);
+  const checked = phase && week ? checkCriteria(phase, { bend: week.bend_7d, days: week.days_active_7d, quality: week.quality_7d }) : [];
+  const earned = earnedClearances(protocol, patient.phase);
+  const logged = new Set(recovery.wins.map((w) => w.text));
+  const suggestions = (phase ?? protocol.phases[PHASES - 1]).wins.filter((w) => !logged.has(w));
 
   return (
     <main className="page patient">
@@ -73,6 +94,30 @@ export default async function SessionPage({
       {items.length > 0 && (
         <p className="pt-sub">{items.length === 1 ? "1 exercise" : `${items.length} exercises`} from your physiotherapist. Take your time.</p>
       )}
+      <section className="journey" aria-labelledby="journey-title">
+        <p className="journey-kicker">Your recovery</p>
+        <h2 id="journey-title">{phase ? `Phase ${patient.phase} of ${PHASES}: ${phase.name}` : protocol.done}</h2>
+        <PhaseStepper protocol={protocol} phase={patient.phase} />
+        {phase && (
+          <div className="journey-next">
+            <p className="journey-goal"><span>Next milestone</span> {nextClearance(protocol, patient.phase)}</p>
+            <p className="muted">What your physiotherapist looks for:</p>
+            <ul className="criteria big">
+              {checked.map((c) => (
+                <li key={c.text} className={c.met === null ? "physio" : c.met ? "met" : "unmet"}>
+                  <span className="mark" aria-hidden>{c.met ? "✓" : ""}</span>
+                  <span className="what">{c.text}</span>
+                  {c.met !== null && <span className="how">{c.met ? "Done" : `This week: ${c.reading}`}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {earned.length > 0 && (
+          <p className="journey-earned"><Icon name="check" size={20} /> {earned.join(" · ")}</p>
+        )}
+        <p className="journey-pace">Every recovery moves at its own pace. Your physiotherapist decides when you are ready for the next step.</p>
+      </section>
       {items.length === 0 ? (
         <p className="empty-plan muted"><Icon name="clipboard" size={30} /><span>Your physiotherapist has not set up your exercises yet. You will get a message from the coach when they do.</span></p>
       ) : (
@@ -82,6 +127,33 @@ export default async function SessionPage({
           listenTicket={sttTicket()}
         />
       )}
+      <section className="wins-pt" aria-labelledby="wins-title">
+        <h2 id="wins-title">Your wins</h2>
+        {recovery.wins.length > 0 ? (
+          <ul className="wins">
+            {recovery.wins.map((w, i) => (
+              <li key={i}>
+                <span className="win-dot" aria-hidden><Icon name="check" size={16} /></span>
+                <span className="what">{w.text}</span>
+                <span className="when">{new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "America/Toronto" }).format(w.at)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Small things count. Tap one when it happens.</p>
+        )}
+        {suggestions.length > 0 && (
+          <form action={logWin.bind(null, token)} className="win-quick">
+            {suggestions.map((w) => (
+              <button key={w} type="submit" name="win" value={w} className="win-chip"><Icon name="plus" size={18} /> {w}</button>
+            ))}
+          </form>
+        )}
+        <form action={logWin.bind(null, token)} className="win-own">
+          <input type="text" name="win" placeholder="Something else, e.g. first full bike turn" aria-label="Your own win" maxLength={120} minLength={2} required />
+          <button type="submit" className="btn">Add win</button>
+        </form>
+      </section>
       <div className="reassure">
         <p><Icon name="lock" /> <span>Your video never leaves your phone: only the counts and scores are sent to your physiotherapist.</span></p>
         <p className="safety">
