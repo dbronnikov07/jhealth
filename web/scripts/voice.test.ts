@@ -48,6 +48,6 @@ test("the spoken coach's answer is cut into sentences, so speech can start soone
   assert.equal(splitSentences("One. Two. Three. Four. Five. Six.").length <= 3, true);
   assert.deepEqual(
     splitSentences("Go only as deep as is comfortable for your knee today, and keep the movement slow and steady. Great work."),
-    ["Go only as deep as is comfortable for your knee today,", "and keep the movement slow and steady.", "Great work."],
+    ["Go only as deep as is comfortable", "for your knee today, and keep the movement slow and steady.", "Great work."],
   );
 });

@@ -7,14 +7,15 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { CUE, countsAsRep, profileFor, ruleQuality, trunkLean, withModelFlag, type Fault } from "@/lib/pose/exercises";
 import { repFeatures, type Frame, type Vec } from "@/lib/pose/features";
-import { ANALYSIS_INTERVAL_MS, cameraConstraints, isPhoneDevice, poseSetupIssue } from "@/lib/pose/camera";
+import { ANALYSIS_INTERVAL_MS, cameraConstraints, DURING_SET, isPhoneDevice, poseSetupIssue, SHORT_GAP_SECONDS } from "@/lib/pose/camera";
 import { bentElbowNow, focusSide, fpsOf, LIVE_GOALS, liveCoach, type LiveState, type LiveTone } from "@/lib/pose/live";
 import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
-import { playUrl, playVoice, preloadVoice, repClips, sessionClips, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
-import { matchCommand, onHeard, stopListening, watchListening } from "@/lib/listen";
+import { rememberSaid, withoutEcho } from "@/lib/echo";
+import { MOTIVATION, playUrl, playVoice, preloadVoice, registerUrl, repClips, sessionClips, stopVoice, voiceReady } from "@/lib/voice";
+import { matchCommand, onHeard, pushing, stopListening, talkNow, watchListening, type ListenState } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
@@ -62,6 +63,7 @@ function speak(text: string, interrupt = false) {
  * when the recording is not available: sound was never unlocked by a tap, or a clip did not download.
  */
 function say(clips: string[], text: string, when: "now" | "next" | "queue" = "queue") {
+  rememberSaid(text);
   if (playVoice(clips, when)) {
     if (when !== "queue" && typeof window !== "undefined") window.speechSynthesis?.cancel();
     return;
@@ -85,7 +87,9 @@ export function CameraSession(p: Props) {
   const [modelNote, setModelNote] = useState<string | null>(null);
   const [setupIssue, setSetupIssue] = useState<string | null>("Checking that the camera can see the joints needed for this exercise…");
   const [emergency, setEmergency] = useState<Emergency | null>(null);
-  const [listening, setListening] = useState(false);
+  const [listen, setListen] = useState<ListenState>({ on: false, error: null, pushing: false });
+  const listening = listen.on;
+  const [heardLive, setHeardLive] = useState<string>("");
   // The spoken conversation, shown under the video: what the patient said and what the coach answered.
   const [turns, setTurns] = useState<{ who: "you" | "coach"; text: string }[]>([]);
   const okayRef = useRef<() => void>(() => {});
@@ -118,6 +122,7 @@ export function CameraSession(p: Props) {
     let lastAnalysisTs = -Infinity;
     let stableFrames = 0;
     let needsCounterReset = false;
+    let lastGoodT = -Infinity;   // session time of the last frame that counted, for riding out short tracking gaps
     let startSpoken = false;
     let lastSetupIssue = "Checking that the camera can see the joints needed for this exercise…";
     let finished = false;
@@ -157,7 +162,7 @@ export function CameraSession(p: Props) {
     let bestDegrees: number | null = null;
     const addTurn = (who: "you" | "coach", text: string) => setTurns((t) => [...t.slice(-5), { who, text }]);
     const talk = async (event: "heard" | "start" | "set_done" | "finished", heard?: string, previous?: number | null) => {
-      if (talking && event === "heard") return;
+      if (talking && event !== "heard") return;      // a question always gets through; moments wait their turn
       talking = true;
       if (heard) addTurn("you", heard);
       try {
@@ -180,6 +185,7 @@ export function CameraSession(p: Props) {
           reply: string; action: "none" | "stop"; audio: string | null; tts: { text: string; exp: number; sig: string }[] | null;
         };
         addTurn("coach", data.reply);
+        rememberSaid(data.reply);
         const when = event === "heard" ? "now" : "queue";
         if (data.audio) {
           const url = URL.createObjectURL(new Blob([Uint8Array.from(atob(data.audio), (ch) => ch.charCodeAt(0))], { type: "audio/mpeg" }));
@@ -207,6 +213,29 @@ export function CameraSession(p: Props) {
         // no answer this time; the session carries on
       } finally {
         talking = false;
+      }
+    };
+
+    // ---- Personal encouragement: at the start of the set the coach writes five lines for this patient (their name,
+    // their goal, how last time went), and they are turned into speech in the background. During the set they take
+    // the place of the recorded "Great form." lines, so they play instantly.
+    const personal: { url: string; text: string }[] = [];
+    const preparePersonal = async () => {
+      try {
+        const res = await fetch("/api/session/talk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: p.token, event: "prepare", context: { exercise_id: p.exerciseId, reps_done: 0, target, set: 1, sets: p.sets } }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { lines?: { text: string; tts: { text: string; exp: number; sig: string } | null }[] };
+        for (const line of data.lines ?? []) {
+          if (finished || cancelled || !line.tts) continue;
+          const spoken = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(line.tts) }).catch(() => null);
+          if (spoken?.ok && spoken.headers.get("content-type")?.includes("audio")) personal.push({ url: URL.createObjectURL(await spoken.blob()), text: line.text });
+        }
+      } catch {
+        // the recorded lines are used instead
       }
     };
 
@@ -250,16 +279,26 @@ export function CameraSession(p: Props) {
     };
     // What the microphone hears. Ignored while the coach is talking, and the same command twice within 4 s counts once.
     let lastCommand = { what: "", at: 0 };
+    let lastAsked = { text: "", at: 0 };
     onHeard((heard, final) => {
-      if (finished || cancelled || voiceBusy()) return;
-      const command = matchCommand(heard, p.emergency?.name ?? null);
+      if (finished || cancelled) return;
+      // The patient's words: what was heard minus what the coach itself just said (the microphone hears both).
+      const own = withoutEcho(heard);
+      if (own) setHeardLive(own);
+      const command = matchCommand(own, p.emergency?.name ?? null);
       if (!command) {
-        // Not a command: when the sentence is complete, the coach answers it (one at a time, at least two words).
-        if (final && !emergencyOn && heard.trim().split(/\s+/).length >= 2 && !talking) {
+        // Not a command: when the sentence is complete, the coach answers it. After the Talk button one word is
+        // enough; otherwise two, so a stray "okay" in the room does not start a conversation.
+        const words = own.split(/\s+/).filter(Boolean).length;
+        const push = pushing();
+        if (final && !emergencyOn && words >= (push ? 1 : 2)) {
+          if (own === lastAsked.text && Date.now() - lastAsked.at < 5000) return;     // Safari sometimes repeats a final result
+          lastAsked = { text: own, at: Date.now() };
+          stopVoice();                                                                 // the patient talks over the coach: the coach stops
           // A short "Okay." at once, so the patient knows they were heard while the answer is being made.
-          const ack = /\?\s*$|^(how|what|why|when|where|can|should|is|are|do|does|will)\b/i.test(heard.trim()) ? "ack_question" : Math.random() < 0.5 ? "ack_ok" : "ack_got_it";
+          const ack = /^(how|what|why|when|where|can|should|is|are|do|does|did|will|am|could|would)\b/i.test(own) ? "ack_question" : Math.random() < 0.5 ? "ack_ok" : "ack_got_it";
           say([ack], ack === "ack_question" ? "Good question." : "Okay.", "now");
-          void talk("heard", heard.trim());
+          void talk("heard", own);
         }
         return;
       }
@@ -272,7 +311,7 @@ export function CameraSession(p: Props) {
       else if (command === "okay") okayRef.current();
       else if (command === "pain") hurtsRef.current();
     });
-    const unwatchListening = watchListening(setListening);
+    const unwatchListening = watchListening(setListen);
 
     // A patient who stands ready but does not start hears "Whenever you're ready" now and then (at most 3 times).
     let lastProgressAt = 0;
@@ -503,9 +542,12 @@ export function CameraSession(p: Props) {
             worldLandmarks?: { x: number; y: number; z: number }[][];
           };
           const world = result.worldLandmarks?.[0];
+          // During a set, a short loss of the body (a moment hidden by the chair) is skipped, not a restart.
+          const inSet = startSpoken && t - lastGoodT < SHORT_GAP_SECONDS;
           if (!world) {
             if (fallWatch.missing(t)) raiseEmergency("fall");
             if (emergencyOn) { draw(undefined, connections, null); return; }
+            if (inSet) { draw(undefined, connections, null); return; }
             coachSetup("setup_find_you");
             if (missingSince < 0) missingSince = performance.now();
             if (delegate === "GPU" && probes < 3 && performance.now() - missingSince > 4000) void probeCpu(ts);
@@ -521,7 +563,9 @@ export function CameraSession(p: Props) {
           const hipY = screen && screen.length > 24 ? (screen[23].y + screen[24].y) / 2 : null;
           if (fallWatch.seen(t, trunkLean(world.map((l) => [l.x, l.y, l.z] as Vec)), hipY)) raiseEmergency("fall");
           if (emergencyOn) { draw(screen, connections, null); return; }
-          const issue = poseSetupIssue(p.exerciseId, screen);
+          // Strict before the set starts (to be sure the framing is right), lenient once it is under way.
+          const issue = poseSetupIssue(p.exerciseId, screen, startSpoken ? DURING_SET : {});
+          if (issue && inSet) { draw(screen, connections, null); return; }
           if (issue) {
             coachSetup(p.exerciseId === "arm_raise" ? "setup_step_back_arm" : "setup_step_back");
             draw(screen, connections, null);
@@ -544,13 +588,14 @@ export function CameraSession(p: Props) {
             counter.resetAfterTrackingGap();
             needsCounterReset = false;
           }
+          lastGoodT = t;
           showSetupIssue(null);
           if (!startSpoken) {
             startSpoken = true;
             lastProgressAt = performance.now();
             const own = `start_${p.exerciseId}`;
             say([voiceReady([own]) ? own : "start"], `Camera's ready. We'll do ${p.exerciseName}: ${target} repetitions. Take your time.`);
-            void talk("start");
+            void talk("start").then(() => preparePersonal());
           }
           const frame: Frame = world.map((l) => [l.x, l.y, l.z] as Vec);
           const signal = profile.repSignal(frame);
@@ -657,8 +702,16 @@ export function CameraSession(p: Props) {
           const allDone = n >= target;
           const setDone = !allDone && n % p.reps === 0;
           const spoken = repSpokenText(n, named, named ? CUE[named] : null);
+          const clips = repClips(n, named, { allDone, setDone, leftInSet: p.reps - (((n - 1) % p.reps) + 1), halfway: target >= 8 && n * 2 === target });
+          const slot = clips.findIndex((c) => MOTIVATION.includes(c));
+          if (slot >= 0 && personal.length) {
+            const line = personal.shift()!;            // a line written for this patient, already spoken into audio
+            registerUrl(line.url);
+            clips[slot] = line.url;
+            rememberSaid(line.text);
+          }
           say(
-            repClips(n, named, { allDone, setDone, leftInSet: p.reps - (((n - 1) % p.reps) + 1), halfway: target >= 8 && n * 2 === target }),
+            clips,
             allDone ? `${spoken} Nice work. That's all of them.`
               : setDone ? `${spoken} Set ${n / p.reps} is done. Take a breather, then continue.` : spoken,
             "next",       // a warning still being spoken finishes its sentence before the count
@@ -816,6 +869,21 @@ export function CameraSession(p: Props) {
           ))}
         </div>
       )}
+      <div className="talk-bar">
+        <button
+          type="button"
+          className={`btn talk-btn${listen.pushing ? " on" : ""}`}
+          onClick={() => { stopVoice(); talkNow(); }}
+          aria-label="Talk to the coach"
+        >
+          <Icon name="chat" /> {listen.pushing ? "Listening… say it now" : "Talk to the coach"}
+        </button>
+        <p className="heard" aria-live="polite">
+          {listen.error ? <span className="mic-error">{listen.error}</span>
+            : heardLive ? <>Heard: <b>{heardLive}</b></>
+              : listening ? "Listening. Ask anything, or say how you feel." : "Tap the button and speak."}
+        </p>
+      </div>
       <p className="voice-hint faint small">
         {listening
           ? <>Talk to the coach any time: ask how deep to go, say how it feels. <b>&ldquo;Help&rdquo;</b>, <b>&ldquo;call 911&rdquo;</b>{p.emergency ? <>, <b>&ldquo;call {p.emergency.name}&rdquo;</b></> : null} and <b>&ldquo;it hurts&rdquo;</b> work too. Your browser&apos;s speech service turns what you say into text and the coach&apos;s AI answers it; the video stays on this device.</>

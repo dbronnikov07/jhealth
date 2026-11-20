@@ -889,3 +889,13 @@ textarea { resize: vertical; min-height: 60px; }
 .imsg-invite .row { gap: 20px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
 .imsg-invite p { max-width: 420px; }
 
+/* Talking to the coach: a big button (works even where the browser stops listening on its own) and what was heard. */
+.talk-bar { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+.talk-btn { min-height: 60px; padding: 0 26px; font-size: 19px; border-radius: 999px; background: var(--accent); color: #ffffff; border-color: var(--accent); }
+.talk-btn.on { background: #0f7a4a; border-color: #0f7a4a; animation: talk-pulse 1s ease-in-out infinite alternate; }
+@keyframes talk-pulse { to { box-shadow: 0 0 0 10px rgb(15 122 74 / 0.18); } }
+@media (prefers-reduced-motion: reduce) { .talk-btn.on { animation: none; } }
+.talk-bar .heard { flex: 1; min-width: 220px; font-size: 17px; color: var(--ink-soft, #55607a); }
+.talk-bar .heard b { color: #0b1240; }
+.mic-error { color: #a8201a; font-weight: 600; }
+

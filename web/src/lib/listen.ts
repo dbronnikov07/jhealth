@@ -25,23 +25,33 @@ export function matchCommand(heard: string, contactName: string | null = null): 
 
 type Recognition = {
   continuous: boolean; interimResults: boolean; lang: string;
-  start(): void; stop(): void;
+  start(): void; stop(): void; abort?(): void;
   onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
   onend: (() => void) | null;
   onerror: ((e: { error: string }) => void) | null;
 };
 
+export type ListenState = { on: boolean; error: string | null; pushing: boolean };
+
 let rec: Recognition | null = null;
 let wanted = false;
+let running = false;
 let handler: ((heard: string, final: boolean) => void) | null = null;
-let listening = false;
-const watchers = new Set<(on: boolean) => void>();
+let state: ListenState = { on: false, error: null, pushing: false };
+let pushUntil = 0;
+const watchers = new Set<(s: ListenState) => void>();
 
-function setListening(on: boolean) {
-  if (on === listening) return;
-  listening = on;
-  watchers.forEach((w) => w(on));
+function setState(next: Partial<ListenState>) {
+  state = { ...state, ...next };
+  watchers.forEach((w) => w(state));
 }
+
+const PERMANENT: Record<string, string> = {
+  "not-allowed": "The microphone is blocked for this page. Allow it in the browser's settings, then tap Talk.",
+  "service-not-allowed": "Speech recognition is off. On iPhone or iPad turn on Settings > Siri > Siri & Dictation (or Keyboard > Enable Dictation), then tap Talk.",
+  "audio-capture": "No microphone was found.",
+  "language-not-supported": "Speech recognition does not support English here.",
+};
 
 export function listenSupported(): boolean {
   if (typeof window === "undefined") return false;
@@ -49,40 +59,65 @@ export function listenSupported(): boolean {
   return !!(w.SpeechRecognition || w.webkitSpeechRecognition);
 }
 
-/** Start the microphone. Call it from a tap. Safe to call again. */
-export function startListening(): void {
-  if (!listenSupported()) return;
-  wanted = true;
-  if (rec) return;
-  const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
-  const R = w.SpeechRecognition ?? w.webkitSpeechRecognition!;
-  rec = new R();
-  rec.continuous = true;
-  rec.interimResults = true;
-  rec.lang = "en-US";
-  rec.onresult = (e) => {
-    setListening(true);
-    for (let i = e.resultIndex; i < e.results.length; i++) handler?.(e.results[i][0].transcript, e.results[i].isFinal);
-  };
-  // Browsers stop listening after a pause; start again for as long as the session wants it.
-  rec.onend = () => {
-    setListening(false);
-    if (wanted && rec) {
-      try { rec.start(); setListening(true); } catch { /* it will be started by the next tap */ }
-    }
-  };
-  rec.onerror = (e) => {
-    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-      wanted = false;
-      setListening(false);
-    }
-  };
+function begin() {
+  if (!rec || running) return;
   try {
     rec.start();
-    setListening(true);
+    running = true;
+    setState({ on: true });
   } catch {
-    rec = null;
+    // already started, or the browser wants a tap first: the Talk button starts it
   }
+}
+
+/** Start the microphone. Call it from a tap. Safe to call again. */
+export function startListening(): void {
+  if (!listenSupported()) {
+    setState({ error: "This browser cannot turn speech into text. Use Safari on iPhone or iPad, or Chrome." });
+    return;
+  }
+  wanted = true;
+  if (!rec) {
+    const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
+    const R = w.SpeechRecognition ?? w.webkitSpeechRecognition!;
+    rec = new R();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    rec.onresult = (e) => {
+      if (state.error) setState({ error: null });
+      for (let i = e.resultIndex; i < e.results.length; i++) handler?.(e.results[i][0].transcript, e.results[i].isFinal);
+    };
+    // Browsers stop listening after a pause, after each sentence (Safari) or when sound plays; start again at once.
+    rec.onend = () => {
+      running = false;
+      setState({ on: false });
+      if (wanted) setTimeout(begin, 200);
+    };
+    rec.onerror = (e) => {
+      if (PERMANENT[e.error]) {
+        wanted = false;
+        setState({ on: false, error: PERMANENT[e.error] });
+      }
+      // "no-speech", "aborted", "network": the end handler starts it again
+    };
+  }
+  begin();
+}
+
+/** The Talk button: make sure the microphone is on (this is a tap, so the browser allows it) and treat the next
+ *  sentence as meant for the coach for 8 s, even while the coach is talking. */
+export function talkNow(): void {
+  pushUntil = Date.now() + 8000;
+  setState({ pushing: true, error: null });
+  setTimeout(() => { if (Date.now() >= pushUntil) setState({ pushing: false }); }, 8100);
+  if (state.error) { wanted = true; }
+  startListening();
+}
+
+/** True during the 8 s after the Talk button was pressed. */
+export function pushing(): boolean {
+  return Date.now() < pushUntil;
 }
 
 /** What to do with heard text (the session sets it). `final` is false while the browser is still listening. */
@@ -90,17 +125,19 @@ export function onHeard(h: ((heard: string, final: boolean) => void) | null): vo
   handler = h;
 }
 
-/** Follow whether the microphone is on (for the "listening" label). Returns the unsubscribe function. */
-export function watchListening(w: (on: boolean) => void): () => void {
+/** Follow the microphone's state (for the "listening" label and errors). Returns the unsubscribe function. */
+export function watchListening(w: (s: ListenState) => void): () => void {
   watchers.add(w);
-  w(listening);
+  w(state);
   return () => { watchers.delete(w); };
 }
 
 export function stopListening(): void {
   wanted = false;
   handler = null;
+  pushUntil = 0;
   try { rec?.stop(); } catch { /* already stopped */ }
+  running = false;
   rec = null;
-  setListening(false);
+  setState({ on: false, pushing: false });
 }

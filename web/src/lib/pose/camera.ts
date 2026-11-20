@@ -16,13 +16,19 @@ const RIGHT_ARM = [12, 14, 16];
  * exercise are clearly inside the camera view. The generous edge leaves room for normal
  * detector jitter without accepting a cropped foot, knee, wrist, or hip.
  */
-export function poseSetupIssue(exerciseId: string, points: ScreenLandmark[] | undefined): string | null {
+export function poseSetupIssue(
+  exerciseId: string,
+  points: ScreenLandmark[] | undefined,
+  opts: { minVisibility?: number; edge?: number } = {},
+): string | null {
   if (!points || points.length < 29) return "Step into view so the camera can find you.";
+  const minVisibility = opts.minVisibility ?? 0.45;
+  const edge = opts.edge ?? 0.02;
   const visible = (needed: number[]) => needed.every((i) => {
     const p = points[i];
     return p && Number.isFinite(p.x) && Number.isFinite(p.y)
-      && (p.visibility ?? 1) >= 0.45
-      && p.x >= 0.02 && p.x <= 0.98 && p.y >= 0.02 && p.y <= 0.98;
+      && (p.visibility ?? 1) >= minVisibility
+      && p.x >= edge && p.x <= 1 - edge && p.y >= edge && p.y <= 1 - edge;
   });
   // Squat/sit-to-stand need both legs: their signal and quality features use both.
   // Extension and arm raise are intentionally one-sided, so side-on phone footage is
@@ -37,6 +43,14 @@ export function poseSetupIssue(exerciseId: string, points: ScreenLandmark[] | un
     ? "Step back so your upper body, hips, hands and wrists are in view."
     : "Step back so your whole body, knees and feet are in view.";
 }
+
+/**
+ * Once a set has started, the check is lenient: sitting on a chair hides the hips and knees from the camera for a
+ * moment, and a strict check there reset the count in the middle of every sit-to-stand. Joints only need to be
+ * roughly in the picture, and gaps shorter than SHORT_GAP_SECONDS are skipped without losing the repetition.
+ */
+export const DURING_SET = { minVisibility: 0.15, edge: 0 };
+export const SHORT_GAP_SECONDS = 1.5;
 
 /** Keep expensive Heavy Pose inference predictable on older phones and laptops. */
 export const ANALYSIS_INTERVAL_MS = 1000 / 15;

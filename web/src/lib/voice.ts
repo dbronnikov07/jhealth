@@ -175,6 +175,11 @@ export function voiceBusy(): boolean {
   return busy || !!synth || performance.now() - lastEnded < 1500;
 }
 
+/** Make speech made on the fly (an object URL) playable inside a list of clips, like a recorded line. */
+export function registerUrl(url: string): void {
+  loaded.set(url, url);
+}
+
 /** Play speech that was made on the fly (the spoken coach's answer, an object URL). False if sound is locked. */
 export function playUrl(url: string, when: "now" | "next" | "queue" = "queue"): boolean {
   if (!unlocked) return false;

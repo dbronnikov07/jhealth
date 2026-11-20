@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ANALYSIS_INTERVAL_MS, cameraConstraints, isPhoneDevice, poseSetupIssue, type ScreenLandmark } from "../src/lib/pose/camera.ts";
+import { ANALYSIS_INTERVAL_MS, cameraConstraints, DURING_SET, isPhoneDevice, poseSetupIssue, type ScreenLandmark } from "../src/lib/pose/camera.ts";
 
 function visibleBody(): ScreenLandmark[] {
   return Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0.99 }));
@@ -10,6 +10,10 @@ test("camera preflight accepts a complete body and blocks cropped joints", () =>
   const body = visibleBody();
   assert.equal(poseSetupIssue("squat", body), null);
   assert.equal(poseSetupIssue("arm_raise", body), null);
+  // During a set the check is lenient: legs half hidden by a chair (low visibility) still count.
+  const hidden = body.map((p, i) => ([23, 24, 25, 26].includes(i) ? { ...p, visibility: 0.3 } : p));
+  assert.notEqual(poseSetupIssue("sit_to_stand", hidden), null);
+  assert.equal(poseSetupIssue("sit_to_stand", hidden, DURING_SET), null);
 
   body[27] = { x: 0.5, y: 1.04, visibility: 0.99 };
   assert.match(poseSetupIssue("sit_to_stand", body) ?? "", /feet/);

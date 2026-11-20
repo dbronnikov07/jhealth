@@ -7,7 +7,7 @@
 import { createHmac } from "node:crypto";
 import { adaptionConfig, chatText } from "./adaption.ts";
 
-export type VoiceEvent = "heard" | "start" | "set_done" | "finished";
+export type VoiceEvent = "heard" | "start" | "set_done" | "finished" | "prepare";
 
 export type VoiceContext = {
   firstName: string;
@@ -21,12 +21,17 @@ export type VoiceContext = {
   bestDegrees: number | null;   // deepest knee bend (or highest arm) this session
   previousDegrees: number | null;
   notCounted: number;           // movements too small to count
+  condition: string | null;     // e.g. "Total knee replacement, right side"
+  memories: string[];           // what the coach knows: goals, preferences, pain reported, from the chat
+  lastSession: string | null;   // e.g. "2 days ago: chair squat, 20 reps, knee bend 66 degrees"
 };
 
 export const VOICE_SYSTEM_PROMPT = `You are the Motiva Health voice coach. You speak out loud, in real time, to a patient doing a home exercise in front of their phone or tablet camera. They are usually an older adult recovering from knee or hip surgery, standing about two metres away.
 
 How you talk:
-- Usually one short sentence, at most two, and never more than 25 words. This is speech, not text: short answers come back faster.
+- One short sentence, at most 15 words, unless they ask you to explain something (then at most 30). This is speech: short answers come back faster.
+- Answer what they actually said, like a person would. If they ask how you are, answer briefly and warmly and turn it back to them.
+- Make it personal: their name now and then, their surgery, their goal, how today compares with last time. Never the same praise twice.
 - Warm, upbeat and natural, like a good physiotherapist in the room. Use their first name now and then, not every time.
 - Use the real numbers you are given (repetitions, degrees, quality). Never invent numbers.
 - Plain words. No lists, no emoji, no dashes, no semicolons, no stage directions.
@@ -43,7 +48,8 @@ The moment you are answering:
 - "start": they just got in front of the camera. Greet them briefly and ask how they feel today.
 - "set_done": a set is finished. Praise one real thing, mention the numbers, and ask how that felt.
 - "finished": the session is over. Give a short spoken summary with the numbers and one encouragement for next time.
-- "heard": they just said something. Answer it.`;
+- "heard": they just said something. Answer it.
+- "prepare": write 5 different encouragement lines to say during the set, at most 10 words each, one per line, no numbering or quotes. Make them personal: use their name in two, their goal or their progress if you know it.`;
 
 /**
  * The answer in sentences, so the first one can be spoken while the next is still being made (our voice server
@@ -51,10 +57,17 @@ The moment you are answering:
  */
 export function splitSentences(text: string): string[] {
   const parts = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-  // A long first sentence is cut at a comma, so the first sound comes sooner.
+  // A long first sentence is cut early (at a comma, or after six words), so the first sound comes sooner:
+  // our voice server needs about 1.5 s per second of speech.
   const first = parts[0] ?? "";
-  const comma = first.indexOf(", ", 20);
-  if (first.length > 60 && comma > 0 && comma < first.length - 15) parts.splice(0, 1, first.slice(0, comma + 1), first.slice(comma + 2));
+  const words = first.split(" ");
+  if (words.length > 9) {
+    // Best: after an early comma. Next best: before a small linking word, where a speaker would breathe anyway.
+    const commaWord = words.findIndex((w, i) => i >= 2 && i <= 9 && w.endsWith(","));
+    const linkWord = words.findIndex((w, i) => i >= 4 && i <= 9 && /^(and|but|so|for|to|with|then|while|until|because|if)$/i.test(w));
+    const cut = commaWord >= 0 ? commaWord + 1 : linkWord >= 0 ? linkWord : 6;
+    if (words.length - cut >= 3) parts.splice(0, 1, words.slice(0, cut).join(" "), words.slice(cut).join(" "));
+  }
   const out: string[] = [];
   for (const p of parts) {
     if (out.length && (out[out.length - 1].length < 14 || out.length >= 3)) out[out.length - 1] += ` ${p}`;
@@ -78,11 +91,15 @@ export function buildVoiceMessages(event: VoiceEvent, heard: string | null, c: V
     c.quality !== null ? `Average quality so far: ${c.quality} out of 100.` : null,
     c.bestDegrees !== null ? `Best range this session: ${c.bestDegrees} degrees${c.previousDegrees !== null ? `, last time ${c.previousDegrees} degrees` : ""}.` : null,
     c.lastCue ? `Last form tip given: "${c.lastCue}".` : null,
+    c.condition ? `Their rehab: ${c.condition}.` : null,
+    c.lastSession ? `Last session: ${c.lastSession}.` : null,
+    c.memories.length ? `What you know about them: ${c.memories.join("; ")}.` : null,
   ].filter(Boolean).join("\n");
   const moment =
     event === "heard" ? `Moment: heard. They are in set ${c.set} of ${c.sets}. They said: "${(heard ?? "").slice(0, 300)}"`
       : event === "set_done" ? `Moment: set_done. They just finished set ${c.set} of ${c.sets}.`
-        : `Moment: ${event}.`;
+        : event === "prepare" ? "Moment: prepare. Write the 5 lines now."
+          : `Moment: ${event}.`;
   return [
     { role: "system" as const, content: VOICE_SYSTEM_PROMPT },
     { role: "user" as const, content: `${facts}\n${moment}\nYour spoken answer:` },
@@ -94,6 +111,7 @@ export function fallbackLine(event: VoiceEvent, c: VoiceContext): string {
   if (event === "finished") return `Nice work, ${c.firstName}. That's ${c.repsDone} repetitions done today.`;
   if (event === "set_done") return `That's set ${c.set} done. Take a breather, then carry on.`;
   if (event === "start") return `Hi ${c.firstName}. Let's get started.`;
+  if (event === "prepare") return `You've got this, ${c.firstName}.\nNice and steady.\nGreat control.\nKeep breathing.\nAlmost there, ${c.firstName}.`;
   return "Sorry, I didn't catch that. Let's keep going.";
 }
 
@@ -122,16 +140,19 @@ async function openaiChat(messages: { role: "system" | "user"; content: string }
   }
 }
 
-export async function voiceReply(event: VoiceEvent, heard: string | null, c: VoiceContext): Promise<{ text: string; fromAi: boolean }> {
+export async function voiceReply(
+  event: VoiceEvent, heard: string | null, c: VoiceContext, opts: { keepLines?: boolean } = {},
+): Promise<{ text: string; fromAi: boolean }> {
   const messages = buildVoiceMessages(event, heard, c);
-  const fromOpenai = forSpeech((await openaiChat(messages)) ?? "");
+  const clean = (t: string) => (opts.keepLines ? t.split(/\n+/).map(forSpeech).filter(Boolean).join("\n") : forSpeech(t));
+  const fromOpenai = clean((await openaiChat(messages)) ?? "");
   if (fromOpenai.length >= 2) return { text: fromOpenai, fromAi: true };
   const cfg = adaptionConfig();
   if (!cfg) return { text: fallbackLine(event, c), fromAi: false };
   try {
     // Room for a model that thinks first (deepseek-v4-flash spends 150 to 300 tokens on it) if one is configured.
     const r = await chatText(cfg, messages, { model: VOICE_MODEL(), maxTokens: 1200, timeoutMs: 9000 });
-    const text = forSpeech(r.content ?? "");
+    const text = clean(r.content ?? "");
     return text.length >= 2 ? { text, fromAi: true } : { text: fallbackLine(event, c), fromAi: false };
   } catch {
     return { text: fallbackLine(event, c), fromAi: false };
