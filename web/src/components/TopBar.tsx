@@ -16,7 +16,7 @@ export async function TopBar({ doctor, mode }: { doctor?: { name: string; clinic
   return (
     <header className="topbar">
       <Link href="/" className="brand" aria-label="Motiva Health: back to the website" title="Back to the website">
-        <Logo size={26} tile />
+        <Logo size={26} />
       </Link>
       <Link href="/doctor" className="sub">Physio dashboard</Link>
       <div className="right">

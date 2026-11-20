@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Bricolage_Grotesque, Funnel_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-// Inter for reading, Outfit for headings and measured numbers (with tabular figures, so digits line up).
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const display = Outfit({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+// Bricolage Grotesque for headings and big numbers (its optical sizes keep big type tight and warm), Funnel Sans for
+// reading, Geist Mono for measurements and labels. (Funnel Display was tried: its "b" has a detached spur that read
+// as a full stop in "rehab".)
+const sans = Funnel_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", display: "swap", axes: ["opsz"] });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono-face", display: "swap" });
 
 export const metadata: Metadata = {
   // Absolute addresses for link previews (iMessage, WhatsApp): the live site, or this computer in development.
@@ -14,13 +17,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f2f4f7",
+  themeColor: "#f1f2ec",
   colorScheme: "light",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
       <body>{children}</body>
     </html>
   );

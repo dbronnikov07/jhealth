@@ -3,11 +3,10 @@ import { connection } from "next/server";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Goniometer } from "@/components/Goniometer";
 import { Icon } from "@/components/Icon";
-import { StatusPill } from "@/components/StatusPill";
 import { QrCode } from "@/components/QrCode";
 import { TopBar } from "@/components/TopBar";
 import { textUsLink } from "@/lib/imessage/format";
-import { getDoctor, listPatients, sessionsThisWeek } from "@/lib/data";
+import { getDoctor, listPatients, sessionsThisWeek, type Status } from "@/lib/data";
 import { STATUS_LABEL, timeAgo } from "@/lib/format";
 
 const IMESSAGE = process.env.IMESSAGE_ADDRESS?.trim() || null;
@@ -16,31 +15,41 @@ export default async function Dashboard() {
   await connection(); // always read fresh data, never a copy made at build time
   const [{ doctor, mode }, patients, sessions] = await Promise.all([getDoctor(), listPatients(), sessionsThisWeek()]);
 
-  const attention = patients.filter((p) => ["alert", "stalling", "inactive"].includes(p.status)).length;
   // A plan started in the last few days has not had a fair chance yet, so it does not pull the average down.
   const withPlan = patients.filter((p) => p.adherence_7d !== null && p.status !== "new");
   const adherence = withPlan.length ? withPlan.reduce((s, p) => s + (p.adherence_7d ?? 0), 0) / withPlan.length : 0;
   const simulated = patients.filter((p) => p.is_simulated).length;
-  const byStatus = (["alert", "stalling", "inactive"] as const)
-    .map((s) => ({ s, n: patients.filter((p) => p.status === s).length }))
-    .filter((x) => x.n > 0);
+
+  const count = (st: Status) => patients.filter((p) => p.status === st).length;
+  const alerts = count("alert");
+  const stalling = count("stalling");
+  const quiet = count("inactive");
+  const today = new Intl.DateTimeFormat("en-CA", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Toronto" }).format(new Date());
+  const others = [stalling ? `${stalling} ${stalling === 1 ? "is" : "are"} stalling` : "", quiet ? `${quiet} ${quiet === 1 ? "has" : "have"} gone quiet` : ""].filter(Boolean);
+  // Groups in the order a physio works through them; real patients stay first inside each group.
+  const groups = GROUPS.map((g) => ({ ...g, list: patients.filter((p) => p.status === g.status) })).filter((g) => g.list.length > 0);
 
   return (
     <>
       <TopBar doctor={doctor} mode={mode} />
       <AutoRefresh seconds={3} />
-      <main className="page">
-        <div className="page-head">
+      <main className="page board">
+        <header className="board-head">
           <div>
-            <h1>Patients</h1>
-            <p className="lede">
-              <span className="live-dot">Live</span>
-              <span>A finished session shows up here within seconds. Real patients first, then whoever needs you most.</span>
+            <p className="eyebrow"><span className="live-dot">Live</span><span>{today}</span></p>
+            <h1>
+              {alerts > 0
+                ? <><em>{alerts} {alerts === 1 ? "patient needs" : "patients need"}</em> you today.</>
+                : <span className="calm">Nobody needs a review today.</span>}
+            </h1>
+            <p className="board-sub">
+              {others.length ? `${others.join(" and ")}. ` : "Everyone else is moving. "}
+              A finished session shows up here within seconds.
             </p>
           </div>
-          <span className="spacer" />
           <Link href="/doctor/patients/new" className="btn primary"><Icon name="plus" size={18} /> Add patient</Link>
-        </div>
+        </header>
+
         {IMESSAGE && (
           // Shown only to signed-in staff: on a personal Apple ID this address is someone's own phone number or email.
           <details className="imsg-invite">
@@ -52,105 +61,79 @@ export default async function Dashboard() {
           </details>
         )}
 
-        <section className="stats" aria-label="This week">
-          <div className="stat">
-            <div className="label">Patients</div>
-            <div className="value">{patients.length}</div>
-            <div className="detail">{patients.length - simulated} real · {simulated} simulated</div>
+        <section className="figures" aria-label="This week">
+          <div className="figure">
+            <span className="n">{patients.length}</span>
+            <span className="what">patients<small>{patients.length - simulated} real · {simulated} simulated</small></span>
           </div>
-          <div className={`stat attention${attention === 0 ? " calm" : ""}`}>
-            <div className="label">Need attention</div>
-            <div className="value">{attention}</div>
-            {byStatus.length > 0 && (
-              <div className="breakdown">
-                {byStatus.map(({ s, n }) => (
-                  <span key={s} className={`st-${s}`}><i aria-hidden />{n} {STATUS_LABEL[s].toLowerCase()}</span>
-                ))}
-              </div>
-            )}
+          <div className="figure">
+            <span className="n">{sessions}</span>
+            <span className="what">sessions in the last 7 days</span>
           </div>
-          <div className="stat">
-            <div className="label">Sessions, last 7 days</div>
-            <div className="value">{sessions}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Average adherence</div>
-            <div className="value">{Math.round(adherence * 100)}%</div>
-            <div className="meter" aria-hidden><i style={{ width: `${Math.round(adherence * 100)}%` }} /></div>
+          <div className="figure">
+            <span className="n">{Math.round(adherence * 100)}%</span>
+            <span className="what">average adherence</span>
+            <span className="meter" aria-hidden><i style={{ width: `${Math.round(adherence * 100)}%` }} /></span>
           </div>
         </section>
 
-        <section className="card flush" aria-label="Patient list">
-          <table className="patients">
-            <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Status</th>
-                <th className="hide-sm">Adherence, 7 days</th>
-                <th className="hide-sm">Rep quality</th>
-                <th>Knee bend</th>
-                <th className="hide-sm">Last session</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patients.map((p) => {
-                const perWeek = p.days_per_week ?? 0;
-                return (
-                  <tr key={p.id} className={`st-${p.status}${p.is_simulated ? "" : " real"}`}>
-                    <td>
+        <div className="cols" aria-hidden>
+          <span>Patient</span><span>What the coach saw</span><span>Days this week</span><span>Rep quality</span><span>Knee bend</span><span className="when">Last seen</span><span />
+        </div>
+
+        <div className="groups">
+          {groups.map((g) => (
+            <section key={g.status} className={`group st-${g.status}`} aria-labelledby={`g-${g.status}`}>
+              <h2 className="tape" id={`g-${g.status}`}>{g.title}<b>{g.list.length}</b></h2>
+              <div className="rows">
+                {g.list.map((p) => (
+                  <article key={p.id} className={`prow st-${p.status}`}>
+                    <div className="who-cell">
                       <Link className="name" href={`/doctor/patients/${p.id}`}>{p.display_name}</Link>{" "}
-                      {p.is_simulated ? <span className="tag">Simulated</span> : <span className="tag real">Real</span>}
-                      <div className="cell-sub">{p.condition}{p.side ? `, ${p.side}` : ""}</div>
-                    </td>
-                    <td className="status-cell">
-                      <StatusPill status={p.status} />
-                      <div className="cell-sub">{p.status_reason}</div>
-                    </td>
-                    <td className="hide-sm num">
-                      {p.adherence_7d === null || !p.days_per_week ? <span className="faint">–</span> : (
-                        <>
-                          {perWeek > 0 && (
-                            <span className="pips" aria-hidden>
-                              {Array.from({ length: perWeek }, (_, i) => <i key={i} className={i < p.days_active_7d ? "on" : ""} />)}
-                            </span>
-                          )}
-                          {p.days_active_7d}/{p.days_per_week} days
-                        </>
+                      {p.is_simulated ? <span className="tag">Sim</span> : <span className="tag real">Real</span>}
+                      <div className="cond">{p.condition}{p.side ? `, ${p.side}` : ""}</div>
+                    </div>
+                    <p className="note"><span className="sr-only">{STATUS_LABEL[p.status]}: </span>{p.status_reason}</p>
+                    <div className="adh">
+                      {p.adherence_7d === null || !p.days_per_week ? <span className="dash">–</span> : (
+                        <span className="measure">
+                          <span className="pips" aria-hidden>
+                            {Array.from({ length: p.days_per_week }, (_, i) => <i key={i} className={i < p.days_active_7d ? "on" : ""} />)}
+                          </span>
+                          <span><span className="sr-only">Exercised </span>{p.days_active_7d}/{p.days_per_week} days</span>
+                        </span>
                       )}
-                    </td>
-                    <td className="hide-sm num">
-                      {p.quality_7d === null ? <span className="faint">–</span> : (
-                        <>
-                          {p.quality_7d}/100
+                    </div>
+                    <div className="qual">
+                      {p.quality_7d === null ? <span className="dash">–</span> : (
+                        <span className="measure">
+                          <span className="sr-only">Rep quality </span><span className="big">{p.quality_7d}</span><span className="of">/100</span>
                           {p.quality_prev_7d !== null && (
-                            <span className={`delta ${p.quality_7d >= p.quality_prev_7d ? "up" : "down"}`}>
-                              {p.quality_7d >= p.quality_prev_7d ? "▲" : "▼"} <span className="faint">from {p.quality_prev_7d}</span>
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </td>
-                    <td className="num">
-                      {p.bend_7d === null ? <span className="faint">–</span> : (
-                        <span className="bend-cell">
-                          <Goniometer value={p.bend_7d} previous={p.bend_prev_7d} size={30} />
-                          {p.bend_prev_7d === null ? `${p.bend_7d}°` : (
-                            <span>{p.bend_prev_7d}°<span className="arrow"> → </span>{p.bend_7d}°</span>
+                            <span className="delta">{p.quality_7d >= p.quality_prev_7d ? "▲" : "▼"} from {p.quality_prev_7d}</span>
                           )}
                         </span>
                       )}
-                    </td>
-                    <td className="hide-sm muted small">{timeAgo(p.last_session_at)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
+                    </div>
+                    <div className="bend">
+                      {p.bend_7d === null ? <span className="dash">–</span> : (
+                        <span className="measure">
+                          <Goniometer value={p.bend_7d} previous={p.bend_prev_7d} size={30} />
+                          <span><span className="sr-only">Knee bend </span>{p.bend_prev_7d === null ? `${p.bend_7d}°` : <>{p.bend_prev_7d}°<span className="arrow">→</span>{p.bend_7d}°</>}</span>
+                        </span>
+                      )}
+                    </div>
+                    <span className="when">{timeAgo(p.last_session_at)}</span>
+                    <Icon name="chevron" size={18} className="go" />
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
 
         {simulated > 0 && (
           <p className="footnote">
-            {simulated} of {patients.length} patients are simulated demo data (labelled). Their numbers are generated, not measured.
+            {simulated} of {patients.length} patients are simulated demo data (labelled Sim). Their numbers are generated, not measured.
             Knee bend is measured from one camera and is a trend, not a clinical measurement.
           </p>
         )}
@@ -158,3 +141,12 @@ export default async function Dashboard() {
     </>
   );
 }
+
+const GROUPS: { status: Status; title: string }[] = [
+  { status: "alert", title: "Needs you today" },
+  { status: "stalling", title: "Stalling" },
+  { status: "inactive", title: "Gone quiet" },
+  { status: "new", title: "New plans" },
+  { status: "on_track", title: "On track" },
+  { status: "no_plan", title: "No plan yet" },
+];

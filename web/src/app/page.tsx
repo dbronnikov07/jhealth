@@ -64,8 +64,8 @@ export default function Landing() {
       <main id="main">
         <section className="lp-hero" aria-labelledby="hero-title">
           <div className="lp-hero-text">
-            <p className="lp-badge">For patients after knee and hip replacement</p>
-            <h1 id="hero-title">Home rehab, coached by the phone camera</h1>
+            <p className="lp-badge tape st-on_track">After a knee or hip replacement</p>
+            <h1 id="hero-title">Home rehab, coached by <em>the phone camera.</em></h1>
             <p className="lp-hero-sub">
               The physio sends a plan to the patient&apos;s chat. The phone camera counts every rep and corrects form out
               loud. The physio sees the results the same day.
@@ -102,8 +102,8 @@ export default function Landing() {
               <span className="lp-card-cta">Start session</span>
             </div>
           </div>
-          <p className="lp-hero-note">The points on the photo are our pose model&apos;s real output on this picture.</p>
         </section>
+        <p className="lp-hero-note lp-wrap">The points on the photo are our pose model&apos;s real output on this picture.</p>
 
         <section className="lp-stats" aria-label="In numbers">
           <dl className="lp-wrap lp-stats-grid">
