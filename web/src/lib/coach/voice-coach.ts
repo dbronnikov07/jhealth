@@ -5,7 +5,7 @@
 // answers questions; it never diagnoses, never changes the plan, never gives medical advice. Pain and red flags are
 // handled by fixed rules before the AI sees anything (lib/safety.ts), and falls by the camera (lib/pose/fall.ts).
 import { createHmac } from "node:crypto";
-import { adaptionConfig, chatText } from "./adaption";
+import { adaptionConfig, chatText } from "./adaption.ts";
 
 export type VoiceEvent = "heard" | "start" | "set_done" | "finished";
 
@@ -26,7 +26,7 @@ export type VoiceContext = {
 export const VOICE_SYSTEM_PROMPT = `You are the Motiva Health voice coach. You speak out loud, in real time, to a patient doing a home exercise in front of their phone or tablet camera. They are usually an older adult recovering from knee or hip surgery, standing about two metres away.
 
 How you talk:
-- One or two short sentences, at most 35 words in all. This is speech, not text.
+- Usually one short sentence, at most two, and never more than 25 words. This is speech, not text: short answers come back faster.
 - Warm, upbeat and natural, like a good physiotherapist in the room. Use their first name now and then, not every time.
 - Use the real numbers you are given (repetitions, degrees, quality). Never invent numbers.
 - Plain words. No lists, no emoji, no dashes, no semicolons, no stage directions.
@@ -44,6 +44,20 @@ The moment you are answering:
 - "set_done": a set is finished. Praise one real thing, mention the numbers, and ask how that felt.
 - "finished": the session is over. Give a short spoken summary with the numbers and one encouragement for next time.
 - "heard": they just said something. Answer it.`;
+
+/**
+ * The answer in sentences, so the first one can be spoken while the next is still being made (our voice server
+ * needs about 1.5 s per second of speech). Very short pieces join the next one; at most 3 parts.
+ */
+export function splitSentences(text: string): string[] {
+  const parts = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const out: string[] = [];
+  for (const p of parts) {
+    if (out.length && (out[out.length - 1].length < 14 || out.length >= 3)) out[out.length - 1] += ` ${p}`;
+    else out.push(p);
+  }
+  return out;
+}
 
 /** Removes what sounds wrong when spoken, and keeps it short. */
 export function forSpeech(text: string): string {

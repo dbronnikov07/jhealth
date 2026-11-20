@@ -40,3 +40,10 @@ test("the recording says the same words the screen shows", () => {
   assert.equal(lines.n1, "One.");
   assert.equal(lines[`n${COUNT_CLIPS}`], "Thirty.");
 });
+
+test("the spoken coach's answer is cut into sentences, so speech can start sooner", async () => {
+  const { splitSentences } = await import("../src/lib/coach/voice-coach.ts");
+  assert.deepEqual(splitSentences("Nice work. That was a strong set. How did it feel?"), ["Nice work. That was a strong set.", "How did it feel?"]);
+  assert.deepEqual(splitSentences("Go as low as is comfortable, Margaret."), ["Go as low as is comfortable, Margaret."]);
+  assert.equal(splitSentences("One. Two. Three. Four. Five. Six.").length <= 3, true);
+});

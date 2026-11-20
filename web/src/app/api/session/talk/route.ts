@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { getDb } from "@/lib/db";
 import { assessMessage } from "@/lib/safety";
 import { raiseSafetyAlert } from "@/lib/safety-actions";
-import { forSpeech, speech, ttsTicket, voiceReply, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
+import { forSpeech, speech, splitSentences, ttsTicket, voiceReply, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -74,5 +74,6 @@ export async function POST(request: Request) {
     [patient.id, event, exerciseId, heard, reply.slice(0, 600)],
   );
   // Speech: OpenAI's voice if a key is set; otherwise a signed ticket for our own voice (api/tts.py).
-  return Response.json({ reply, action, audio: audio ? audio.toString("base64") : null, tts: audio ? null : ttsTicket(reply) });
+  const tickets = audio ? [] : splitSentences(reply).map(ttsTicket).filter((t) => t !== null);
+  return Response.json({ reply, action, audio: audio ? audio.toString("base64") : null, tts: tickets.length ? tickets : null });
 }
