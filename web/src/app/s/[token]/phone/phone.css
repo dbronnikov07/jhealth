@@ -18,7 +18,7 @@
   text-transform: uppercase;
   color: var(--ink-glow);
 }
-.dp-caption h1 { color: #ffffff; font-size: 36px; line-height: 1.08; letter-spacing: -0.02em; margin: 12px 0 16px; }
+.dp-caption h1 { color: #ffffff; font-size: 40px; font-weight: 800; line-height: 1.04; letter-spacing: -0.04em; margin: 12px 0 16px; }
 .dp-caption p { font-size: 15.5px; line-height: 1.6; margin: 0 0 14px; }
 .dp-caption .dp-caption-small { font-size: 13.5px; opacity: 0.8; padding-top: 14px; border-top: 1px solid var(--ink-line); }
 
@@ -42,7 +42,7 @@
   .dp-phone {
     width: 400px;
     height: min(820px, calc(100dvh - 80px));
-    border: 10px solid #0d1330;
+    border: 10px solid #0b0a08;
     border-radius: 46px;
     box-shadow: 0 0 0 1px var(--ink-line), 0 40px 90px -30px rgb(0 0 0 / 0.75);
   }

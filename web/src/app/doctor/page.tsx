@@ -37,10 +37,10 @@ export default async function Dashboard() {
         <header className="board-head">
           <div>
             <p className="eyebrow"><span className="live-dot">Live</span><span>{today}</span></p>
-            <h1>
+            <h1 className={alerts > 0 ? undefined : "calm"}>
               {alerts > 0
-                ? <><em>{alerts} {alerts === 1 ? "patient needs" : "patients need"}</em> you today.</>
-                : <span className="calm">Nobody needs a review today.</span>}
+                ? <><mark>{alerts} {alerts === 1 ? "patient needs" : "patients need"}</mark> you today.</>
+                : <>Nobody needs a <mark>review</mark> today.</>}
             </h1>
             <p className="board-sub">
               {others.length ? `${others.join(" and ")}. ` : "Everyone else is moving. "}
@@ -70,56 +70,60 @@ export default async function Dashboard() {
             <span className="n">{sessions}</span>
             <span className="what">sessions in the last 7 days</span>
           </div>
-          <div className="figure">
+          <div className="figure dark">
             <span className="n">{Math.round(adherence * 100)}%</span>
             <span className="what">average adherence</span>
             <span className="meter" aria-hidden><i style={{ width: `${Math.round(adherence * 100)}%` }} /></span>
           </div>
         </section>
 
-        <div className="cols" aria-hidden>
-          <span>Patient</span><span>What the coach saw</span><span>Days this week</span><span>Rep quality</span><span>Knee bend</span><span className="when">Last seen</span><span />
-        </div>
-
         <div className="groups">
           {groups.map((g) => (
             <section key={g.status} className={`group st-${g.status}`} aria-labelledby={`g-${g.status}`}>
-              <h2 className="tape" id={`g-${g.status}`}>{g.title}<b>{g.list.length}</b></h2>
+              <div className="group-head">
+                <span className="dot" aria-hidden />
+                <h2 id={`g-${g.status}`}>{g.title}</h2>
+                <span className="count">{g.list.length}</span>
+              </div>
               <div className="rows">
                 {g.list.map((p) => (
                   <article key={p.id} className={`prow st-${p.status}`}>
+                    <span className="ava" aria-hidden>{initials(p.display_name)}</span>
                     <div className="who-cell">
                       <Link className="name" href={`/doctor/patients/${p.id}`}>{p.display_name}</Link>{" "}
                       {p.is_simulated ? <span className="tag">Sim</span> : <span className="tag real">Real</span>}
                       <div className="cond">{p.condition}{p.side ? `, ${p.side}` : ""}</div>
                     </div>
                     <p className="note"><span className="sr-only">{STATUS_LABEL[p.status]}: </span>{p.status_reason}</p>
-                    <div className="adh">
+                    <div className="cell adh">
                       {p.adherence_7d === null || !p.days_per_week ? <span className="dash">–</span> : (
-                        <span className="measure">
+                        <>
                           <span className="pips" aria-hidden>
                             {Array.from({ length: p.days_per_week }, (_, i) => <i key={i} className={i < p.days_active_7d ? "on" : ""} />)}
                           </span>
-                          <span><span className="sr-only">Exercised </span>{p.days_active_7d}/{p.days_per_week} days</span>
-                        </span>
+                          <span className="cap"><span className="sr-only">Exercised </span>{p.days_active_7d} of {p.days_per_week} days</span>
+                        </>
                       )}
                     </div>
-                    <div className="qual">
+                    <div className="cell qual">
                       {p.quality_7d === null ? <span className="dash">–</span> : (
-                        <span className="measure">
-                          <span className="sr-only">Rep quality </span><span className="big">{p.quality_7d}</span><span className="of">/100</span>
-                          {p.quality_prev_7d !== null && (
-                            <span className="delta">{p.quality_7d >= p.quality_prev_7d ? "▲" : "▼"} from {p.quality_prev_7d}</span>
-                          )}
-                        </span>
+                        <>
+                          <span className="val"><span className="sr-only">Rep quality </span><span className="big">{p.quality_7d}</span><span className="of">/100</span></span>
+                          <span className="cap">
+                            {p.quality_prev_7d === null ? "rep quality" : `${p.quality_7d >= p.quality_prev_7d ? "▲" : "▼"} from ${p.quality_prev_7d}`}
+                          </span>
+                        </>
                       )}
                     </div>
-                    <div className="bend">
+                    <div className="cell bend">
                       {p.bend_7d === null ? <span className="dash">–</span> : (
-                        <span className="measure">
-                          <Goniometer value={p.bend_7d} previous={p.bend_prev_7d} size={30} />
-                          <span><span className="sr-only">Knee bend </span>{p.bend_prev_7d === null ? `${p.bend_7d}°` : <>{p.bend_prev_7d}°<span className="arrow">→</span>{p.bend_7d}°</>}</span>
-                        </span>
+                        <>
+                          <span className="val">
+                            <Goniometer value={p.bend_7d} previous={p.bend_prev_7d} size={28} />
+                            <span className="big"><span className="sr-only">Knee bend </span>{p.bend_7d}°</span>
+                          </span>
+                          <span className="cap">{p.bend_prev_7d === null ? "knee bend" : `knee, was ${p.bend_prev_7d}°`}</span>
+                        </>
                       )}
                     </div>
                     <span className="when">{timeAgo(p.last_session_at)}</span>
@@ -140,6 +144,12 @@ export default async function Dashboard() {
       </main>
     </>
   );
+}
+
+/** "Margaret Demo" → "MD", "iMessage 0177" → "I0", "Simulated patient 01" → "SP". */
+function initials(name: string): string {
+  const words = name.split(/\s+/).filter(Boolean);
+  return words.slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
 const GROUPS: { status: Status; title: string }[] = [

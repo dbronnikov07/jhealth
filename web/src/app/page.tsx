@@ -1,13 +1,13 @@
 // The public front page: what Motiva Health is, for judges, clinics and patients. Static, no patient data.
 // Photos: free-licence stock (public/photos/CREDITS.md), to be replaced by the team's own.
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
 import { QrCode } from "@/components/QrCode";
 import { textUsLink } from "@/lib/imessage/format";
 import { HeroPhoto } from "./_landing/HeroPhoto";
+import { Scribble, Sparkle, Stamp } from "./_landing/Stamp";
 import "./landing.css";
 
 export const metadata: Metadata = {
@@ -55,17 +55,38 @@ export default function Landing() {
             <a href="#evidence">Evidence</a>
             <a href="#safety">Safety</a>
           </div>
-          <Link href="/doctor" className="lp-btn lp-btn-dark lp-btn-sm">
+          <Link href="/doctor" className="lp-btn lp-btn-accent lp-btn-sm">
             <span className="long">Physio dashboard</span><span className="short">Dashboard</span>
           </Link>
         </nav>
       </header>
 
       <main id="main">
+        {/* ---------- hero: the promise in the middle, the patient's story stuck around it ---------- */}
         <section className="lp-hero" aria-labelledby="hero-title">
+          <Stamp
+            className="lp-hero-st one"
+            src="/photos/knee-surgery.webp"
+            alt="A surgeon marking a patient's knee before a knee replacement."
+            tag="Day 0 · the operation"
+            ratio="4 / 5"
+            sizes="260px"
+            priority
+          />
+          <Stamp
+            className="lp-hero-st two"
+            src="/photos/arm-raise.webp"
+            alt="An older couple raising their arms to the side in their living room."
+            tag="Week 3 · rehab at home"
+            ratio="4 / 5"
+            sizes="260px"
+            priority
+          />
+          <Sparkle className="lp-hero-spark" />
+
           <div className="lp-hero-text">
-            <p className="lp-badge tape st-on_track">After a knee or hip replacement</p>
-            <h1 id="hero-title">Home rehab, coached by <em>the phone camera.</em></h1>
+            <p className="lp-chip"><i aria-hidden /> After a knee or hip replacement</p>
+            <h1 id="hero-title">Home rehab, coached by the <mark>phone camera</mark></h1>
             <p className="lp-hero-sub">
               The physio sends a plan to the patient&apos;s chat. The phone camera counts every rep and corrects form out
               loud. The physio sees the results the same day.
@@ -73,49 +94,75 @@ export default function Landing() {
             <div className="lp-actions">
               {textUs ? (
                 <>
-                  <a href={textUs} className="lp-btn lp-btn-white">Text Motiva on iMessage <Icon name="arrow" size={18} /></a>
-                  <Link href="/doctor" className="lp-btn lp-btn-glass">Physio dashboard</Link>
+                  <a href={textUs} className="lp-btn lp-btn-accent">Text Motiva on iMessage <Icon name="arrow" size={18} /></a>
+                  <Link href="/doctor" className="lp-btn lp-btn-white">Physio dashboard</Link>
                 </>
               ) : (
                 <>
-                  <Link href="/doctor" className="lp-btn lp-btn-white">Open the physio dashboard <Icon name="arrow" size={18} /></Link>
-                  <a href="#how" className="lp-btn lp-btn-glass">See how it works</a>
+                  <Link href="/doctor" className="lp-btn lp-btn-accent">Open the physio dashboard <Icon name="arrow" size={18} /></Link>
+                  <a href="#how" className="lp-btn lp-btn-white">See how it works</a>
                 </>
               )}
             </div>
           </div>
 
-          <div className="lp-stage">
-            <div className="lp-card lp-card-summary" aria-hidden>
-              <p className="lp-card-label">Session finished</p>
-              <p className="lp-card-title">Sit-to-stand, 2 × 10</p>
-              <dl>
-                <div><dt>Quality</dt><dd className="num">91<span>/100</span></dd></div>
-                <div><dt>Knee bend</dt><dd className="num">88°</dd></div>
-              </dl>
-              <p className="lp-card-foot">Up from 81° last week</p>
+          <span className="lp-sun left" aria-hidden />
+          <span className="lp-sun right" aria-hidden />
+        </section>
+
+        {/* ---------- what the patient sees: the real model output, annotated by hand ---------- */}
+        <section className="lp-section lp-demo" aria-labelledby="demo-title">
+          <div className="lp-wrap">
+            <div className="lp-head">
+              <p className="lp-eyebrow">What the patient sees</p>
+              <h2 id="demo-title">Like a physio in the room, <mark>on a phone</mark></h2>
             </div>
-            <div className="lp-stage-photo"><HeroPhoto /></div>
-            <div className="lp-card lp-card-msg" aria-hidden>
-              <p className="lp-card-label">Motiva coach · 9:00</p>
-              <p>Morning Daniel! Today: chair squats, 2 sets of 10. You reached 81° last time.</p>
-              <span className="lp-card-cta">Start session</span>
+            <div className="lp-demo-grid">
+              <div className="lp-demo-side left">
+                <p className="lp-note">counts every rep out loud<Scribble /></p>
+                <div className="lp-card lp-card-msg" aria-hidden>
+                  <p className="lp-card-label">Motiva coach · 9:00</p>
+                  <p>Morning Daniel! Today: chair squats, 2 sets of 10. You reached 81° last time.</p>
+                  <span className="lp-card-cta">Start session</span>
+                </div>
+                <p className="lp-note small">the plan arrives in the chat</p>
+              </div>
+
+              <div className="lp-stamp lp-demo-photo">
+                <div className="lp-stamp-paper"><HeroPhoto /></div>
+                <span className="lp-tag">Our pose model, on this very photo</span>
+              </div>
+
+              <div className="lp-demo-side right">
+                <p className="lp-note">measures the knee bend<Scribble className="flip" /></p>
+                <div className="lp-card lp-card-summary" aria-hidden>
+                  <p className="lp-card-label">Session finished</p>
+                  <p className="lp-card-title">Sit-to-stand, 2 × 10</p>
+                  <dl>
+                    <div><dt>Quality</dt><dd className="num">91<span>/100</span></dd></div>
+                    <div><dt>Knee bend</dt><dd className="num">88°</dd></div>
+                  </dl>
+                  <p className="lp-card-foot">Up from 81° last week</p>
+                </div>
+                <p className="lp-note small">the physio sees this the same day</p>
+              </div>
             </div>
+            <p className="lp-fine center">The points on the photo are our pose model&apos;s real output on this picture, not a drawing.</p>
           </div>
         </section>
-        <p className="lp-hero-note lp-wrap">The points on the photo are our pose model&apos;s real output on this picture.</p>
 
+        {/* ---------- numbers, as cards someone left on the table ---------- */}
         <section className="lp-stats" aria-label="In numbers">
           <dl className="lp-wrap lp-stats-grid">
-            <div>
+            <div className="lp-stat beige">
               <dt className="num">117,000+</dt>
               <dd>hip and knee replacements in Canada in one year (<a href="https://www.cihi.ca/en/cjrr-annual-report-hip-and-knee-replacements-in-canada-2021-2022" target="_blank" rel="noreferrer">CIHI, 2021–22</a>)</dd>
             </div>
-            <div>
+            <div className="lp-stat ink">
               <dt className="num">193 of 195</dt>
               <dd>squat reps marked by a physiotherapist were found by the live rep counter</dd>
             </div>
-            <div>
+            <div className="lp-stat sage">
               <dt className="num">0</dt>
               <dd>video frames leave the patient&apos;s phone. Only numbers are sent</dd>
             </div>
@@ -129,7 +176,7 @@ export default function Landing() {
                 <div className="lp-start-copy">
                   <h2 id="start-title">Start in iMessage</h2>
                   <p>Text Motiva like you would text a friend. The coach answers, sends your plan, and checks in every day at the time you pick.</p>
-                  <a href={textUs} className="lp-btn lp-btn-dark">Text Motiva <Icon name="arrow" size={18} /></a>
+                  <a href={textUs} className="lp-btn lp-btn-accent">Text Motiva <Icon name="arrow" size={18} /></a>
                   <p className="lp-start-address">or send a message to <b>{IMESSAGE}</b></p>
                 </div>
                 <div className="lp-start-qr">
@@ -141,10 +188,12 @@ export default function Landing() {
           </section>
         )}
 
+        {/* ---------- the problem ---------- */}
         <section className="lp-section" aria-labelledby="why-title">
-          <div className="lp-wrap lp-why">
+          <div className="lp-wrap lp-narrow">
             <div className="lp-head">
-              <h2 id="why-title">Most rehab happens at home, where nobody sees it</h2>
+              <p className="lp-eyebrow">The problem</p>
+              <h2 id="why-title">Most rehab happens at home, where <mark>nobody sees it</mark></h2>
               <p>
                 After a knee or hip replacement, patients do weeks of exercises on their own. The clinic hands them a
                 sheet of paper and finds out how it went at the next visit.
@@ -158,60 +207,73 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="lp-section lp-grey" id="how" aria-labelledby="how-title">
+        {/* ---------- how it works: three steps, in order ---------- */}
+        <section className="lp-section" id="how" aria-labelledby="how-title">
           <div className="lp-wrap">
             <div className="lp-head">
-              <h2 id="how-title">How it works</h2>
-              <p>The patient only ever taps one button.</p>
+              <p className="lp-eyebrow">How it works</p>
+              <h2 id="how-title">The patient only ever taps <mark>one button</mark></h2>
             </div>
             <ol className="lp-steps">
               <li className="lp-step">
-                <div className="lp-step-media">
-                  <Image src="/photos/physio-session.webp" alt="An older man exercising with his physiotherapist beside him." fill sizes="(min-width: 900px) 30vw, 100vw" />
-                </div>
-                <div className="lp-step-text">
-                  <span className="lp-step-n">1</span>
-                  <h3>The physio picks the exercises</h3>
-                  <p>Sets, reps and days per week. The plan goes out as a chat message with a Start button.</p>
-                </div>
+                <Stamp
+                  src="/photos/physio-session.webp"
+                  alt="An older man exercising with his physiotherapist beside him."
+                  tag="sets, reps, days"
+                  ratio="3 / 2"
+                  sizes="(min-width: 900px) 30vw, 100vw"
+                  n={1}
+                />
+                <h3>The physio picks the exercises</h3>
+                <p>Sets, reps and days per week. The plan goes out as a chat message with a Start button.</p>
               </li>
               <li className="lp-step">
-                <div className="lp-step-media">
-                  <Image src="/photos/home-stretch.webp" alt="An older man stretching on a mat in his living room." fill sizes="(min-width: 900px) 30vw, 100vw" />
-                </div>
-                <div className="lp-step-text">
-                  <span className="lp-step-n">2</span>
-                  <h3>The phone coaches every rep</h3>
-                  <p>The camera counts out loud, scores each rep and says what to fix, like a physio in the room.</p>
-                </div>
+                <Stamp
+                  src="/photos/home-stretch.webp"
+                  alt="An older man stretching on a mat in his living room."
+                  tag="no app, no password"
+                  ratio="3 / 2"
+                  sizes="(min-width: 900px) 30vw, 100vw"
+                  n={2}
+                />
+                <h3>The phone coaches every rep</h3>
+                <p>The camera counts out loud, scores each rep and says what to fix, like a physio in the room.</p>
               </li>
               <li className="lp-step">
-                <div className="lp-step-media lp-step-ui" aria-hidden>
-                  <div className="lp-board">
-                    <div className="lp-board-head"><span>Patient</span><span>This week</span><span>Knee</span></div>
-                    {PATIENTS.map((p) => (
-                      <div key={p.name} className="lp-board-row">
-                        <span className="lp-board-name">{p.name}<i className={p.tone}>{p.status}</i></span>
-                        <span className="lp-days">{[0, 1, 2, 3, 4].map((d) => <i key={d} className={d < p.days ? "on" : ""} />)}</span>
-                        <span className="num">{p.bend}</span>
-                      </div>
-                    ))}
+                <figure className="lp-stamp lp-window-wrap">
+                  <div className="lp-window" aria-hidden>
+                    <div className="lp-window-bar"><i /><i /><i /><span>motiva-health.vercel.app/doctor</span></div>
+                    <div className="lp-board">
+                      {PATIENTS.map((p) => (
+                        <div key={p.name} className="lp-board-row">
+                          <span className={`lp-ava ${p.tone}`}>{p.name.split(" ").map((w) => w[0]).join("")}</span>
+                          <span className="lp-board-name">{p.name}<small>{p.status}</small></span>
+                          <span className="lp-days">{[0, 1, 2, 3, 4].map((d) => <i key={d} className={d < p.days ? "on" : ""} />)}</span>
+                          <span className="num">{p.bend}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="lp-step-text">
-                  <span className="lp-step-n">3</span>
-                  <h3>The physio sees who needs help</h3>
-                  <p>Results arrive seconds after a session. Pain reports and stalled progress go to the top of the list.</p>
-                </div>
+                  <span className="lp-stamp-n" aria-hidden>3</span>
+                  <figcaption className="lp-tag">who needs help first</figcaption>
+                </figure>
+                <h3>The physio sees who needs help</h3>
+                <p>Results arrive seconds after a session. Pain reports and stalled progress go to the top of the list.</p>
               </li>
             </ol>
           </div>
         </section>
 
+        {/* ---------- the chat ---------- */}
         <section className="lp-section" aria-labelledby="chat-title">
           <div className="lp-wrap lp-split">
-            <div className="lp-photo">
-              <Image src="/photos/phone-at-home.webp" alt="A smiling older man on his sofa, holding a mug and reading his phone." fill sizes="(min-width: 900px) 46vw, 100vw" />
+            <div className="lp-chat-photo">
+              <Stamp
+                src="/photos/phone-at-home.webp"
+                alt="A smiling older man on his sofa, holding a mug and reading his phone."
+                ratio="4 / 3"
+                sizes="(min-width: 900px) 46vw, 100vw"
+              />
               <div className="lp-bubbles" aria-hidden>
                 <p className="in">Can I do it after dinner instead?</p>
                 <p className="out"><small>AI coach</small>After dinner works well. The best time is the one you will keep, and you are on a 4-day streak.</p>
@@ -219,6 +281,7 @@ export default function Landing() {
             </div>
             <div>
               <div className="lp-head left">
+                <p className="lp-eyebrow">In the chat</p>
                 <h2 id="chat-title">The coach lives in the chat</h2>
                 <p>Patients already know how to use it. No new app, no account.</p>
               </div>
@@ -232,11 +295,13 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="lp-section lp-grey" id="exercises" aria-labelledby="ex-title">
+        {/* ---------- exercises ---------- */}
+        <section className="lp-section" id="exercises" aria-labelledby="ex-title">
           <div className="lp-wrap lp-narrow">
             <div className="lp-head">
-              <h2 id="ex-title">Three exercises in the camera demo</h2>
-              <p>Each one has its own rules for what counts as a rep, which angle to measure and which mistakes to call out.</p>
+              <p className="lp-eyebrow">The camera demo</p>
+              <h2 id="ex-title">Three exercises, each with <mark>its own rules</mark></h2>
+              <p>What counts as a rep, which angle to measure and which mistakes to call out.</p>
             </div>
             <ul className="lp-ex">
               {EXERCISES.map((e) => (
@@ -247,7 +312,7 @@ export default function Landing() {
                     <p className="lp-ex-names">Calls out: {e.names.toLowerCase()}</p>
                   </div>
                   <div className="lp-ex-score">
-                    <b className="num">{e.score ?? "Rules"}</b>
+                    <b className="num">{e.score}</b>
                     <span>{e.basis}</span>
                   </div>
                 </li>
@@ -257,10 +322,12 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ---------- evidence ---------- */}
         <section className="lp-section" id="evidence" aria-labelledby="ev-title">
           <div className="lp-wrap lp-split lp-split-text">
             <div className="lp-head left">
-              <h2 id="ev-title">Tested on people the model never saw</h2>
+              <p className="lp-eyebrow">Evidence</p>
+              <h2 id="ev-title">Tested on people the model <mark>never saw</mark></h2>
               <p>
                 Each model is trained on everyone except one person, then tested on that person, once for every person.
                 A real patient is always someone new, so this is the test that matters.
@@ -286,10 +353,12 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="lp-section lp-grey" aria-labelledby="privacy-title">
+        {/* ---------- privacy ---------- */}
+        <section className="lp-section" aria-labelledby="privacy-title">
           <div className="lp-wrap">
             <div className="lp-head">
-              <h2 id="privacy-title">The video never leaves the phone</h2>
+              <p className="lp-eyebrow">Privacy</p>
+              <h2 id="privacy-title">The video <mark>never leaves</mark> the phone</h2>
               <p>Pose tracking and scoring run in the patient&apos;s browser. Only numbers travel.</p>
             </div>
             <ol className="lp-flow">
@@ -301,15 +370,17 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ---------- safety ---------- */}
         <section className="lp-section" id="safety" aria-labelledby="safety-title">
           <div className="lp-wrap">
             <div className="lp-head">
-              <h2 id="safety-title">Safety comes first</h2>
+              <p className="lp-eyebrow">Safety</p>
+              <h2 id="safety-title">Safety comes <mark>first</mark></h2>
               <p>A model scores the reps, fixed rules handle safety, and the AI only writes messages.</p>
             </div>
             <ul className="lp-safety">
               <li className="pain">
-                <h3>Pain stops everything</h3>
+                <h3>Pain stops the plan</h3>
                 <p>&quot;Sharp pain, 8 out of 10&quot;, chest pain, a swollen calf or a fall: the patient is asked to stop, the physio gets an alert, and the reply points to Health811 or 911.</p>
               </li>
               <li>
@@ -324,17 +395,17 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ---------- closing ---------- */}
         <section className="lp-section lp-cta-section" aria-labelledby="cta-title">
           <div className="lp-wrap">
             <div className="lp-cta">
+              <Sparkle className="lp-cta-spark" />
               <div className="lp-cta-copy">
-                <h2 id="cta-title">See the physio&apos;s side</h2>
+                <h2 id="cta-title">See the <mark>physio&apos;s side</mark></h2>
                 <p>Patients, plans, live sessions and the chat thread. Simulated patients are labelled.</p>
-                <Link href="/doctor" className="lp-btn lp-btn-white">Open the physio dashboard <Icon name="arrow" size={18} /></Link>
+                <Link href="/doctor" className="lp-btn lp-btn-marker">Open the physio dashboard <Icon name="arrow" size={18} /></Link>
               </div>
-              <div className="lp-cta-photo">
-                <Image src="/photos/arm-raise.webp" alt="An older couple raising their arms to the side in their living room." fill sizes="(min-width: 900px) 34vw, 100vw" />
-              </div>
+              <span className="lp-sun cta" aria-hidden />
             </div>
           </div>
         </section>
@@ -343,7 +414,7 @@ export default function Landing() {
       <footer className="lp-footer">
         <div className="lp-wrap lp-footer-grid">
           <div>
-            <span className="lp-brand"><Logo size={24} /></span>
+            <span className="lp-brand"><Logo size={26} /></span>
             <p>Home rehab, coached by the phone camera. Built at YHacks 2026.</p>
             <p className="lp-fine">A prototype, not a medical device. In an emergency, call 911.</p>
           </div>
