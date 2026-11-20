@@ -71,8 +71,12 @@ case "${1:-status}" in
       done
       echo
       if [ -z "$URL" ]; then echo "No tunnel address after 40 s (see $TLOG): only this laptop will use fast voice."; exit 0; fi
-      # The address answers a few seconds after it is printed.
-      for _ in $(seq 1 30); do [ "$(curl -s -o /dev/null -w '%{http_code}' -m 4 "$URL/api/tts")" = 204 ] && break; sleep 1; done
+      # The address answers some seconds after it is printed. Wait first: asking too early makes this computer
+      # remember "no such address" for a minute. Then make sure it really answers before telling the site.
+      sleep 8
+      ok=""
+      for _ in $(seq 1 45); do [ "$(curl -s -o /dev/null -w '%{http_code}' -m 4 "$URL/api/tts")" = 204 ] && { ok=1; break; }; sleep 2; done
+      if [ -z "$ok" ]; then echo "The tunnel address never answered (see $TLOG): only this laptop will use fast voice."; stop_one "$TPID"; exit 0; fi
       # Keep telling the site while the helper and the tunnel live; say goodbye when either stops.
       nohup bash -c "
         while kill -0 $(cat "$PIDFILE") 2>/dev/null && kill -0 $(cat "$TPID") 2>/dev/null; do
