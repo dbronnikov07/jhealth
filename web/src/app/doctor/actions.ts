@@ -1,6 +1,6 @@
 "use server";
 // Everything the doctor can change. Each function runs on the server only.
-import { refresh } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { assertUuid, requireDoctor } from "@/lib/auth";
@@ -19,7 +19,9 @@ export async function createPatient(_prev: FormState, form: FormData): Promise<F
   const demo = form.get("demo") === "on";
   const condition = String(form.get("condition") ?? "").trim().slice(0, 120);
   const side = String(form.get("side") ?? "");
-  const values = { name, phone: typed, condition, side, demo: demo ? "on" : "" };
+  const emergencyName = String(form.get("emergency_name") ?? "").trim().slice(0, 80);
+  const emergencyTyped = String(form.get("emergency_phone") ?? "").slice(0, 40);
+  const values = { name, phone: typed, condition, side, demo: demo ? "on" : "", emergency_name: emergencyName, emergency_phone: emergencyTyped };
   if (!name) return { error: "Enter the patient's name.", values };
   const db = await getDb();
   let phone = normalizePhone(typed);
@@ -31,13 +33,17 @@ export async function createPatient(_prev: FormState, form: FormData): Promise<F
   }
   if (!phone) return { error: "Enter the phone number with country code, for example +1 416 555 0123.", values };
   if (!condition) return { error: "Choose the condition.", values };
+  const emergencyPhone = emergencyTyped.trim() ? normalizePhone(emergencyTyped) : null;
+  if (emergencyTyped.trim() && !emergencyPhone) return { error: "Enter the emergency contact's number with country code, for example +1 416 555 0123.", values };
+  if (emergencyPhone && !emergencyName) return { error: "Enter the emergency contact's name, for example Mom.", values };
 
   let id: string;
   try {
     // No doctor_id: the database links the patient to the default doctor.
     const [row] = await db.query<{ id: string }>(
-      "insert into patients (display_name, phone, condition, side, channel) values ($1, $2, $3, $4, $5) returning id",
-      [name, phone, condition, ["left", "right", "both"].includes(side) ? side : null, demo ? "demo" : "whatsapp"],
+      "insert into patients (display_name, phone, condition, side, channel, emergency_name, emergency_phone) values ($1, $2, $3, $4, $5, $6, $7) returning id",
+      [name, phone, condition, ["left", "right", "both"].includes(side) ? side : null, demo ? "demo" : "whatsapp",
+        emergencyPhone ? emergencyName : null, emergencyPhone],
     );
     id = row.id;
   } catch (error) {
@@ -51,6 +57,23 @@ export async function createPatient(_prev: FormState, form: FormData): Promise<F
     return { error: pgMessage(error), values };
   }
   redirect(`/doctor/patients/${id}`);
+}
+
+/** The patient record's "Emergency contact" form. Both empty removes the contact. */
+export async function saveEmergencyContact(patientId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  await requireDoctor();
+  assertUuid(patientId);
+  const name = String(form.get("emergency_name") ?? "").trim().slice(0, 80);
+  const typed = String(form.get("emergency_phone") ?? "").slice(0, 40);
+  const values = { emergency_name: name, emergency_phone: typed };
+  const phone = typed.trim() ? normalizePhone(typed) : null;
+  if (typed.trim() && !phone) return { error: "Enter the number with country code, for example +1 416 555 0123.", values };
+  if (phone && !name) return { error: "Enter the contact's name, for example Mom.", values };
+  if (name && !phone) return { error: "Enter the contact's phone number.", values };
+  const db = await getDb();
+  await db.query("update patients set emergency_name = $2, emergency_phone = $3 where id = $1", [patientId, name || null, phone]);
+  revalidatePath(`/doctor/patients/${patientId}`);
+  return { error: null, values };
 }
 
 export async function savePlan(patientId: string, _prev: FormState, form: FormData): Promise<FormState> {

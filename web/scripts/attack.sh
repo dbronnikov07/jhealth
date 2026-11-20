@@ -22,6 +22,9 @@ post() { code "${OUT[@]}" -X POST -H 'Content-Type: application/json' --data-bin
 J_SESSION='{"token":"'$TB'","exercise_id":"squat"}'
 J_SESSION_SQL='{"token":"'"' or '1'='1"'","exercise_id":"x'"'"' ; drop table patients;--"}'
 J_PAIN='{"token":"'$TC'"}'
+J_ALERT='{"token":"'$TC'","kind":"fall","exercise":"squat"}'
+J_ALERT_SQL='{"token":"'"' or '1'='1"'","kind":"fall"}'
+J_ALERT_KIND='{"token":"'$TC'","kind":"call_police"}'
 J_DEMO_LIST='{"token":"'$TD'","action":"list"}'
 J_DEMO_SEND='{"token":"'$TD'","action":"send","text":"hi"}'
 J_DEMO_SQL='{"token":"'"' or '1'='1"'","action":"list"}'
@@ -58,6 +61,9 @@ check "session save, made-up token"       "404" "$(post /api/session "$J_SESSION
 check "session save, SQL injection"       "404|400" "$(post /api/session "$J_SESSION_SQL")"
 check "session save, oversized"           "413" "$(head -c 300000 /dev/zero | tr '\0' 'a' | curl -s -o /dev/null -m 60 -w '%{http_code}' "${OUT[@]}" -X POST -H 'Content-Type: application/json' -H 'Content-Length: 300000' --data-binary @- "$BASE/api/session")"
 check "pain button, made-up token"        "404" "$(post /api/session/pain "$J_PAIN")"
+check "fall alert, made-up token"         "404" "$(post /api/session/alert "$J_ALERT")"
+check "fall alert, SQL in the token"       "404" "$(post /api/session/alert "$J_ALERT_SQL")"
+check "fall alert, unknown kind"           "400|404" "$(post /api/session/alert "$J_ALERT_KIND")"
 
 echo "Demo phone"
 check "demo phone, made-up link"          "404" "$(code "${OUT[@]}" "$BASE/s/$TD/phone")"

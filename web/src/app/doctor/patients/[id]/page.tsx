@@ -16,6 +16,7 @@ import { whatsappConfig } from "@/lib/whatsapp/client";
 import { sessionUrl } from "@/lib/whatsapp/outbox";
 import { maskHandle } from "@/lib/imessage/format";
 import { addNote, resolveAlert, retryMessages } from "../../actions";
+import { EmergencyForm } from "./EmergencyForm";
 import { PlanForm } from "./PlanForm";
 
 const OUT_STATUS: Record<string, (connected: boolean) => string> = {
@@ -89,7 +90,11 @@ export default async function PatientPage({
               <span>iMessage <span className="num">{link.imessageHandle.includes("@") ? maskHandle(link.imessageHandle) : prettyPhone(link.imessageHandle)}</span></span>
             ) : patient.phone && <span>{channelName} <span className="num">{prettyPhone(patient.phone)}</span></span>}
             <span><span className="num">{patient.sessions_total}</span> sessions</span>
+            {link?.emergencyName && link.emergencyPhone && (
+              <span>Emergency: {link.emergencyName} <span className="num">{prettyPhone(link.emergencyPhone)}</span></span>
+            )}
           </p>
+          <EmergencyForm patientId={patient.id} name={link?.emergencyName ?? null} phone={link?.emergencyPhone ?? null} />
         </header>
         <div className={`banner ${patient.status}`}><strong>{patient.status_reason}</strong></div>
 

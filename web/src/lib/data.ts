@@ -155,11 +155,16 @@ export async function listMessages(patientId: string, limit = 8) {
 export async function patientLink(patientId: string) {
   await requireDoctor();
   const db = await getDb();
-  const [row] = await db.query<{ session_token: string; channel: "whatsapp" | "demo" | "imessage"; imessage_handle: string | null }>(
-    "select session_token, channel, imessage_handle from patients where id = $1",
+  const [row] = await db.query<{
+    session_token: string; channel: "whatsapp" | "demo" | "imessage"; imessage_handle: string | null;
+    emergency_name: string | null; emergency_phone: string | null;
+  }>(
+    "select session_token, channel, imessage_handle, emergency_name, emergency_phone from patients where id = $1",
     [patientId],
   );
-  return row ? { token: row.session_token, channel: row.channel, imessageHandle: row.imessage_handle } : null;
+  return row
+    ? { token: row.session_token, channel: row.channel, imessageHandle: row.imessage_handle, emergencyName: row.emergency_name, emergencyPhone: row.emergency_phone }
+    : null;
 }
 
 export async function openAlerts(patientId: string) {

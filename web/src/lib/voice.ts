@@ -18,18 +18,33 @@ export const COUNT_CLIPS = 30;
 /** Exercises with their own "Camera's ready. Let's do ..." line. */
 export const START_CLIPS = ["squat", "sit_to_stand", "arm_raise"];
 /** Set phrases that are not cues. */
-export const PHRASE_CLIPS = ["start", "halfway", "set_done", "all_done"];
+export const PHRASE_CLIPS = ["start", "halfway", "set_done", "all_done", "three_more", "two_more", "last_one", "idle"];
+/** Said while the patient gets into the picture. */
+export const SETUP_CLIPS = ["setup_find_you", "setup_step_back", "setup_step_back_arm", "setup_hold"];
+/** One of these follows every third good repetition, so the count does not sound like a machine. */
+export const MOTIVATION = ["m1", "m2", "m3", "m4", "m5"];
+/** A possible fall, a call for help, and what follows. */
+export const EMERGENCY_CLIPS = ["fall_check", "help_check", "ask_help", "tap_911", "tap_contact", "glad_ok", "told_physio", "pain_stop"];
 
 /**
- * What to say after repetition number `rep`: the count, then the cue if a rule objected, then where we are.
- * A person counting says "Seven", not "Nice. That's seven." twenty times in a row.
+ * What to say after repetition number `rep`: the count, then the cue if a rule objected, then one line about where we
+ * are: the set is done, "three more", "two more", "last one", halfway, or now and then some encouragement.
+ * A person counting says "Seven. Great form.", not "Nice. That's seven." twenty times in a row.
  */
-export function repClips(rep: number, fault: string | null, at: { halfway?: boolean; setDone?: boolean; allDone?: boolean } = {}): string[] {
+export function repClips(
+  rep: number,
+  fault: string | null,
+  at: { leftInSet?: number; halfway?: boolean; setDone?: boolean; allDone?: boolean } = {},
+): string[] {
   const clips = [`n${rep}`];
   if (fault) clips.push(fault);
   if (at.allDone) clips.push("all_done");
   else if (at.setDone) clips.push("set_done");
-  else if (at.halfway && !fault) clips.push("halfway");
+  else if (at.leftInSet === 1) clips.push("last_one");
+  else if (at.leftInSet === 2) clips.push("two_more");
+  else if (at.leftInSet === 3) clips.push("three_more");
+  else if (!fault && at.halfway) clips.push("halfway");
+  else if (!fault && rep % 3 === 0) clips.push(MOTIVATION[(rep / 3 - 1) % MOTIVATION.length]);
   return clips;
 }
 
@@ -37,7 +52,7 @@ export function repClips(rep: number, fault: string | null, at: { halfway?: bool
 export function sessionClips(exerciseId: string, target: number, cues: string[]): string[] {
   const numbers = Array.from({ length: Math.min(target, COUNT_CLIPS) }, (_, i) => `n${i + 1}`);
   const start = START_CLIPS.includes(exerciseId) ? [`start_${exerciseId}`] : [];
-  return [...numbers, ...cues, ...PHRASE_CLIPS, ...start];
+  return [...numbers, ...cues, ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, ...start];
 }
 
 // 0.05 s of silence: playing it inside the tap is what unlocks sound on phones. It is turned into a blob: address
@@ -56,6 +71,7 @@ let player: HTMLAudioElement | null = null;
 let unlocked = false;
 let queue: string[] = [];
 let busy = false;
+let lastEnded = 0;                              // when the last clip finished (performance.now)
 let turn = 0;                                   // guards against a late "play() was interrupted" from an older clip
 const loaded = new Map<string, string>();       // clip -> object URL, ready to play at once
 const requested = new Set<string>();
@@ -65,6 +81,7 @@ function audio(): HTMLAudioElement | null {
   if (!player) {
     player = new Audio();
     player.preload = "auto";
+    player.addEventListener("ended", () => { lastEnded = performance.now(); });
     player.addEventListener("ended", playNext);
     player.addEventListener("error", playNext);
   }
@@ -144,6 +161,15 @@ export function playVoice(clips: string[], when: "now" | "next" | "queue" = "que
     if (!busy || player?.paused || player?.ended) playNext();
   }
   return true;
+}
+
+/**
+ * Is the coach speaking, or did it just stop? The microphone ignores what it hears then, so the coach's own words
+ * ("Should I call 911?") are never taken for the patient's.
+ */
+export function voiceBusy(): boolean {
+  const synth = typeof window !== "undefined" && window.speechSynthesis?.speaking;
+  return busy || !!synth || performance.now() - lastEnded < 900;
 }
 
 export function stopVoice(): void {

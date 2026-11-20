@@ -50,6 +50,27 @@
   "start_arm_raise": "Camera's ready. Let's do the arm raise, out to the side. Take your time.",
   "halfway": "Halfway there.",
   "set_done": "That's the set. Take a breather, then carry on.",
-  "all_done": "Nice work. That's all of them."
+  "all_done": "Nice work. That's all of them.",
+  "three_more": "Three more.",
+  "two_more": "Two more.",
+  "last_one": "Last one!",
+  "idle": "Whenever you're ready.",
+  "m1": "Nice and smooth.",
+  "m2": "Great form.",
+  "m3": "Keep it up.",
+  "m4": "You've got this.",
+  "m5": "Looking strong.",
+  "setup_find_you": "I can't see you yet. Stand in front of the camera.",
+  "setup_step_back": "Step back a little, so I can see all of you, feet too.",
+  "setup_step_back_arm": "Step back a little, so I can see your arms and your hips.",
+  "setup_hold": "That's it. Hold still for a second.",
+  "fall_check": "Are you okay? It looks like you went down.",
+  "help_check": "I'm here. Are you okay?",
+  "ask_help": "Tell me you're okay, or tap a button. I can call nine one one, or your emergency contact.",
+  "tap_911": "Tap the red button to call nine one one.",
+  "tap_contact": "Tap the button to call your emergency contact.",
+  "glad_ok": "Glad you're okay. Take your time, then carry on.",
+  "told_physio": "I've let your physiotherapist know.",
+  "pain_stop": "Let's stop here. I've told your physiotherapist."
  }
 }

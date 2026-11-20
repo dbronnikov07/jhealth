@@ -38,6 +38,12 @@ export const RED_FLAG_REPLY =
   "Otherwise call Health811 (dial 811) or go to the nearest emergency department.\n" +
   "I have told your physiotherapist.";
 
+/** Sent to the chat after a possible fall or a spoken call for help during a camera session. */
+export const FALL_REPLY =
+  "Your exercise session noticed what looked like a fall, or you asked for help.\n" +
+  "If you are hurt or cannot get up, call 911 now.\n" +
+  "I have told your physiotherapist.";
+
 export const HIGH_PAIN_REPLY =
   "Thank you for telling me. Please stop today's exercises.\n" +
   "I have told your physiotherapist so they can contact you.\n" +

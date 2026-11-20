@@ -53,6 +53,15 @@ export function NewPatientForm() {
           <option value="both">Both</option>
         </select>
       </label>
+      <label className="field">
+        Emergency contact (optional)
+        <input type="text" name="emergency_name" autoComplete="off" maxLength={80} placeholder="For example: Mom, or Anna Lee" defaultValue={v.emergency_name} />
+      </label>
+      <label className="field">
+        Emergency contact&apos;s phone (optional)
+        <input type="tel" name="emergency_phone" autoComplete="off" placeholder="+1 416 555 0123" defaultValue={v.emergency_phone} />
+        <span className="hint">If the camera sees a possible fall, or the patient asks for help, their screen offers to call this person.</span>
+      </label>
       {state.error && <p className="error" role="alert">{state.error}</p>}
       <div className="row form-actions">
         <button className="btn primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Add patient"}</button>

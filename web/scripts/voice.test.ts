@@ -4,12 +4,16 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { test } from "node:test";
 import { CUE } from "../src/lib/pose/exercises.ts";
-import { COUNT_CLIPS, PHRASE_CLIPS, START_CLIPS, repClips, sessionClips } from "../src/lib/voice.ts";
+import { COUNT_CLIPS, EMERGENCY_CLIPS, MOTIVATION, PHRASE_CLIPS, SETUP_CLIPS, START_CLIPS, repClips, sessionClips } from "../src/lib/voice.ts";
 
 const VOICE = new URL("../public/voice/", import.meta.url);
 
 test("after a repetition the coach counts, then names a mistake, then says where we are", () => {
-  assert.deepEqual(repClips(3, null), ["n3"]);                                          // a good rep: just the count
+  assert.deepEqual(repClips(2, null), ["n2"]);                                          // a good rep: just the count
+  assert.deepEqual(repClips(3, null), ["n3", "m1"]);                                    // every third: some encouragement
+  assert.deepEqual(repClips(6, null), ["n6", "m2"]);
+  assert.deepEqual(repClips(7, null, { leftInSet: 3 }), ["n7", "three_more"]);
+  assert.deepEqual(repClips(9, "too_fast", { leftInSet: 1 }), ["n9", "too_fast", "last_one"]);
   assert.deepEqual(repClips(4, "not_deep"), ["n4", "not_deep"]);
   assert.deepEqual(repClips(5, null, { halfway: true }), ["n5", "halfway"]);
   assert.deepEqual(repClips(5, "too_fast", { halfway: true }), ["n5", "too_fast"]);     // the cue matters more
@@ -19,7 +23,7 @@ test("after a repetition the coach counts, then names a mistake, then says where
 
 test("a session asks only for clips that exist", () => {
   const cues = Object.keys(CUE);
-  assert.deepEqual(sessionClips("squat", 3, []), ["n1", "n2", "n3", ...PHRASE_CLIPS, "start_squat"]);
+  assert.deepEqual(sessionClips("squat", 3, []), ["n1", "n2", "n3", ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, "start_squat"]);
   assert.ok(!sessionClips("seated_knee_extension", 3, []).some((c) => c.startsWith("start_")));   // no own line: generic "start"
   assert.equal(sessionClips("squat", 99, []).filter((c) => /^n\d+$/.test(c)).length, COUNT_CLIPS);
   const every = [...sessionClips("squat", COUNT_CLIPS, cues), ...START_CLIPS.map((id) => `start_${id}`)];

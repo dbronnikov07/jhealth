@@ -5,7 +5,7 @@
 // At the end:     only the numbers are sent to /api/session.
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { CUE, profileFor, ruleQuality, withModelFlag, type Fault } from "@/lib/pose/exercises";
+import { CUE, profileFor, ruleQuality, trunkLean, withModelFlag, type Fault } from "@/lib/pose/exercises";
 import { repFeatures, type Frame, type Vec } from "@/lib/pose/features";
 import { ANALYSIS_INTERVAL_MS, cameraConstraints, isPhoneDevice, poseSetupIssue } from "@/lib/pose/camera";
 import { bentElbowNow, focusSide, fpsOf, LIVE_GOALS, liveCoach, type LiveState, type LiveTone } from "@/lib/pose/live";
@@ -13,7 +13,9 @@ import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
-import { playVoice, preloadVoice, repClips, sessionClips, stopVoice, voiceReady } from "@/lib/voice";
+import { playVoice, preloadVoice, repClips, sessionClips, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
+import { matchCommand, onHeard, stopListening, watchListening } from "@/lib/listen";
+import { FallWatch } from "@/lib/pose/fall";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
 export type SessionSummary = { reps: number; quality: number | null; knee_bend: number | null; previous_knee_bend: number | null };
@@ -29,7 +31,12 @@ type Props = {
   step?: boolean;                 // with a video file: process it frame by frame (15 per video second), not in real time
   onDone: (summary: SessionSummary | null) => void;
   onPain: (message: string) => void;
+  /** Who the "Call" button rings after a possible fall or a call for help (set by the physiotherapist), if anyone. */
+  emergency?: { name: string; phone: string } | null;
 };
+
+/** The "Are you okay?" screen: why it opened, and which call the patient asked for out loud. */
+type Emergency = { reason: "fall" | "help"; asked: "none" | "911" | "contact" };
 
 type Status = "loading" | "running" | "paused" | "saving" | "error";
 
@@ -77,6 +84,10 @@ export function CameraSession(p: Props) {
   const [fps, setFps] = useState<number | null>(null);
   const [modelNote, setModelNote] = useState<string | null>(null);
   const [setupIssue, setSetupIssue] = useState<string | null>("Checking that the camera can see the joints needed for this exercise…");
+  const [emergency, setEmergency] = useState<Emergency | null>(null);
+  const [listening, setListening] = useState(false);
+  const okayRef = useRef<() => void>(() => {});
+  const hurtsRef = useRef<() => void>(() => {});
   const target = p.sets * p.reps;
 
   useEffect(() => {
@@ -115,6 +126,82 @@ export function CameraSession(p: Props) {
     let lastBanner = "";
     let lastFps = 0;
     const frameClock: number[] = [];
+    // Talking the patient into the picture: what the camera check shows on screen is also said out loud, once when it
+    // changes and again every 9 s while it stays the same, so a patient standing 2 m away hears what to do.
+    const SETUP_TEXT = {
+      setup_find_you: "I can't see you yet. Stand in front of the camera.",
+      setup_step_back: "Step back a little, so I can see all of you, feet too.",
+      setup_step_back_arm: "Step back a little, so I can see your arms and your hips.",
+      setup_hold: "That's it. Hold still for a second.",
+    };
+    let setupSaid = { clip: "", at: 0 };
+    let playingSince = 0;
+    const coachSetup = (clip: keyof typeof SETUP_TEXT) => {
+      const now = performance.now();
+      if (!playingSince || now - playingSince < 2500) return;       // the camera is still waking up
+      const again = clip !== "setup_hold" && now - setupSaid.at > 9000;
+      if (clip === setupSaid.clip && !again) return;
+      setupSaid = { clip, at: now };
+      say([clip], SETUP_TEXT[clip], "next");
+    };
+    // ---- Emergency: a possible fall, or "help" / "call 911" out loud. Counting stops, the screen asks
+    // "Are you okay?" with buttons to call 911 or the emergency contact, the coach asks out loud, and the
+    // physiotherapist gets an alert. Nothing calls anyone by itself: the patient answers or taps.
+    const fallWatch = new FallWatch();
+    let emergencyOn = false;
+    let emergencyTimer = 0;
+    const raiseEmergency = (reason: "fall" | "help", asked: Emergency["asked"] = "none") => {
+      if (!emergencyOn) {
+        emergencyOn = true;
+        const first = reason === "fall" ? ["fall_check", "ask_help"] : ["help_check", "ask_help"];
+        const text = reason === "fall" ? "Are you okay? It looks like you went down." : "I'm here. Are you okay?";
+        say(first, `${text} Tell me you're okay, or tap a button. I can call 911, or your emergency contact.`, "now");
+        fetch("/api/session/alert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: p.token, kind: reason, exercise: p.exerciseName }),
+        }).catch(() => {});
+        // No answer: say that the physiotherapist knows, and ask again, every 25 s.
+        const again = () => {
+          if (!emergencyOn) return;
+          say(["told_physio", "ask_help"], "I've let your physiotherapist know. Tell me you're okay, or tap a button.", "queue");
+          emergencyTimer = window.setTimeout(again, 25000);
+        };
+        emergencyTimer = window.setTimeout(again, 25000);
+      }
+      if (asked === "911") say(["tap_911"], "Tap the red button to call 911.", "now");
+      if (asked === "contact") say(["tap_contact"], "Tap the button to call your emergency contact.", "now");
+      setEmergency((e) => ({ reason: e?.reason ?? reason, asked: asked !== "none" ? asked : e?.asked ?? "none" }));
+    };
+    okayRef.current = () => {
+      if (!emergencyOn) return;
+      emergencyOn = false;
+      window.clearTimeout(emergencyTimer);
+      setEmergency(null);
+      counter.resetAfterTrackingGap();
+      stableFrames = 0;
+      say(["glad_ok"], "Glad you're okay. Take your time, then carry on.", "now");
+    };
+    // What the microphone hears. Ignored while the coach is talking, and the same command twice within 4 s counts once.
+    let lastCommand = { what: "", at: 0 };
+    onHeard((heard) => {
+      if (finished || cancelled || voiceBusy()) return;
+      const command = matchCommand(heard, p.emergency?.name ?? null);
+      if (!command) return;
+      const now = performance.now();
+      if (command === lastCommand.what && now - lastCommand.at < 4000) return;
+      lastCommand = { what: command, at: now };
+      if (command === "help") raiseEmergency("help");
+      else if (command === "call_911") raiseEmergency("help", "911");
+      else if (command === "call_contact") raiseEmergency("help", p.emergency ? "contact" : "911");
+      else if (command === "okay") okayRef.current();
+      else if (command === "pain") hurtsRef.current();
+    });
+    const unwatchListening = watchListening(setListening);
+
+    // A patient who stands ready but does not start hears "Whenever you're ready" now and then (at most 3 times).
+    let lastProgressAt = 0;
+    let idleNudges = 0;
     const showBanner = (next: { text: string; tone: LiveTone } | null) => {
       const key = next ? `${next.tone}:${next.text}` : "";
       if (key === lastBanner) return;
@@ -341,6 +428,9 @@ export function CameraSession(p: Props) {
           };
           const world = result.worldLandmarks?.[0];
           if (!world) {
+            if (fallWatch.missing(t)) raiseEmergency("fall");
+            if (emergencyOn) { draw(undefined, connections, null); return; }
+            coachSetup("setup_find_you");
             if (missingSince < 0) missingSince = performance.now();
             if (delegate === "GPU" && probes < 3 && performance.now() - missingSince > 4000) void probeCpu(ts);
             draw(undefined, connections, null);
@@ -351,8 +441,13 @@ export function CameraSession(p: Props) {
           }
           missingSince = -1;
           const screen = result.landmarks?.[0];
+          // A possible fall is checked before the camera check: someone on the floor is rarely fully in the picture.
+          const hipY = screen && screen.length > 24 ? (screen[23].y + screen[24].y) / 2 : null;
+          if (fallWatch.seen(t, trunkLean(world.map((l) => [l.x, l.y, l.z] as Vec)), hipY)) raiseEmergency("fall");
+          if (emergencyOn) { draw(screen, connections, null); return; }
           const issue = poseSetupIssue(p.exerciseId, screen);
           if (issue) {
+            coachSetup(p.exerciseId === "arm_raise" ? "setup_step_back_arm" : "setup_step_back");
             draw(screen, connections, null);
             stableFrames = 0;
             needsCounterReset = true;
@@ -364,6 +459,7 @@ export function CameraSession(p: Props) {
           // a false repetition on either an iPhone or a laptop webcam.
           stableFrames++;
           if (stableFrames <= 8) {
+            coachSetup("setup_hold");
             draw(screen, connections, null);
             showSetupIssue("Hold still for a moment — camera check in progress.");
             return;
@@ -375,6 +471,7 @@ export function CameraSession(p: Props) {
           showSetupIssue(null);
           if (!startSpoken) {
             startSpoken = true;
+            lastProgressAt = performance.now();
             const own = `start_${p.exerciseId}`;
             say([voiceReady([own]) ? own : "start"], `Camera's ready. We'll do ${p.exerciseName}: ${target} repetitions. Take your time.`);
           }
@@ -417,6 +514,12 @@ export function CameraSession(p: Props) {
           }
 
           const rep = counter.push(t, signal);
+          if (counter.isDown) lastProgressAt = performance.now();
+          else if (!rep && lastProgressAt && performance.now() - lastProgressAt > 20000 && idleNudges < 3) {
+            idleNudges++;
+            lastProgressAt = performance.now();
+            say(["idle"], "Whenever you're ready.");
+          }
           if (process.env.NODE_ENV !== "production") {
             // Development only: lets tests and the browser console see what the tracker is doing.
             (window as unknown as { __jhealth?: object }).__jhealth = {
@@ -458,13 +561,15 @@ export function CameraSession(p: Props) {
           cueSpokenThisRep = false;
 
           const n = repResults.length;
+          lastProgressAt = performance.now();
+          idleNudges = 0;
           // The live warning was already said during the repetition; do not repeat it after the count.
           const named = fault && fault !== profile.liveWarningFault ? fault : null;
           const allDone = n >= target;
           const setDone = !allDone && n % p.reps === 0;
           const spoken = repSpokenText(n, named, named ? CUE[named] : null);
           say(
-            repClips(n, named, { allDone, setDone, halfway: target >= 8 && n * 2 === target }),
+            repClips(n, named, { allDone, setDone, leftInSet: p.reps - (((n - 1) % p.reps) + 1), halfway: target >= 8 && n * 2 === target }),
             allDone ? `${spoken} Nice work. That's all of them.`
               : setDone ? `${spoken} Set ${n / p.reps} is done. Take a breather, then continue.` : spoken,
             "next",       // a warning still being spoken finishes its sentence before the count
@@ -476,17 +581,19 @@ export function CameraSession(p: Props) {
           // Deterministic test mode: seek through the file at 15 frames per video second, whatever the browser's speed.
           await new Promise((r) => (video.readyState >= 1 ? r(null) : video.addEventListener("loadedmetadata", r, { once: true })));
           setStatus("running");
+          playingSince = performance.now();
           for (let t = 0; t < video.duration && !cancelled && !finished; t += 1 / 15) {
             video.currentTime = t;
             await new Promise((r) => video.addEventListener("seeked", r, { once: true }));
             if (cancelled || finished) break;
             processFrame(t, Math.round(t * 1000) + 1);
           }
-          if (!cancelled) finish("ended");
+          if (!cancelled && !emergencyOn) finish("ended");     // an open "Are you okay?" waits for its answer
           return;
         }
 
         await play();
+        playingSince = performance.now();
         if (cancelled) return stop();
         if (p.source) video.onended = () => finish("ended");
 
@@ -523,6 +630,10 @@ export function CameraSession(p: Props) {
       stop();
       stopVoice();
       window.speechSynthesis?.cancel();
+      window.clearTimeout(emergencyTimer);
+      onHeard(null);
+      stopListening();
+      unwatchListening();
     };
     // The session runs once per mount; its inputs do not change while it runs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -544,6 +655,7 @@ export function CameraSession(p: Props) {
     const data = res && res.ok ? await res.json() : null;
     p.onPain(data?.message ?? "Please stop exercising. If the pain is severe or comes with chest pain or trouble breathing, call 911.");
   };
+  hurtsRef.current = hurts;
 
   return (
     <section className="call" aria-label={`${p.exerciseName} camera session`}>
@@ -562,7 +674,7 @@ export function CameraSession(p: Props) {
           </div>
         )}
         <div className="hud top">
-          <span className="live"><i /> {status === "running" ? `33 body points${fps ? ` · ${fps} fps` : ""}` : status === "loading" ? "Starting camera…" : status === "paused" ? "Paused: come back to this page to continue" : status === "saving" ? "Saving…" : "Stopped"}</span>
+          <span className="live"><i /> {status === "running" ? `33 body points${fps ? ` · ${fps} fps` : ""}${listening ? " · listening" : ""}` : status === "loading" ? "Starting camera…" : status === "paused" ? "Paused: come back to this page to continue" : status === "saving" ? "Saving…" : "Stopped"}</span>
           <span className="count" aria-live="polite">{done}<small> / {target}</small></span>
         </div>
         {status === "running" && !setupIssue && banner && <div className={`cue ${banner.tone}`} role="status">{banner.text}</div>}
@@ -602,6 +714,29 @@ export function CameraSession(p: Props) {
         <button className="btn end" onClick={() => finishRef.current("ended")} disabled={status === "saving"}><Icon name="stop" /> End session</button>
         <button className="btn hurt" onClick={hurts}><Icon name="hand" /> It hurts</button>
       </div>
+      <p className="voice-hint faint small">
+        {listening
+          ? <>Say <b>&ldquo;help&rdquo;</b>, <b>&ldquo;call 911&rdquo;</b>{p.emergency ? <>, <b>&ldquo;call {p.emergency.name}&rdquo;</b></> : null} or <b>&ldquo;it hurts&rdquo;</b> at any time. Your browser&apos;s speech service turns what you say into text; the video stays on this device.</>
+          : <>If you fall, the camera asks if you are okay and offers to call for help.</>}
+      </p>
+      {emergency && (
+        <div className="emergency" role="alertdialog" aria-labelledby="emergency-title" aria-describedby="emergency-sub">
+          <div className="emergency-card">
+            <h2 id="emergency-title">Are you okay?</h2>
+            <p id="emergency-sub">
+              {emergency.reason === "fall" ? "It looks like you went down." : "You asked for help."} Your physiotherapist has been told.
+            </p>
+            <button className="btn ok" onClick={() => okayRef.current()}>I&apos;m okay</button>
+            <a className={`btn call-911${emergency.asked === "911" ? " asked" : ""}`} href="tel:911">Call 911</a>
+            {p.emergency && (
+              <a className={`btn call-contact${emergency.asked === "contact" ? " asked" : ""}`} href={`tel:${p.emergency.phone}`}>
+                Call {p.emergency.name}
+              </a>
+            )}
+            <p className="faint small">You can also say &ldquo;I&apos;m okay&rdquo;, &ldquo;call 911&rdquo;{p.emergency ? <> or &ldquo;call {p.emergency.name}&rdquo;</> : null}.</p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

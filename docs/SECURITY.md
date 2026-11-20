@@ -18,7 +18,7 @@ What protects patient data in jHealth, how it was tested, and what must be set b
 
 - **Database:** every rule is enforced by Postgres itself (constraints, one transaction per plan). Row level security is on for every table with no policies, so the public Supabase API key can read nothing; only the server's own connection can. All queries are parameterised (no SQL is built from user text). `npm run db:verify` runs 41 checks.
 - **No raw HTML:** React escapes all text and no page renders raw HTML. A note containing `<script>` and `<img onerror>` was saved and shown as plain text.
-- **Security headers on every page:** a Content-Security-Policy that allows scripts, models, fonts and media only from our own site; no embedding in other sites (clickjacking); no MIME sniffing; camera allowed only on our own pages, microphone and location never; HSTS in production; the framework is not advertised.
+- **Security headers on every page:** a Content-Security-Policy that allows scripts, models, fonts and media only from our own site; no embedding in other sites (clickjacking); no MIME sniffing; camera and microphone allowed only on our own pages (the microphone hears voice commands such as "help" and "call 911" during a camera session; the browser's speech service, Apple's or Google's, turns them into text, and only five commands do anything), location never; HSTS in production; the framework is not advertised.
 - **The AI coach:** the pain rule runs before it; its answers are checked by code; it cannot send links or email addresses (removed from every reply), give medicine advice, change a plan, or clear an alert.
 - **Secrets:** only in `web/.env.local`, which git ignores. None appear in the code sent to browsers (all 21 scripts scanned).
 - **Video never leaves the patient's device;** only counts, scores and angles are sent.
@@ -81,3 +81,9 @@ A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API
 - Vercel's Supabase integration also stores Supabase's service-role key in the project's settings. The app never uses it, but anyone who can read the Vercel project's secrets could; keep the Vercel account protected with two-factor sign-in.
 - Anyone who has a patient's WhatsApp link can open that patient's exercise page (as with any magic link); it shows the plan, never other patients.
 - Clinical wording (safety replies, AI rules) is a draft until a physiotherapist reviews it.
+
+## Emergency path (added 20 November 2026)
+
+- A possible fall (the camera sees someone who was upright end up lying down, or drop fast and vanish) or a spoken "help" / "call 911" opens an "Are you okay?" screen with buttons to call 911 and the patient's emergency contact. **Nothing calls anyone by itself:** the buttons are ordinary `tel:` links, so the phone asks before dialling.
+- `POST /api/session/alert` takes only a 64-character session token, a kind (`fall` or `help`) and the exercise name (letters and digits only, 60 characters), refuses bodies over 4 KB, and raises at most one red-flag alert per patient every two minutes. `scripts/attack.sh` checks a made-up token, SQL in the token and an unknown kind.
+- The emergency contact (name and number) is stored on the patient row, entered by the physiotherapist, and shown only on the patient's own session page, reached through their private link.

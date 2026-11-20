@@ -75,7 +75,7 @@ const kneesCaving = (f: Frame) => facingCamera(f) >= FACING_MIN && kneesInRatio(
 export const UPRIGHT_KNEE = 145;
 
 /** Trunk angle from vertical (degrees), forward/back and sideways together. */
-function trunkLean(f: Frame): number {
+export function trunkLean(f: Frame): number {
   const midSh: Vec = [(f[11][0] + f[12][0]) / 2, (f[11][1] + f[12][1]) / 2, (f[11][2] + f[12][2]) / 2];
   const midHip: Vec = [(f[23][0] + f[24][0]) / 2, (f[23][1] + f[24][1]) / 2, (f[23][2] + f[24][2]) / 2];
   const v: Vec = [midSh[0] - midHip[0], midSh[1] - midHip[1], midSh[2] - midHip[2]];

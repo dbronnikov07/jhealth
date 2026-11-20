@@ -39,8 +39,8 @@ export default async function SessionPage({
   const { token } = await params;
   if (!/^[0-9a-f]{64}$/.test(token)) notFound();
   const db = await getDb();
-  const [patient] = await db.query<{ id: string; first_name: string; channel: string }>(
-    "select id, split_part(trim(display_name), ' ', 1) as first_name, channel from patients where session_token = $1",
+  const [patient] = await db.query<{ id: string; first_name: string; channel: string; emergency_name: string | null; emergency_phone: string | null }>(
+    "select id, split_part(trim(display_name), ' ', 1) as first_name, channel, emergency_name, emergency_phone from patients where session_token = $1",
     [token],
   );
   if (!patient) notFound();
@@ -75,7 +75,10 @@ export default async function SessionPage({
       {items.length === 0 ? (
         <p className="empty-plan muted"><Icon name="clipboard" size={30} /><span>Your physiotherapist has not set up your exercises yet. You will get a message from the coach when they do.</span></p>
       ) : (
-        <SessionApp token={token} items={items} source={source} step={!!source && query.step === "1"} />
+        <SessionApp
+          token={token} items={items} source={source} step={!!source && query.step === "1"}
+          emergency={patient.emergency_name && patient.emergency_phone ? { name: patient.emergency_name, phone: patient.emergency_phone } : null}
+        />
       )}
       <div className="reassure">
         <p><Icon name="lock" /> <span>Your video never leaves your phone: only the counts and scores are sent to your physiotherapist.</span></p>

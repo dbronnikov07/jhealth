@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { CameraSession, type SessionSummary } from "./CameraSession";
 import { unlockVoice } from "@/lib/voice";
+import { startListening } from "@/lib/listen";
 
 export type PlanItem = {
   exercise_id: string;
@@ -15,7 +16,9 @@ export type PlanItem = {
   done_today: boolean;
 };
 
-export function SessionApp({ token, items, source, step = false }: { token: string; items: PlanItem[]; source: string | null; step?: boolean }) {
+export function SessionApp({ token, items, source, step = false, emergency = null }: {
+  token: string; items: PlanItem[]; source: string | null; step?: boolean; emergency?: { name: string; phone: string } | null;
+}) {
   const [active, setActive] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, string>>(
     Object.fromEntries(items.filter((i) => i.done_today).map((i) => [i.exercise_id, "Done today"])),
@@ -58,6 +61,7 @@ export function SessionApp({ token, items, source, step = false }: { token: stri
           setActive(null);
         }}
         onPain={setPain}
+        emergency={emergency}
       />
     );
   }
@@ -89,7 +93,7 @@ export function SessionApp({ token, items, source, step = false }: { token: stri
             {done[item.exercise_id] ? (
               <span className="done-badge"><Icon name="check" /> {done[item.exercise_id]}</span>
             ) : item.tracking === "camera" ? (
-              <button className="btn primary" onClick={() => { unlockVoice(); setActive(item.exercise_id); }}><Icon name="camera" /> Start with camera</button>
+              <button className="btn primary" onClick={() => { unlockVoice(); startListening(); setActive(item.exercise_id); }}><Icon name="camera" /> Start with camera</button>
             ) : (
               <button className="btn" onClick={() => markDone(item)} disabled={busy === item.exercise_id}>
                 {busy === item.exercise_id ? "Saving…" : <><Icon name="check" /> Mark done</>}
