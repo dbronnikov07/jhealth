@@ -51,6 +51,43 @@ export function setupQuestion(firstName: string | null, again = false): string {
 }
 
 export const SIDE_QUESTION = "Got it. Which side was it?";
+
+/** Where someone is in sign-up: we still need what they are recovering from, or (knee or hip) which side. */
+export type SignupStep = "condition" | "side";
+
+/** The sign-up question under the coach's answer when someone typed or spoke instead of tapping a button. */
+export function signupQuestion(step: SignupStep, condition: string): string {
+  if (step === "condition") return "To set you up, what are you recovering from?";
+  return `Which side was your ${/hip/i.test(condition) ? "hip" : "knee"} replacement?`;
+}
+
+/**
+ * What a typed or spoken sign-up message already tells us, so nobody has to tap a button for something they said
+ * ("I recently had my left knee replaced"). Only clear statements count: a knee or a hip AND a surgery word for the
+ * condition; for the side, "left knee", "the left one", "on the right", "both hips", or a short answer like "right"
+ * when we just asked which side. Anything unclear is left to the buttons.
+ */
+export function signupDetails(text: string, step: SignupStep): { condition?: string; side?: "left" | "right" | "both" } {
+  const t = text.toLowerCase().replace(/[’`]/g, "'");
+  const out: { condition?: string; side?: "left" | "right" | "both" } = {};
+  if (step === "condition") {
+    const knee = /\bknees?\b/.test(t);
+    const hip = /\bhips?\b/.test(t);
+    const surgery = /replac|surger|operat|arthroplast|\bt[kh][ar]\b|new (?:knee|hip)/.test(t);
+    if (knee !== hip && surgery) out.condition = CONDITIONS[knee ? "reg_knee" : "reg_hip"].condition;
+  }
+  const both = /\bboth (?:knees|hips|sides|legs)\b|\bbilateral\b/.test(t);
+  const named = t.match(/\b(left|right) (?:knee|hip|leg|side|one)\b|\bon (?:the|my) (left|right)\b/);
+  // Just asked "which side?": "left ...", "it was the left.", or a few words like "the right one". Not "right, so ...".
+  const s = t.trim();
+  const asked = step !== "side" ? null
+    : s.match(/^(left|both)\b/) ?? s.match(/\b(?:the|my) (left|right)(?=\s*[.,!?]|\s*$| and\b)/)
+      ?? (s.split(/\s+/).length <= 5 ? s.match(/^(?:the |my |it's |its |on the )?(left|right|both)\b/) : null);
+  const side = both ? "both" : (named?.[1] ?? named?.[2] ?? asked?.[1]) as "left" | "right" | "both" | undefined;
+  if (side && (out.condition || step === "side")) out.side = side;
+  return out;
+}
+
 export const TIME_QUESTION = "Last thing: when would you like your daily reminder?";
 
 export type StarterItem = { exercise_id: string; name: string; sets: number; reps: number };

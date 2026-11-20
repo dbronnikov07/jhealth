@@ -1,8 +1,8 @@
 // Handles what WhatsApp sends to our webhook: patients' messages and delivery receipts.
 import { getDb } from "../db";
 import {
-  CONDITION_BUTTONS, quickReplyAction, setupQuestion, SIDE_BUTTONS, SIDE_QUESTION, starterPlan, starterPlanText, TIME_BUTTONS,
-  TIME_QUESTION,
+  CONDITION_BUTTONS, quickReplyAction, setupQuestion, SIDE_BUTTONS, SIDE_QUESTION, signupDetails, starterPlan, starterPlanText,
+  TIME_BUTTONS, TIME_QUESTION, type SignupStep,
 } from "../quick-replies";
 import { assessMessage, HIGH_PAIN_REPLY } from "../safety";
 import { raiseSafetyAlert } from "../safety-actions";
@@ -241,18 +241,32 @@ export async function respondToMessage(db: Db, r: {
 
   // The pain rule (code, not a language model) decides first. A message it flags never reaches the AI coach.
   const safety = assessMessage(text);
+  let signup: SignupStep | null = null;
   if (safety) {
     await raiseSafetyAlert({ patientId: patient.id, ...safety, sourceMessageId: stored.id });
-  } else if (isNew || (await needsSetup(db, patient.id))) {
-    // Someone who found Motiva on their own (the website's WhatsApp button): sign them up in three taps.
-    const [p] = await db.query<{ first_name: string | null }>(
-      "select nullif(split_part(trim(display_name), ' ', 1), 'WhatsApp') as first_name from patients where id = $1",
-      [patient.id],
-    );
-    await db.query(
-      "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
-      [patient.id, setupQuestion(p?.first_name ?? null, !isNew), JSON.stringify({ type: "welcome", quick_replies: CONDITION_BUTTONS })],
-    );
+  } else if (isNew || (signup = await signupStep(db, patient.id))) {
+    // Someone who found Motiva on their own (the website's WhatsApp button): sign them up in three taps, or in
+    // conversation. What they typed or said is read first ("I had my left knee replaced" answers both questions).
+    const step: SignupStep = signup ?? "condition";
+    const found = signupDetails(text, step);
+    if (found.condition) await db.query("update patients set condition = $2 where id = $1", [patient.id, found.condition]);
+    if (found.side) await db.query("update patients set side = $2 where id = $1", [patient.id, found.side]);
+    // A plain hello (the website's ready-made "Hi Motiva! I'd like to start my home rehab.") gets the welcome at once.
+    if (isNew && !found.condition && text.length <= 60 && !text.includes("?")) {
+      const [p] = await db.query<{ first_name: string | null }>(
+        "select nullif(split_part(trim(display_name), ' ', 1), 'WhatsApp') as first_name from patients where id = $1",
+        [patient.id],
+      );
+      await db.query(
+        "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+        [patient.id, setupQuestion(p?.first_name ?? null), JSON.stringify({ type: "welcome", quick_replies: CONDITION_BUTTONS })],
+      );
+      return { stored: true, coachMessageId: null };
+    }
+    // Anything more (a question, their story, a voice note): the coach answers it, then asks what is still missing
+    // (lib/coach/signup.ts, run after the webhook has answered).
+    await db.query("update messages set payload = payload || '{\"signup\": true}'::jsonb where id = $1", [stored.id]);
+    return { stored: true, coachMessageId: stored.id };
   } else {
     // While a check-up proposal is waiting, words about when they can come ("mornings don't work, after three is
     // fine") are kept next to it for the clinic. The coach still answers the message.
@@ -268,22 +282,30 @@ export async function respondToMessage(db: Db, r: {
   return { stored: true, coachMessageId: null };
 }
 
-/** Signed up by themselves and not finished: no condition chosen yet and no plan from a physiotherapist. */
-async function needsSetup(db: Db, patientId: string): Promise<boolean> {
-  const [row] = await db.query<{ needs: boolean }>(
-    `select p.condition = 'Not assessed yet'
-            and not exists (select 1 from prescriptions r where r.patient_id = p.id and r.status = 'active') as needs
+/**
+ * Signed up by themselves and not finished, with no plan from a physiotherapist: no condition chosen yet, or a knee
+ * or hip chosen in sign-up and no side yet. Patients a physiotherapist added never get here (no welcome was sent).
+ */
+async function signupStep(db: Db, patientId: string): Promise<SignupStep | null> {
+  const [row] = await db.query<{ condition: string; side: string | null; has_plan: boolean; welcomed: boolean }>(
+    `select p.condition, p.side,
+            exists (select 1 from prescriptions r where r.patient_id = p.id and r.status = 'active') as has_plan,
+            exists (select 1 from messages w where w.patient_id = p.id and w.direction = 'out'
+                       and w.payload->>'type' in ('welcome', 'signup_side')) as welcomed
        from patients p where p.id = $1`,
     [patientId],
   );
-  return row?.needs === true;
+  if (!row || row.has_plan) return null;
+  if (row.condition === "Not assessed yet") return "condition";
+  if (row.welcomed && !row.side && /knee|hip/i.test(row.condition)) return "side";
+  return null;
 }
 
 /**
  * The end of sign-up: a gentle starter plan with the Start button, a note for the physiotherapist, then the reminder
  * time question. A plan the physiotherapist already set is never replaced.
  */
-async function sendStarterPlan(db: Db, patientId: string) {
+export async function sendStarterPlan(db: Db, patientId: string) {
   const [p] = await db.query<{ first_name: string; condition: string; has_plan: boolean }>(
     `select split_part(trim(display_name), ' ', 1) as first_name, condition,
             exists (select 1 from prescriptions r where r.patient_id = patients.id and r.status = 'active') as has_plan

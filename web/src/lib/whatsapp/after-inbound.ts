@@ -4,7 +4,7 @@
 // response (next/server `after`).
 import { coachReply } from "../coach/reply";
 import { getDb } from "../db";
-import { whatsappConfig } from "./client";
+import { showTyping, whatsappConfig } from "./client";
 import { respondToMessage, type VoiceNoteJob } from "./inbound";
 import { processOutbox } from "./outbox";
 import { MAX_VOICE_SECONDS, transcribeVoiceNote } from "./voice-note";
@@ -38,6 +38,16 @@ export async function deliverAndCoach(
   toCoach: { patientId: string; messageId: string }[],
   voiceNotes: VoiceNoteJob[] = [],
 ) {
+  // "typing…" in the patient's chat while the coach listens and thinks (replies that code sends at once need none).
+  const db = await getDb();
+  const cfg = whatsappConfig();
+  const typing = async (messageId: string) => {
+    if (!cfg) return;
+    const [m] = await db.query<{ provider_id: string | null }>("select provider_id from messages where id = $1", [messageId]);
+    await showTyping(cfg, m?.provider_id);
+  };
+  await Promise.all([...voiceNotes, ...toCoach].map((m) => typing(m.messageId)));
+
   for (const id of patients) await processOutbox(id);
   for (const v of voiceNotes) {
     try {
@@ -50,6 +60,7 @@ export async function deliverAndCoach(
   }
   for (const { patientId, messageId } of toCoach) {
     try {
+      await typing(messageId); // again: it lasts 25 seconds, and listening to a voice note takes some of that
       await coachReply(patientId, messageId);
     } catch (error) {
       console.error("[coach] failed:", error);

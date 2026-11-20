@@ -100,3 +100,42 @@ test("sign-up in three taps: condition, side, then a starter plan", async () => 
   assert.match(q.setupQuestion(null), /^Hi! I'm the Motiva coach/);
   assert.ok(q.setupQuestion("Dana").length <= 1024); // interactive message body limit
 });
+
+test("sign-up reads what people type or say instead of tapping", async () => {
+  const q = await import("../src/lib/quick-replies.ts");
+  const said = "Yes, so recently had a knee surgery, a knee replacement and I think someone told me to do like sit to stand. Just tell me about yourself";
+  assert.deepEqual(q.signupDetails(said, "condition"), { condition: "Total knee replacement" });
+  assert.deepEqual(q.signupDetails("I had my left knee replaced in October", "condition"), { condition: "Total knee replacement", side: "left" });
+  assert.deepEqual(q.signupDetails("hip replacement on the right", "condition"), { condition: "Total hip replacement", side: "right" });
+  assert.deepEqual(q.signupDetails("both hips were replaced", "condition"), { condition: "Total hip replacement", side: "both" });
+  // unclear: no surgery word, both joints, or just a question
+  assert.deepEqual(q.signupDetails("my knee hurts a bit", "condition"), {});
+  assert.deepEqual(q.signupDetails("knee and hip surgery", "condition"), {});
+  assert.deepEqual(q.signupDetails("Did u hear what I just said", "condition"), {});
+  // a side without a condition is not kept; "right" in "right now" is not a side
+  assert.deepEqual(q.signupDetails("left side", "condition"), {});
+  assert.deepEqual(q.signupDetails("Can I start right now with my knee replacement exercises?", "condition"), { condition: "Total knee replacement" });
+  // answering "which side?"
+  assert.deepEqual(q.signupDetails("the left one", "side"), { side: "left" });
+  assert.deepEqual(q.signupDetails("Right", "side"), { side: "right" });
+  assert.deepEqual(q.signupDetails("both", "side"), { side: "both" });
+  assert.deepEqual(q.signupDetails("the left one, and is my video recorded?", "side"), { side: "left" });
+  assert.deepEqual(q.signupDetails("It was the right. How does the camera count?", "side"), { side: "right" });
+  assert.deepEqual(q.signupDetails("is this the right place to ask about my plan?", "side"), {});
+  assert.deepEqual(q.signupDetails("right, so what happens next and how does the camera work?", "side"), {});
+  assert.equal(q.signupQuestion("side", "Total hip replacement"), "Which side was your hip replacement?");
+});
+
+test("the coach knows what Motiva is, in both chats", async () => {
+  const p = await import("../src/lib/coach/prompt.ts");
+  for (const prompt of [p.SYSTEM_PROMPT, p.SIGNUP_PROMPT]) {
+    assert.match(prompt, /ABOUT MOTIVA/);
+    assert.match(prompt, /video never leaves their phone/);
+  }
+  const [, user] = p.buildSignupMessages({
+    now: "Fri", firstName: "Dmitrii", firstContact: false, step: "side", condition: "Total knee replacement", side: null,
+    chat: [{ who: "coach", when: "Fri", text: "Hi" }], latest: "tell me about yourself",
+  });
+  assert.match(user.content, /total knee replacement\. We still need the side/);
+  assert.match(user.content, /LATEST MESSAGE FROM THEM: "tell me about yourself"/);
+});

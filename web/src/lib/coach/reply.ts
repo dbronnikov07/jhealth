@@ -7,6 +7,7 @@ import { getDb, type Db } from "../db";
 import { currentStreak } from "../engagement";
 import { adaptionConfig, AdaptionError, chatJson } from "./adaption";
 import { buildMessages, FALLBACK_REPLY, parseCoachOutput, REPLY_SCHEMA, type CoachContext } from "./prompt";
+import { signupReply, type SignupRun } from "./signup";
 
 const TZ = "America/Toronto";
 
@@ -119,10 +120,13 @@ export type CoachRun =
   | { status: "replied"; model: string; ms: number; startButton: boolean; memories: number; flagged: boolean }
   | { status: "fallback"; error: string };
 
-export async function coachReply(patientId: string, messageId: string): Promise<CoachRun> {
+export async function coachReply(patientId: string, messageId: string): Promise<CoachRun | SignupRun> {
+  const db = await getDb();
+  // Still signing up (lib/whatsapp/inbound.ts marked the message): answer it and ask what is missing.
+  const [marked] = await db.query<{ signup: boolean }>("select coalesce((payload->>'signup')::boolean, false) as signup from messages where id = $1", [messageId]);
+  if (marked?.signup) return signupReply(patientId, messageId, db);
   const cfg = adaptionConfig();
   if (!cfg) return { status: "skipped", reason: "not_configured" };
-  const db = await getDb();
   const loaded = await loadContext(db, patientId, messageId);
   if (!loaded) return { status: "skipped", reason: "newer_message" };
   const { ctx, memoryIds } = loaded;

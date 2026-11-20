@@ -65,7 +65,7 @@ export default function PrivacyPage() {
         <h2>What we do not collect</h2>
         <ul>
           <li><b>Camera video and pictures.</b> Body tracking runs in your browser, using model files from our own website. Only the numbers above are sent.</li>
-          <li><b>Voice recordings.</b> When the voice coach is listening, the sound of your speech is sent to our speech server, turned into text in memory, and not saved. During demonstrations that server can be a computer run by the Motiva team, reached through a Cloudflare tunnel; it works the same way.</li>
+          <li><b>Voice recordings.</b> When the voice coach is listening, the sound of your speech is sent to our speech server, turned into text in memory, and not saved. During demonstrations that server can be a computer run by the Motiva team, reached through a Cloudflare tunnel; it works the same way. A voice message you send on WhatsApp is handled like this too: we fetch it from WhatsApp, turn it into text and keep the text, not the recording.</li>
           <li><b>Tracking.</b> No analytics, no advertising, no third-party cookies. The physiotherapist&apos;s dashboard uses one sign-in cookie; your exercise page uses none.</li>
         </ul>
       </section>

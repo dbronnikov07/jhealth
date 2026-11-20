@@ -59,3 +59,26 @@ export async function sendToWhatsApp(cfg: WhatsAppConfig, payload: object): Prom
   }
   return data.messages[0].id;
 }
+
+/**
+ * Marks the patient's message as read (blue ticks) and shows "typing…" in their chat while the coach thinks. WhatsApp
+ * hides it when our reply arrives, or after 25 seconds. Meta's documented Cloud API call for exactly this, and only
+ * for a message the patient sent us. Best effort: a failure is logged and never holds up the reply.
+ */
+export async function showTyping(cfg: WhatsAppConfig, wamid: string | null | undefined): Promise<void> {
+  if (!wamid?.startsWith("wamid.")) return; // demo phone and iMessage messages are not WhatsApp's
+  try {
+    const response = await fetch(`${cfg.base}/${cfg.version}/${cfg.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", status: "read", message_id: wamid, typing_indicator: { type: "text" } }),
+      signal: AbortSignal.timeout(4_000),
+    });
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as { error?: { code?: number; message?: string } };
+      console.warn(`[whatsapp] typing indicator refused: ${data.error?.code ?? response.status} ${data.error?.message ?? ""}`.trim());
+    }
+  } catch (error) {
+    console.warn("[whatsapp] typing indicator failed:", error instanceof Error ? error.message : error);
+  }
+}
