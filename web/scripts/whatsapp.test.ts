@@ -81,3 +81,22 @@ test("reactions and system notices get no reply; text, buttons and media do", as
   for (const t of ["text", "button", "interactive", "image", "audio"]) assert.equal(isConversational(t), true, t);
   for (const t of ["reaction", "system", "unsupported", "request_welcome", undefined]) assert.equal(isConversational(t), false, String(t));
 });
+
+test("sign-up in three taps: condition, side, then a starter plan", async () => {
+  const q = await import("../src/lib/quick-replies.ts");
+  assert.deepEqual(q.quickReplyAction("reg_knee"), { kind: "set_condition", condition: "Total knee replacement", askSide: true });
+  assert.deepEqual(q.quickReplyAction("reg_other"), { kind: "set_condition", condition: "Other", askSide: false });
+  assert.deepEqual(q.quickReplyAction("reg_side_left"), { kind: "set_side", side: "left" });
+  for (const b of [...q.CONDITION_BUTTONS, ...q.SIDE_BUTTONS]) assert.ok(b.title.length <= 20, b.title); // WhatsApp's button limit
+  assert.equal(q.CONDITION_BUTTONS.length, 3);
+  // camera-scored exercises only; no chair squat after a hip replacement
+  assert.deepEqual(q.starterPlan("Total knee replacement").map((e) => e.exercise_id), ["sit_to_stand", "squat"]);
+  assert.deepEqual(q.starterPlan("Total hip replacement").map((e) => e.exercise_id), ["sit_to_stand", "arm_raise"]);
+  const text = q.starterPlanText("Dana", q.starterPlan("Total knee replacement"), 5);
+  assert.match(text, /All set, Dana!/);
+  assert.match(text, /1\. Sit-to-stand: 2 x 8/);
+  assert.match(text, /physiotherapist will review it/);
+  assert.match(q.setupQuestion("Dana"), /^Hi Dana! I'm the Motiva coach/);
+  assert.match(q.setupQuestion(null), /^Hi! I'm the Motiva coach/);
+  assert.ok(q.setupQuestion("Dana").length <= 1024); // interactive message body limit
+});

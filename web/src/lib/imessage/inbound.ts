@@ -2,11 +2,11 @@
 // pain rule first, then welcome, quick replies or the AI coach. Someone texting Motiva for the first time becomes a
 // patient on the iMessage channel, linked to the default doctor.
 import { getDb } from "../db";
-import { quickReplyAction, TIME_BUTTONS, WHY_BUTTONS, type Button } from "../quick-replies";
+import { CONDITION_BUTTONS, quickReplyAction, SIDE_BUTTONS, TIME_BUTTONS, WHY_BUTTONS, type Button } from "../quick-replies";
 import { ingestMessage } from "../whatsapp/inbound";
 import { JOIN_WORD, matchQuickReply, normalizeHandle } from "./format";
 
-const KNOWN: Button[] = [...TIME_BUTTONS, ...WHY_BUTTONS];
+const KNOWN: Button[] = [...CONDITION_BUTTONS, ...SIDE_BUTTONS, ...TIME_BUTTONS, ...WHY_BUTTONS];
 
 export type IncomingIMessage = { handle: string; text: string; guid: string };
 

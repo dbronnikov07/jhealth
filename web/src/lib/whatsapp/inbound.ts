@@ -1,6 +1,9 @@
 // Handles what WhatsApp sends to our webhook: patients' messages and delivery receipts.
 import { getDb } from "../db";
-import { quickReplyAction, TIME_BUTTONS } from "../quick-replies";
+import {
+  CONDITION_BUTTONS, quickReplyAction, setupQuestion, SIDE_BUTTONS, SIDE_QUESTION, starterPlan, starterPlanText, TIME_BUTTONS,
+  TIME_QUESTION,
+} from "../quick-replies";
 import { assessMessage, HIGH_PAIN_REPLY } from "../safety";
 import { raiseSafetyAlert } from "../safety-actions";
 import { isConversational, isOurNumber } from "./filter";
@@ -24,11 +27,6 @@ type WebhookBody = {
     contacts?: Contact[]; messages?: IncomingMessage[]; statuses?: StatusUpdate[];
   } }[] }[];
 };
-
-const WELCOME =
-  "Hi, this is the Motiva coach. I help you do the exercises your physiotherapist prescribes, and I tell them how it's going.\n" +
-  "Your physiotherapist will send your plan here.\n\n" +
-  "When would you like your daily reminder?";
 
 function textOf(m: IncomingMessage): string {
   return (
@@ -135,6 +133,23 @@ export async function ingestMessage(db: Db, m: {
 
   // A tapped quick-reply button (reminder time, "what got in the way?") is handled by code, not the AI.
   const tapped = quickReplyAction(m.buttonId);
+  // Sign-up taps: what they are recovering from, then which side. Then a starter plan goes out.
+  if (tapped && !isNew && (tapped.kind === "set_condition" || tapped.kind === "set_side")) {
+    if (tapped.kind === "set_condition") {
+      await db.query("update patients set condition = $2 where id = $1", [patient.id, tapped.condition]);
+      if (tapped.askSide) {
+        await db.query(
+          "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+          [patient.id, SIDE_QUESTION, JSON.stringify({ type: "signup_side", quick_replies: SIDE_BUTTONS })],
+        );
+        return { stored: true, coachMessageId: null };
+      }
+    } else {
+      await db.query("update patients set side = $2 where id = $1", [patient.id, tapped.side]);
+    }
+    await sendStarterPlan(db, patient.id);
+    return { stored: true, coachMessageId: null };
+  }
   if (tapped && !isNew) {
     if (tapped.kind === "set_time") {
       await db.query("update patients set reminder_hour = $2 where id = $1", [patient.id, tapped.hour]);
@@ -142,7 +157,7 @@ export async function ingestMessage(db: Db, m: {
     if (tapped.kind === "pain") {
       await raiseSafetyAlert({ patientId: patient.id, level: "high_pain",
         reason: "pain as the reason for missing sessions", reply: HIGH_PAIN_REPLY, sourceMessageId: stored.id });
-    } else {
+    } else if (tapped.kind === "set_time" || tapped.kind === "reply") {
       // After a pain report, exercise is on hold until the physio reviews it: no Start button, whatever was tapped.
       const [hold] = await db.query<{ n: number }>(
         "select count(*)::int as n from alerts where patient_id = $1 and resolved_at is null and kind in ('pain', 'red_flag')",
@@ -166,13 +181,71 @@ export async function ingestMessage(db: Db, m: {
   const safety = assessMessage(text);
   if (safety) {
     await raiseSafetyAlert({ patientId: patient.id, ...safety, sourceMessageId: stored.id });
-  } else if (isNew) {
+  } else if (isNew || (await needsSetup(db, patient.id))) {
+    // Someone who found Motiva on their own (the website's WhatsApp button): sign them up in three taps.
+    const [p] = await db.query<{ first_name: string | null }>(
+      "select nullif(split_part(trim(display_name), ' ', 1), 'WhatsApp') as first_name from patients where id = $1",
+      [patient.id],
+    );
     await db.query(
       "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
-      [patient.id, WELCOME, JSON.stringify({ type: "welcome", quick_replies: TIME_BUTTONS })],
+      [patient.id, setupQuestion(p?.first_name ?? null, !isNew), JSON.stringify({ type: "welcome", quick_replies: CONDITION_BUTTONS })],
     );
   } else {
     return { stored: true, coachMessageId: stored.id };
   }
   return { stored: true, coachMessageId: null };
+}
+
+/** Signed up by themselves and not finished: no condition chosen yet and no plan from a physiotherapist. */
+async function needsSetup(db: Db, patientId: string): Promise<boolean> {
+  const [row] = await db.query<{ needs: boolean }>(
+    `select p.condition = 'Not assessed yet'
+            and not exists (select 1 from prescriptions r where r.patient_id = p.id and r.status = 'active') as needs
+       from patients p where p.id = $1`,
+    [patientId],
+  );
+  return row?.needs === true;
+}
+
+/**
+ * The end of sign-up: a gentle starter plan with the Start button, a note for the physiotherapist, then the reminder
+ * time question. A plan the physiotherapist already set is never replaced.
+ */
+async function sendStarterPlan(db: Db, patientId: string) {
+  const [p] = await db.query<{ first_name: string; condition: string; has_plan: boolean }>(
+    `select split_part(trim(display_name), ' ', 1) as first_name, condition,
+            exists (select 1 from prescriptions r where r.patient_id = patients.id and r.status = 'active') as has_plan
+       from patients where id = $1`,
+    [patientId],
+  );
+  if (!p) return;
+  if (p.has_plan) {
+    await db.query(
+      "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'text', $2, $3::jsonb, 'queued')",
+      [patientId, "You already have a plan from your physiotherapist. Tap Start session when you are ready.", JSON.stringify({ type: "signup_done", start_button: true })],
+    );
+    return;
+  }
+  const items = starterPlan(p.condition);
+  const days = 5;
+  const [{ rx }] = await db.query<{ rx: string }>(
+    "select prescribe($1, $2::jsonb, $3, $4) as rx",
+    [patientId, JSON.stringify(items.map(({ exercise_id, sets, reps }) => ({ exercise_id, sets, reps }))), days,
+      "Starter plan sent automatically when the patient signed up on WhatsApp. Please review it."],
+  );
+  const first = p.first_name && p.first_name !== "WhatsApp" ? p.first_name : "there";
+  // prescribe() words its message as the physiotherapist's plan; this one is a starter plan, so say so.
+  await db.query(
+    "update messages set body = $2 where patient_id = $1 and direction = 'out' and status = 'queued' and payload->>'prescription_id' = $3",
+    [patientId, starterPlanText(first, items, days), rx],
+  );
+  await db.query(
+    "insert into memories (patient_id, kind, fact, author) values ($1, 'history', $2, 'coach')",
+    [patientId, `Signed up on WhatsApp (${p.condition}). A starter plan was sent automatically: please review it.`],
+  );
+  await db.query(
+    "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+    [patientId, TIME_QUESTION, JSON.stringify({ type: "signup_time", quick_replies: TIME_BUTTONS })],
+  );
 }

@@ -94,6 +94,15 @@ export default async function SessionPage({
       {items.length > 0 && (
         <p className="pt-sub">{items.length === 1 ? "1 exercise" : `${items.length} exercises`} from your physiotherapist. Take your time.</p>
       )}
+      {items.length === 0 ? (
+        <p className="empty-plan muted"><Icon name="clipboard" size={30} /><span>Your physiotherapist has not set up your exercises yet. You will get a message from the coach when they do.</span></p>
+      ) : (
+        <SessionApp
+          token={token} items={items} source={source} step={!!source && query.step === "1"}
+          emergency={patient.emergency_name && patient.emergency_phone ? { name: patient.emergency_name, phone: patient.emergency_phone } : null}
+          listenTicket={sttTicket()}
+        />
+      )}
       <section className="journey" aria-labelledby="journey-title">
         <p className="journey-kicker">Your recovery</p>
         <h2 id="journey-title">{phase ? `Phase ${patient.phase} of ${PHASES}: ${phase.name}` : protocol.done}</h2>
@@ -118,15 +127,6 @@ export default async function SessionPage({
         )}
         <p className="journey-pace">Every recovery moves at its own pace. Your physiotherapist decides when you are ready for the next step.</p>
       </section>
-      {items.length === 0 ? (
-        <p className="empty-plan muted"><Icon name="clipboard" size={30} /><span>Your physiotherapist has not set up your exercises yet. You will get a message from the coach when they do.</span></p>
-      ) : (
-        <SessionApp
-          token={token} items={items} source={source} step={!!source && query.step === "1"}
-          emergency={patient.emergency_name && patient.emergency_phone ? { name: patient.emergency_name, phone: patient.emergency_phone } : null}
-          listenTicket={sttTicket()}
-        />
-      )}
       <section className="wins-pt" aria-labelledby="wins-title">
         <h2 id="wins-title">Your wins</h2>
         {recovery.wins.length > 0 ? (

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Icon } from "@/components/Icon";
 import { QrCode } from "@/components/QrCode";
+import { prettyPhone } from "@/lib/format";
 import { textUsLink } from "@/lib/imessage/format";
 import { HeroPhoto } from "./_landing/HeroPhoto";
 import { Scribble, Sparkle, Stamp } from "./_landing/Stamp";
@@ -40,8 +41,14 @@ const PATIENTS = [
 // which must not be printed on a public page (the physio dashboard shows it to signed-in staff instead).
 const IMESSAGE = process.env.IMESSAGE_PUBLIC === "1" ? process.env.IMESSAGE_ADDRESS?.trim() || null : null;
 
+// Motiva Health's WhatsApp business number, where patients sign up (public by design: it is a business line).
+// Without it the page has no WhatsApp parts.
+const WHATSAPP = process.env.WHATSAPP_PUBLIC_NUMBER?.replace(/[^\d]/g, "") || null;
+const WHATSAPP_HELLO = "Hi Motiva! I'd like to start my home rehab.";
+
 export default function Landing() {
   const textUs = IMESSAGE ? textUsLink(IMESSAGE) : null;
+  const wa = WHATSAPP ? `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(WHATSAPP_HELLO)}` : null;
   return (
     <div className="lp">
       <a className="lp-skip" href="#main">Skip to content</a>
@@ -92,7 +99,12 @@ export default function Landing() {
               loud. The physio sees the results the same day.
             </p>
             <div className="lp-actions">
-              {textUs ? (
+              {wa ? (
+                <>
+                  <a href={wa} className="lp-btn lp-btn-accent"><Icon name="chat" size={18} /> Start on WhatsApp</a>
+                  <Link href="/doctor" className="lp-btn lp-btn-white">Physio dashboard</Link>
+                </>
+              ) : textUs ? (
                 <>
                   <a href={textUs} className="lp-btn lp-btn-accent">Text Motiva on iMessage <Icon name="arrow" size={18} /></a>
                   <Link href="/doctor" className="lp-btn lp-btn-white">Physio dashboard</Link>
@@ -169,7 +181,31 @@ export default function Landing() {
           </dl>
         </section>
 
-        {textUs && IMESSAGE && (
+        {wa && WHATSAPP && (
+          <section className="lp-start" id="start" aria-labelledby="wa-title">
+            <div className="lp-wrap">
+              <div className="lp-start-card">
+                <div className="lp-start-copy">
+                  <p className="lp-eyebrow">For patients</p>
+                  <h2 id="wa-title">Start on <mark>WhatsApp</mark></h2>
+                  <ol className="lp-start-steps">
+                    <li><b>Message Motiva.</b> The button opens WhatsApp with a hello already typed.</li>
+                    <li><b>Three taps to sign up.</b> What you are recovering from, which side, and you get a starter plan.</li>
+                    <li><b>Tap Start session.</b> Your phone camera counts every rep. Your physiotherapist reviews the plan.</li>
+                  </ol>
+                  <a href={wa} className="lp-btn lp-btn-accent"><Icon name="chat" size={18} /> Message Motiva on WhatsApp</a>
+                  <p className="lp-start-address">or message <b>{prettyPhone(`+${WHATSAPP}`)}</b> on WhatsApp</p>
+                </div>
+                <div className="lp-start-qr">
+                  <QrCode text={wa} size={176} label="QR code: scan with your phone camera to open WhatsApp and message Motiva Health" />
+                  <span>On a computer? Scan with your phone</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {textUs && IMESSAGE && !wa && (
           <section className="lp-start" aria-labelledby="start-title">
             <div className="lp-wrap">
               <div className="lp-start-card">

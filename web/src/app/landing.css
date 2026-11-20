@@ -238,7 +238,14 @@
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center;
   padding: 36px 40px; border-radius: 28px; background: #ffffff; box-shadow: var(--shadow);
 }
-.lp-start-copy h2 { font-size: clamp(28px, 3vw, 40px); letter-spacing: -0.035em; }
+.lp-start-copy h2 { margin-top: 10px; font-size: clamp(30px, 3.4vw, 46px); letter-spacing: -0.04em; }
+.lp-start-steps { margin: 18px 0 26px; display: grid; gap: 12px; counter-reset: step; max-width: 36em; }
+.lp-start-steps li { position: relative; padding-left: 46px; font-size: 16.5px; line-height: 1.45; color: var(--muted); counter-increment: step; }
+.lp-start-steps li b { color: var(--ink); }
+.lp-start-steps li::before {
+  content: counter(step); position: absolute; left: 0; top: -3px; width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--ink); color: #ffffff; font-size: 14px; font-weight: 800;
+}
 .lp-start-copy > p { margin: 10px 0 22px; font-size: 17px; color: var(--muted); max-width: 34em; }
 .lp-start-address { margin-top: 14px; font-size: 14.5px; color: var(--muted); }
 .lp-start-address b { color: var(--ink); font-weight: 700; word-break: break-all; }
