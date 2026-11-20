@@ -6,6 +6,7 @@
     "build": "next build",
     "start": "next start -p 3100",
     "db:verify": "node scripts/verify-db.mjs",
+    "voice:fast": "$HOME/jhealth-cache/tts/venv/bin/python -I scripts/voice-dev.py",
     "voice:dev": "$HOME/jhealth-cache/tts/venv/bin/python -I scripts/voice-dev.py",
     "test:unit": "node --test scripts/whatsapp.test.ts scripts/pose.test.ts scripts/reps.test.ts scripts/loader.test.ts scripts/coach.test.ts scripts/exercises.test.ts scripts/engagement.test.ts scripts/auth.test.ts scripts/demo-phone.test.ts scripts/camera.test.ts scripts/imessage.test.ts scripts/live.test.ts scripts/speech.test.ts scripts/voice.test.ts scripts/fall.test.ts scripts/listen.test.ts",
     "coach:eval": "node scripts/coach-eval.ts",

@@ -1,7 +1,14 @@
-"""Development only: serve the two Python voice functions (api/tts.py, api/stt.py) on http://127.0.0.1:8799, the way
-Vercel does in production. next.config.ts passes /api/tts and /api/stt through to it while `npm run dev` runs.
+"""The fast voice helper: the two Python voice functions (api/tts.py, api/stt.py) on http://127.0.0.1:8799.
 
-    npm run voice:dev        (uses ~/jhealth-cache/tts/venv and the models already downloaded there)
+    npm run voice:fast       (uses ~/jhealth-cache/tts/venv and the models already downloaded there)
+
+Two uses:
+- The live site (https://motiva-health.vercel.app) looks for it when a camera session starts and, if it answers,
+  sends speech to text and the coach's voice here instead of to our server: on this laptop's 8 cores that is about
+  0.1 s and 0.3 s instead of 0.8 s and 1.5 s. It accepts only the same signed tickets as the server (TTS_SECRET from
+  web/.env.local), answers only to our own site's pages (CORS), and listens on the loopback address only, so nothing
+  outside this laptop can reach it.
+- Development: next.config.ts passes /api/tts and /api/stt through to it while `npm run dev` runs.
 """
 import importlib.util
 import os
@@ -29,7 +36,26 @@ if (CACHE / "whisper" / "ggml-base.en.bin").exists():
     stt.MODEL_PATH = str(CACHE / "whisper" / "ggml-base.en.bin")
 
 
+ALLOWED_ORIGINS = {"https://motiva-health.vercel.app", "https://jhealth-beta.vercel.app", "http://localhost:3100"}
+
+
 class Both(BaseHTTPRequestHandler):
+    def end_headers(self):
+        origin = self.headers.get("Origin", "")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Headers", "content-type, x-exp, x-sig")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST")
+            self.send_header("Access-Control-Allow-Private-Network", "true")
+            self.send_header("Access-Control-Max-Age", "600")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(204 if self.headers.get("Origin", "") in ALLOWED_ORIGINS else 403)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def _pick(self):
         return stt.handler if self.path.startswith("/api/stt") else tts.handler
 
@@ -46,5 +72,6 @@ class Both(BaseHTTPRequestHandler):
         print("voice", self.command, self.path, args[1] if len(args) > 1 else "")
 
 
-print("voice functions on http://127.0.0.1:8799 (tts: Kokoro heart, stt: Whisper base.en)")
+print("Fast voice helper on http://127.0.0.1:8799 (speech to text: Whisper base.en, voice: Kokoro heart).")
+print("Leave this window open during the demo; camera sessions on this laptop will use it automatically.")
 ThreadingHTTPServer(("127.0.0.1", 8799), Both).serve_forever()

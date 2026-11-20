@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { getDb } from "@/lib/db";
 import { assessMessage } from "@/lib/safety";
 import { raiseSafetyAlert } from "@/lib/safety-actions";
-import { forSpeech, speech, splitSentences, ttsTicket, voiceReply, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
+import { forSpeech, liveFacts, speech, splitSentences, ttsTicket, voiceReply, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   if ((recent?.n ?? 0) >= TURNS_PER_10_MIN) return Response.json({ error: "too many" }, { status: 429 });
 
   // What makes it personal: what the coach has learned in the chat, and how the last session went.
-  const [memories, [last]] = await Promise.all([
+  const [memories, [last], facts] = await Promise.all([
     db.query<{ kind: string; fact: string }>(
       "select kind, fact from memories where patient_id = $1 and superseded_by is null order by created_at desc limit 6",
       [patient.id],
@@ -51,6 +51,7 @@ export async function POST(request: Request) {
         where s.patient_id = $1 order by s.started_at desc limit 1`,
       [patient.id],
     ),
+    event === "heard" ? liveFacts(heard) : Promise.resolve([] as string[]),
   ]);
   const c = (body.context ?? {}) as Record<string, unknown>;
   const exerciseId = typeof c.exercise_id === "string" && /^[a-z0-9_]{1,60}$/.test(c.exercise_id) ? c.exercise_id : null;
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
     notCounted: num(c.not_counted, 0, 500) ?? 0,
     condition: patient.condition && patient.condition !== "Not assessed yet" ? `${patient.condition}${patient.side ? `, ${patient.side} side` : ""}` : null,
     memories: memories.map((m) => `${m.kind}: ${m.fact}`.slice(0, 160)),
+    liveFacts: facts,
     lastSession: last
       ? `${last.days === 0 ? "earlier today" : last.days === 1 ? "yesterday" : `${last.days} days ago`}: ${last.name}, ${last.reps_done} reps` +
         (last.bend !== null ? `, knee bend ${Math.round(last.bend)} degrees` : last.rom !== null ? `, range ${Math.round(last.rom)} degrees` : "")

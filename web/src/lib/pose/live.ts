@@ -4,7 +4,7 @@
 // Each camera exercise has one measured angle and a goal for it (first guesses for the demo; in a product the
 // physiotherapist sets the goal per patient):
 //   squat           knee bend, goal 70 degrees     "Lower, 25° to go"  ->  "Good depth. Stand up tall"
-//   sit_to_stand    knee bend, goal 75 degrees     "Sit down slowly"   ->  "Now stand up tall"
+//   sit_to_stand    hip bend (thigh angle), goal 60 "Sit down slowly"  ->  "Now stand up tall"
 //   arm_raise       arm height, goal 80 degrees    "Higher, 20° to go" ->  "Good height. Lower slowly"
 // Pure functions, unit-tested in scripts/live.test.ts.
 import { jointAngle, type Frame } from "./features.ts";
@@ -32,8 +32,8 @@ export const LIVE_GOALS: Record<string, LiveGoal> = {
     joint: { left: [23, 25, 27], right: [24, 26, 28] },
   },
   sit_to_stand: {
-    goal: 75, toward: "Sit down slowly", atGoal: "Now stand up tall", onReturn: "All the way up", ready: "Ready. Sit down slowly",
-    joint: { left: [23, 25, 27], right: [24, 26, 28] },
+    goal: 60, toward: "Sit down slowly", atGoal: "Now stand up tall", onReturn: "All the way up", ready: "Ready. Sit down slowly",
+    joint: { left: [11, 23, 25], right: [12, 24, 26] },
   },
   arm_raise: {
     goal: 80, toward: "Higher", atGoal: "Good height. Lower slowly", onReturn: "Lower slowly", ready: "Ready. Lift your arm out to the side",

@@ -44,7 +44,7 @@ export class Vad {
   private loudFrames = 0;
   private startMs = 0;
 
-  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 24, minLoudFrames: 10, maxFrames: 500 };
+  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 22, minLoudFrames: 10, maxFrames: 500 };
 
   get active(): boolean {
     return this.speaking;
@@ -129,6 +129,8 @@ export type Ticket = { exp: number; sig: string };
 type Handler = (heard: string, when: { startMs: number; endMs: number }) => void;
 
 let ctx: AudioContext | null = null;
+let voiceBase = "";                          // "" = this site; "http://127.0.0.1:8799" = the fast voice helper on this laptop
+let coachSpeaking: () => boolean = () => false;
 let stream: MediaStream | null = null;
 let node: ScriptProcessorNode | null = null;
 let vad = new Vad();
@@ -161,13 +163,50 @@ export function configureListening(t: Ticket | null): void {
   ticket = t;
 }
 
+/** Where the speech functions live: this site, or the fast voice helper on this laptop (see findVoiceServer). */
+export function setVoiceBase(base: string): void {
+  voiceBase = base;
+}
+export function getVoiceBase(): string {
+  return voiceBase;
+}
+
+/**
+ * The fast voice helper (npm run voice:fast) runs speech to text and the coach's voice on this laptop: about 0.1 s
+ * and 0.3 s instead of 0.8 s and 1.5 s on our server. Used when it answers within 400 ms; otherwise the server.
+ */
+export async function findVoiceServer(): Promise<string> {
+  try {
+    const res = await fetch("http://127.0.0.1:8799/api/tts", { method: "GET", signal: AbortSignal.timeout(400) });
+    if (res.status === 204) {
+      voiceBase = "http://127.0.0.1:8799";
+      return voiceBase;
+    }
+  } catch {
+    // not running: use the server
+  }
+  voiceBase = "";
+  return voiceBase;
+}
+
+/** While the coach is speaking, the detector needs a louder voice to start, so a trace of the coach's own voice
+ *  that echo cancellation missed does not count as the patient talking. */
+export function setCoachSpeaking(f: () => boolean): void {
+  coachSpeaking = f;
+}
+
+/** Is the patient talking right now? */
+export function isHearing(): boolean {
+  return state.hearing;
+}
+
 async function transcribe(u: Utterance): Promise<void> {
   if (!ticket) return;
   const pcm = new Int16Array(u.audio.length);
   for (let i = 0; i < u.audio.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(u.audio[i] * 32768)));
   setState({ working: true });
   try {
-    const res = await fetch("/api/stt", {
+    const res = await fetch(`${voiceBase}/api/stt`, {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream", "x-exp": String(ticket.exp), "x-sig": ticket.sig },
       body: pcm.buffer,
@@ -184,7 +223,12 @@ async function transcribe(u: Utterance): Promise<void> {
 
 /** One 20 ms frame of 16 kHz audio into the detector (also used by the tests and the development feed). */
 function onFrame(frame: Float32Array): void {
-  const u = vad.push(frame, performance.now());
+  let input = frame;
+  if (!vad.active && coachSpeaking()) {
+    input = new Float32Array(frame.length);
+    for (let i = 0; i < frame.length; i++) input[i] = frame[i] * 0.45;
+  }
+  const u = vad.push(input, performance.now());
   setState({ hearing: vad.active });
   if (u) void transcribe(u);
 }

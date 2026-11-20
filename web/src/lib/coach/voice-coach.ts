@@ -24,6 +24,7 @@ export type VoiceContext = {
   condition: string | null;     // e.g. "Total knee replacement, right side"
   memories: string[];           // what the coach knows: goals, preferences, pain reported, from the chat
   lastSession: string | null;   // e.g. "2 days ago: chair squat, 20 reps, knee bend 66 degrees"
+  liveFacts?: string[];         // the time now, and the weather when they ask about it (liveFacts below)
 };
 
 export const VOICE_SYSTEM_PROMPT = `You are the Motiva Health voice coach. You speak out loud, in real time, to a patient doing a home exercise in front of their phone or tablet camera. They are usually an older adult recovering from knee or hip surgery, standing about two metres away.
@@ -36,7 +37,10 @@ How you talk:
 - Use the real numbers you are given (repetitions, degrees, quality). Never invent numbers.
 - Plain words. No lists, no emoji, no dashes, no semicolons, no stage directions.
 - If they ask how to do the exercise, explain one thing at a time, simply.
-- If they ask something unrelated, answer in a few words and bring them back to the exercise.
+- Talk like a friendly, well-informed person. Answer any question properly and briefly: small talk, general
+  knowledge, the time, the weather. For the weather and the time use the live facts you are given, with the real
+  numbers; never invent weather or news, and if you do not know something, say so in a few words. After a non-exercise
+  answer you may add a very short nudge back to the exercise, not always.
 
 What you never do:
 - Never diagnose, never change their plan or the number of repetitions, never suggest medicine.
@@ -95,6 +99,7 @@ export function buildVoiceMessages(event: VoiceEvent, heard: string | null, c: V
     c.condition ? `Their rehab: ${c.condition}.` : null,
     c.lastSession ? `Last session: ${c.lastSession}.` : null,
     c.memories.length ? `What you know about them: ${c.memories.join("; ")}.` : null,
+    ...(c.liveFacts ?? []).map((f) => `Live fact: ${f}`),
   ].filter(Boolean).join("\n");
   const moment =
     event === "heard" ? `Moment: heard. They are in set ${c.set} of ${c.sets}. They said: "${(heard ?? "").slice(0, 300)}"`
@@ -105,6 +110,57 @@ export function buildVoiceMessages(event: VoiceEvent, heard: string | null, c: V
     { role: "system" as const, content: VOICE_SYSTEM_PROMPT },
     { role: "user" as const, content: `${facts}\n${moment}\nYour spoken answer:` },
   ];
+}
+
+const WEATHER_WORDS = /\b(weather|temperature|degrees outside|rain(ing)?|snow(ing)?|sunny|cloudy|windy|forecast|cold out|hot out|outside)\b/i;
+const WMO: Record<number, string> = {
+  0: "clear sky", 1: "mostly clear", 2: "partly cloudy", 3: "overcast", 45: "fog", 48: "fog", 51: "light drizzle", 53: "drizzle",
+  55: "heavy drizzle", 61: "light rain", 63: "rain", 65: "heavy rain", 66: "freezing rain", 67: "freezing rain", 71: "light snow",
+  73: "snow", 75: "heavy snow", 77: "snow grains", 80: "rain showers", 81: "rain showers", 82: "heavy rain showers",
+  85: "snow showers", 86: "heavy snow showers", 95: "thunderstorm", 96: "thunderstorm with hail", 99: "thunderstorm with hail",
+};
+
+/**
+ * Facts the AI cannot know by itself: the local time always, and live weather when the question is about it
+ * (Open-Meteo: free, no key, only the city name is sent). A city named in the question ("in Montreal") is used,
+ * otherwise Toronto. Each lookup gives up after 1.5 s, so a slow weather service never holds up the answer for long.
+ */
+const KNOWN_PLACES: Record<string, { name: string; country: string; latitude: number; longitude: number }> = {
+  toronto: { name: "Toronto", country: "Canada", latitude: 43.7064, longitude: -79.3986 },
+};
+const weatherCache = new Map<string, { at: number; fact: string }>();     // per city, 10 minutes
+
+export async function liveFacts(heard: string | null): Promise<string[]> {
+  const facts = [
+    `the local time in Toronto is ${new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", weekday: "long", hour: "numeric", minute: "2-digit" }).format(new Date())}`,
+  ];
+  if (!heard || !WEATHER_WORDS.test(heard)) return facts;
+  const named = heard.match(/\b(?:in|at|for)\s+([A-Z][\w'.-]*(?:\s+[A-Z][\w'.-]*){0,2})/);
+  const city = named?.[1]?.replace(/[.?!,]+$/, "") ?? "Toronto";
+  const cached = weatherCache.get(city.toLowerCase());
+  if (cached && Date.now() - cached.at < 600_000) return [...facts, cached.fact];
+  try {
+    const place = KNOWN_PLACES[city.toLowerCase()] ?? ((await (await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=${encodeURIComponent(city)}`,
+      { signal: AbortSignal.timeout(1500) })).json()) as { results?: { name: string; country?: string; latitude: number; longitude: number }[] }).results?.[0];
+    if (!place) return [...facts, `no weather found for "${city}"`];
+    const w = (await (await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto`,
+      { signal: AbortSignal.timeout(1500) })).json()) as {
+        current?: { temperature_2m: number; apparent_temperature: number; weather_code: number; wind_speed_10m: number };
+        daily?: { temperature_2m_max: number[]; temperature_2m_min: number[] };
+      };
+    const c = w.current;
+    if (!c) return facts;
+    const hi = w.daily?.temperature_2m_max?.[0], lo = w.daily?.temperature_2m_min?.[0];
+    const fact = `live weather in ${place.name}${place.country ? `, ${place.country}` : ""} right now: ${Math.round(c.temperature_2m)} degrees Celsius, feels like ${Math.round(c.apparent_temperature)}, ${WMO[c.weather_code] ?? "mixed weather"}, wind ${Math.round(c.wind_speed_10m)} km/h` +
+      (hi !== undefined && lo !== undefined ? `; today between ${Math.round(lo)} and ${Math.round(hi)} degrees` : "");
+    weatherCache.set(city.toLowerCase(), { at: Date.now(), fact });
+    facts.push(fact);
+  } catch {
+    facts.push(`the weather service did not answer; say you cannot check the weather right now`);
+  }
+  return facts;
 }
 
 /** When the AI is not available: still say something true and useful. */

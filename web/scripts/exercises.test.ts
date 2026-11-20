@@ -2,7 +2,7 @@
 // Run:  npm run test:unit
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EXERCISES, FACING_MIN, UPRIGHT_KNEE, countsAsRep, facingCamera, profileFor, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
+import { EXERCISES, FACING_MIN, UPRIGHT_KNEE, UPRIGHT_THIGH, countsAsRep, facingCamera, profileFor, thighTilt, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
 import type { Frame, Vec } from "../src/lib/pose/features.ts";
 import { RepCounter } from "../src/lib/pose/reps.ts";
 
@@ -131,7 +131,7 @@ function legs(o: { kneeDeg: number; yaw?: number; kneesTogether?: boolean }): Fr
 test("standing tall is judged at the angle a single camera really measures", () => {
   // Real home clips: a person standing normally measures 150 to 160 degrees at the knee, not 180.
   assert.equal(UPRIGHT_KNEE, 145);
-  for (const exercise of ["sit_to_stand", "squat"]) {
+  for (const exercise of ["squat"]) {
     const normal = run(exercise, movement(152, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k })));
     assert.deepEqual(normal, { reps: 1, faults: [null] }, `${exercise}: standing at 152 degrees is standing`);
     const stooped = run(exercise, movement(140, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k })));
@@ -153,8 +153,39 @@ test("a small bob of the knees is not a squat: it does not count", () => {
   const rep = (minKnee: number) => ({ startIndex: 0, endIndex: 1, startTime: 0, endTime: 1, minKnee, topKnee: 158, depth: 158 - minKnee, activeSeconds: 2 });
   assert.equal(countsAsRep(EXERCISES.squat, rep(140)), false);        // knees bent 40 degrees: a couple of centimetres
   assert.equal(countsAsRep(EXERCISES.squat, rep(118)), true);         // 62 degrees: a real chair squat
-  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(125)), false); // never sat down
-  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(95)), true);   // sat on the chair
+  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(150)), false); // thighs only 30 degrees from vertical: never sat
+  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(110)), true);  // thighs at 70 degrees: sat on the chair
   assert.equal(countsAsRep(EXERCISES.arm_raise, rep(130)), false);    // arm lifted 50 degrees
   assert.equal(countsAsRep(EXERCISES.arm_raise, rep(95)), true);      // 85 degrees: about shoulder height
 });
+
+/** Arms crossed over the chest: both wrists at chest height, in front of the body. */
+function armsCrossed(f: Frame): Frame {
+  const g = f.map((p) => [...p] as Vec);
+  g[13] = [0.05, -0.32, -0.12]; g[15] = [-0.12, -0.36, -0.15];
+  g[14] = [-0.05, -0.32, -0.12]; g[16] = [0.12, -0.36, -0.15];
+  return g;
+}
+
+test("sit-to-stand is counted on the thigh angle, which needs no shins or feet", () => {
+  assert.ok(Math.abs(thighTilt(legs({ kneeDeg: 170 })) - 5) < 1);     // standing
+  assert.ok(Math.abs(thighTilt(legs({ kneeDeg: 40 })) - 70) < 1);     // sitting on a chair
+  const good = run("sit_to_stand", movement(170, 40, 1.6, 0.6, 1.6).map((k) => armsCrossed(legs({ kneeDeg: k }))));
+  assert.deepEqual(good, { reps: 1, faults: [null] });
+  // The shins and feet hidden or guessed wrong (ankles dragged back to the knees) change nothing.
+  const noFeet = run("sit_to_stand", movement(170, 40, 1.6, 0.6, 1.6).map((k) => {
+    const f = armsCrossed(legs({ kneeDeg: k }));
+    f[27] = [...f[25]] as Vec; f[28] = [...f[26]] as Vec;
+    return f;
+  }));
+  assert.deepEqual(noFeet, { reps: 1, faults: [null] });
+});
+
+test("sit-to-stand: pushing up with the hands is named, standing half-way is named", () => {
+  const hands = run("sit_to_stand", movement(170, 40, 1.6, 0.6, 1.6).map((k) => legs({ kneeDeg: k })));   // hands at the sides
+  assert.deepEqual(hands, { reps: 1, faults: ["uses_hands"] });
+  const halfUp = run("sit_to_stand", movement(118, 40, 1.6, 0.6, 1.6).map((k) => armsCrossed(legs({ kneeDeg: k }))));
+  assert.ok(180 - 118 > UPRIGHT_THIGH * 2);
+  assert.deepEqual(halfUp, { reps: 1, faults: ["not_upright"] });
+});
+

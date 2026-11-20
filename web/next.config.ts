@@ -13,7 +13,9 @@ const csp = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "media-src 'self' blob:",
-  `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+  // http://127.0.0.1:8799 is the optional fast voice helper on the demo laptop (npm run voice:fast); browsers treat
+  // the loopback address as trustworthy, and nothing else on the machine is reachable from the page.
+  `connect-src 'self' http://127.0.0.1:8799${isDev ? " ws: wss:" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'none'",
   "frame-ancestors 'none'",

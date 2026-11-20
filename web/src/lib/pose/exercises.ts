@@ -13,7 +13,7 @@ import { jointAngle, type Frame, type Vec } from "./features.ts";
 import { DEFAULT_REP_OPTIONS, type CompletedRep, type RepCounterOptions } from "./reps.ts";
 
 export type Fault =
-  | "knees_in" | "not_deep" | "not_upright" | "too_fast" | "sit_slowly"
+  | "knees_in" | "not_deep" | "not_upright" | "too_fast" | "sit_slowly" | "uses_hands"
   | "not_straight" | "no_hold" | "lean_back"
   | "not_high" | "bent_elbow" | "body_sway"
   | "steady";
@@ -24,6 +24,7 @@ export const CUE: Record<Fault, string> = {
   not_upright: "Stand up tall at the top",
   too_fast: "A little slower",
   sit_slowly: "Sit down slowly, with control",
+  uses_hands: "Cross your arms, and stand up without pushing",
   not_straight: "Straighten your knee a bit more",
   no_hold: "Hold it straight for two seconds",
   lean_back: "Sit tall, don't lean back",
@@ -147,6 +148,34 @@ function returnSeconds(c: RepContext, signal: (f: Frame) => number): number {
 }
 
 const kneeBoth = (f: Frame) => (knees(f)[0] + knees(f)[1]) / 2;
+
+/**
+ * Thigh angle from straight down (degrees), both legs averaged: about 7 standing and 71 sitting on a chair (medians
+ * over 127 home sit-to-stand clips, WLU). It needs only hips and knees, so it keeps working when the chair hides the
+ * shins or the frame cuts off the feet; the knee angle did not (a laptop session counted 4 of about 15 stands and
+ * called 3 of them "not upright").
+ */
+export function thighTilt(f: Frame): number {
+  let sum = 0;
+  for (const [hip, knee] of [[23, 25], [24, 26]] as const) {
+    const v: Vec = [f[knee][0] - f[hip][0], f[knee][1] - f[hip][1], f[knee][2] - f[hip][2]];
+    const l = Math.hypot(v[0], v[1], v[2]) + 1e-9;
+    sum += (Math.acos(Math.min(1, Math.max(-1, v[1] / l))) * 180) / Math.PI;     // world y points down
+  }
+  return sum / 2;
+}
+const thighSignal = (f: Frame) => 180 - thighTilt(f);     // dips when sitting down, like the knee angle did
+
+/** Hands low: the higher wrist is not clearly above the hips (arms crossed puts both wrists at the chest). */
+function handsLow(f: Frame): boolean {
+  const hipY = (f[23][1] + f[24][1]) / 2;
+  const torso = Math.hypot((f[11][0] + f[12][0] - f[23][0] - f[24][0]) / 2, (f[11][1] + f[12][1] - f[23][1] - f[24][1]) / 2,
+    (f[11][2] + f[12][2] - f[23][2] - f[24][2]) / 2) + 1e-9;
+  return (Math.min(f[15][1], f[16][1]) - hipY) / torso > -0.1;
+}
+
+/** A standing thigh more than this far from vertical (degrees) at the top of a sit-to-stand: not fully up. */
+export const UPRIGHT_THIGH = 25;
 const kneeStraighter = (f: Frame) => 360 - Math.max(...knees(f));
 const armHigher = (f: Frame) => 180 - Math.max(...shoulders(f));
 
@@ -177,30 +206,35 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
   },
   sit_to_stand: {
     id: "sit_to_stand",
-    repSignal: kneeBoth,
+    // Counted on the thigh angle (thighTilt), not the knee: see there for why.
+    repSignal: thighSignal,
     counter: { ...DEFAULT_REP_OPTIONS, minDepth: 30 },
-    liveLabel: "Knee bend",
-    liveValue: (f) => Math.max(0, 180 - kneeBoth(f)),
-    repMeasure: (r) => 180 - r.minKnee,
-    measureLabel: "deepest knee bend",
+    liveLabel: "Hip bend",
+    liveValue: (f) => Math.max(0, Math.round(thighTilt(f))),
+    repMeasure: (r) => 180 - r.minKnee,                          // the deepest thigh angle: how far down they sat
+    measureLabel: "deepest sit (thigh angle)",
     measureColumn: "knee_bend_deg",
     liveWarning: (f, isDown) => isDown && kneeBoth(f) < 150 && kneesCaving(f),
     liveWarningFault: "knees_in",
     fault: (c) => {
       if (shareOf(c.liveFlags) >= 0.25) return "knees_in";
-      if (c.rep.topKnee < UPRIGHT_KNEE) return "not_upright";
-      // Sitting down is the half people rush: the lowering phase should take about a second or more.
-      const s = c.frames.map(kneeBoth);
+      const s = c.frames.map(thighSignal);
       let v = 0;
       for (let i = 1; i < s.length; i++) if (s[i] < s[v]) v = i;
+      // The instructions say arms crossed. Hands down at the hips or lower for most of the stand-up means pushing
+      // up on the thighs or the chair (or just not crossing them, which gets the same cue).
+      const rise = c.frames.slice(v);
+      if (rise.length >= 3 && rise.filter(handsLow).length / rise.length >= 0.5) return "uses_hands";
+      if (180 - c.rep.topKnee > UPRIGHT_THIGH) return "not_upright";
+      // Sitting down is the half people rush: the lowering phase should take about a second or more.
       let top = 0;
       for (let i = 1; i < v; i++) if (s[i] > s[top]) top = i;
       if (c.times[v] - c.times[top] < 0.8) return "sit_slowly";
       if (c.rep.activeSeconds < 1.5) return "too_fast";
       return null;
     },
-    // Sitting on a chair bends the knee about 90 degrees: every correct home clip (WLU) reached 83 or more.
-    minCount: 65,
+    // Sitting on a chair puts the thighs at about 71 degrees (WLU; 10th percentile 62). Under 50 they never sat.
+    minCount: 50,
     notCounted: "That one didn't count. Sit all the way down, then stand up.",
   },
   seated_knee_extension: {

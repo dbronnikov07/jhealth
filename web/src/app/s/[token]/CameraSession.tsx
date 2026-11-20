@@ -14,8 +14,8 @@ import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
 import { isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
-import { MOTIVATION, playUrl, playVoice, preloadVoice, registerUrl, repClips, sessionClips, spokeDuring, stopVoice, voiceReady } from "@/lib/voice";
-import { feedAudioForTest, matchCommand, onHeard, pushing, stopListening, talkNow, watchListening, type ListenState } from "@/lib/listen";
+import { MOTIVATION, playUrl, playVoice, preloadVoice, registerUrl, repClips, sessionClips, spokeDuring, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
+import { feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, watchListening, type ListenState } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
@@ -108,8 +108,8 @@ export function CameraSession(p: Props) {
     const profile = profileFor(p.exerciseId);
     preloadVoice(sessionClips(p.exerciseId, target, Object.keys(CUE)));   // small files; ready before the first repetition
     // Wake the voice server while the camera starts, and keep it awake during the session (a cold start costs ~3 s).
-    const warm = () => { for (const u of ["/api/tts", "/api/stt"]) fetch(u, { method: "GET" }).catch(() => {}); };
-    warm();
+    const warm = () => { for (const u of ["/api/tts", "/api/stt"]) fetch(`${getVoiceBase()}${u}`, { method: "GET" }).catch(() => {}); };
+    void findVoiceServer().then(warm);
     const keepWarm = window.setInterval(() => { if (!finished) warm(); }, 180_000);
     const counter = new RepCounter(profile.counter);
     const frames: Frame[] = [];
@@ -195,8 +195,9 @@ export function CameraSession(p: Props) {
         } else if (data.tts) {
           // Our own voice (api/tts.py), one sentence at a time: the first plays while the next is being made.
           let first = true;
+          for (let waited = 0; isHearing() && waited < 3000; waited += 100) await new Promise((r) => setTimeout(r, 100));
           for (const ticket of data.tts) {
-            const spoken = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ticket) }).catch(() => null);
+            const spoken = await fetch(`${getVoiceBase()}/api/tts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ticket) }).catch(() => null);
             const ok = spoken?.ok && spoken.headers.get("content-type")?.includes("audio");
             const url = ok ? URL.createObjectURL(await spoken!.blob()) : null;
             if (!url || !playUrl(url, first ? when : "queue")) say([], ticket.text, first ? when : "queue");
@@ -233,7 +234,7 @@ export function CameraSession(p: Props) {
         const data = (await res.json()) as { lines?: { text: string; tts: { text: string; exp: number; sig: string } | null }[] };
         for (const line of data.lines ?? []) {
           if (finished || cancelled || !line.tts) continue;
-          const spoken = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(line.tts) }).catch(() => null);
+          const spoken = await fetch(`${getVoiceBase()}/api/tts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(line.tts) }).catch(() => null);
           if (spoken?.ok && spoken.headers.get("content-type")?.includes("audio")) personal.push({ url: URL.createObjectURL(await spoken.blob()), text: line.text });
         }
       } catch {
@@ -298,9 +299,6 @@ export function CameraSession(p: Props) {
           if (heard === lastAsked.text && Date.now() - lastAsked.at < 5000) return;
           lastAsked = { text: heard, at: Date.now() };
           stopVoice();                                                                 // the patient talks: the coach stops
-          // A short "Okay." at once, so the patient knows they were heard while the answer is being made.
-          const ack = /^(how|what|why|when|where|can|should|is|are|do|does|did|will|am|could|would)\b/i.test(heard) ? "ack_question" : Math.random() < 0.5 ? "ack_ok" : "ack_got_it";
-          say([ack], ack === "ack_question" ? "Good question." : "Okay.", "now");
           void talk("heard", heard);
         }
         return;
@@ -314,7 +312,17 @@ export function CameraSession(p: Props) {
       else if (command === "okay") okayRef.current();
       else if (command === "pain") hurtsRef.current();
     });
-    const unwatchListening = watchListening(setListen);
+    // Barge-in: when the patient has been talking for half a second, the coach stops talking.
+    let hearingSince = 0;
+    const unwatchListening = watchListening((st) => {
+      setListen(st);
+      if (st.hearing && !hearingSince) hearingSince = performance.now();
+      if (!st.hearing) hearingSince = 0;
+    });
+    const bargeIn = window.setInterval(() => {
+      if (hearingSince && performance.now() - hearingSince > 500 && voiceBusy()) stopVoice();
+    }, 100);
+    setCoachSpeaking(voiceBusy);
     if (process.env.NODE_ENV !== "production") {
       // Development only: window.__motivaSay("/test/q1.wav") plays a sound file into the listener as if spoken.
       (window as unknown as { __motivaSay?: (url: string) => Promise<void> }).__motivaSay = feedAudioForTest;
@@ -786,6 +794,7 @@ export function CameraSession(p: Props) {
       }
       window.clearTimeout(emergencyTimer);
       window.clearInterval(keepWarm);
+      window.clearInterval(bargeIn);
       onHeard(null);
       stopListening();
       unwatchListening();

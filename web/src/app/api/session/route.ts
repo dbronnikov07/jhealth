@@ -23,6 +23,7 @@ const TIPS: Record<string, string> = {
   too_fast: "Tip for next time: go a little slower, especially on the way down.",
   not_upright: "Tip for next time: stand up all the way at the top.",
   sit_slowly: "Tip for next time: sit down slowly, with control.",
+  uses_hands: "Tip for next time: cross your arms over your chest and stand up without pushing, if your physio agrees.",
   not_straight: "Tip for next time: straighten your knee a little more, if it is comfortable.",
   no_hold: "Tip for next time: hold your leg straight for two seconds before lowering it.",
   lean_back: "Tip for next time: sit tall and keep your back still.",
