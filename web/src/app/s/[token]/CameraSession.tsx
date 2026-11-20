@@ -255,7 +255,12 @@ export function CameraSession(p: Props) {
       const command = matchCommand(heard, p.emergency?.name ?? null);
       if (!command) {
         // Not a command: when the sentence is complete, the coach answers it (one at a time, at least two words).
-        if (final && !emergencyOn && heard.trim().split(/\s+/).length >= 2) void talk("heard", heard.trim());
+        if (final && !emergencyOn && heard.trim().split(/\s+/).length >= 2 && !talking) {
+          // A short "Okay." at once, so the patient knows they were heard while the answer is being made.
+          const ack = /\?\s*$|^(how|what|why|when|where|can|should|is|are|do|does|will)\b/i.test(heard.trim()) ? "ack_question" : Math.random() < 0.5 ? "ack_ok" : "ack_got_it";
+          say([ack], ack === "ack_question" ? "Good question." : "Okay.", "now");
+          void talk("heard", heard.trim());
+        }
         return;
       }
       const now = performance.now();

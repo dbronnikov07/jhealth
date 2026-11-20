@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { test } from "node:test";
 import { CUE } from "../src/lib/pose/exercises.ts";
-import { COUNT_CLIPS, EMERGENCY_CLIPS, MOTIVATION, PHRASE_CLIPS, SETUP_CLIPS, START_CLIPS, repClips, sessionClips } from "../src/lib/voice.ts";
+import { ACK_CLIPS, COUNT_CLIPS, EMERGENCY_CLIPS, MOTIVATION, PHRASE_CLIPS, SETUP_CLIPS, START_CLIPS, repClips, sessionClips } from "../src/lib/voice.ts";
 
 const VOICE = new URL("../public/voice/", import.meta.url);
 
@@ -23,7 +23,7 @@ test("after a repetition the coach counts, then names a mistake, then says where
 
 test("a session asks only for clips that exist", () => {
   const cues = Object.keys(CUE);
-  assert.deepEqual(sessionClips("squat", 3, []), ["n1", "n2", "n3", ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, "start_squat", "not_counted_squat"]);
+  assert.deepEqual(sessionClips("squat", 3, []), ["n1", "n2", "n3", ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, ...ACK_CLIPS, "start_squat", "not_counted_squat"]);
   assert.ok(!sessionClips("seated_knee_extension", 3, []).some((c) => c.startsWith("start_")));   // no own line: generic "start"
   assert.equal(sessionClips("squat", 99, []).filter((c) => /^n\d+$/.test(c)).length, COUNT_CLIPS);
   const every = [...sessionClips("squat", COUNT_CLIPS, cues), ...START_CLIPS.flatMap((id) => [`start_${id}`, `not_counted_${id}`])];
@@ -46,4 +46,8 @@ test("the spoken coach's answer is cut into sentences, so speech can start soone
   assert.deepEqual(splitSentences("Nice work. That was a strong set. How did it feel?"), ["Nice work. That was a strong set.", "How did it feel?"]);
   assert.deepEqual(splitSentences("Go as low as is comfortable, Margaret."), ["Go as low as is comfortable, Margaret."]);
   assert.equal(splitSentences("One. Two. Three. Four. Five. Six.").length <= 3, true);
+  assert.deepEqual(
+    splitSentences("Go only as deep as is comfortable for your knee today, and keep the movement slow and steady. Great work."),
+    ["Go only as deep as is comfortable for your knee today,", "and keep the movement slow and steady.", "Great work."],
+  );
 });

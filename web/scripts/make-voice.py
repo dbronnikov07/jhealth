@@ -61,6 +61,9 @@ SET_PHRASES = {
     "glad_ok": "Glad you're okay. Take your time, then carry on.",
     "told_physio": "I've let your physiotherapist know.",
     "pain_stop": "Let's stop here. I've told your physiotherapist.",
+    "ack_ok": "Okay.",
+    "ack_question": "Good question.",
+    "ack_got_it": "Got it.",
 }
 
 

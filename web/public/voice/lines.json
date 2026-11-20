@@ -72,6 +72,9 @@
   "glad_ok": "Glad you're okay. Take your time, then carry on.",
   "told_physio": "I've let your physiotherapist know.",
   "pain_stop": "Let's stop here. I've told your physiotherapist.",
+  "ack_ok": "Okay.",
+  "ack_question": "Good question.",
+  "ack_got_it": "Got it.",
   "not_counted_squat": "That one didn't count. Go lower, sit back toward the chair.",
   "not_counted_sit_to_stand": "That one didn't count. Sit all the way down, then stand up.",
   "not_counted_arm_raise": "That one didn't count. Lift your arm higher, up to your shoulder."

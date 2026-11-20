@@ -51,6 +51,10 @@ The moment you are answering:
  */
 export function splitSentences(text: string): string[] {
   const parts = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  // A long first sentence is cut at a comma, so the first sound comes sooner.
+  const first = parts[0] ?? "";
+  const comma = first.indexOf(", ", 20);
+  if (first.length > 60 && comma > 0 && comma < first.length - 15) parts.splice(0, 1, first.slice(0, comma + 1), first.slice(comma + 2));
   const out: string[] = [];
   for (const p of parts) {
     if (out.length && (out[out.length - 1].length < 14 || out.length >= 3)) out[out.length - 1] += ` ${p}`;

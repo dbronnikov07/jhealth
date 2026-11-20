@@ -24,6 +24,8 @@ export const SETUP_CLIPS = ["setup_find_you", "setup_step_back", "setup_step_bac
 /** One of these follows every third good repetition, so the count does not sound like a machine. */
 export const MOTIVATION = ["m1", "m2", "m3", "m4", "m5"];
 /** A possible fall, a call for help, and what follows. */
+/** Said at once when the patient finishes a sentence, while the spoken coach's answer is being made. */
+export const ACK_CLIPS = ["ack_ok", "ack_question", "ack_got_it"];
 export const EMERGENCY_CLIPS = ["fall_check", "help_check", "ask_help", "tap_911", "tap_contact", "glad_ok", "told_physio", "pain_stop"];
 
 /**
@@ -53,7 +55,7 @@ export function sessionClips(exerciseId: string, target: number, cues: string[])
   const numbers = Array.from({ length: Math.min(target, COUNT_CLIPS) }, (_, i) => `n${i + 1}`);
   const start = START_CLIPS.includes(exerciseId) ? [`start_${exerciseId}`] : [];
   const notCounted = START_CLIPS.includes(exerciseId) ? [`not_counted_${exerciseId}`] : [];
-  return [...numbers, ...cues, ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, ...start, ...notCounted];
+  return [...numbers, ...cues, ...PHRASE_CLIPS, ...SETUP_CLIPS, ...MOTIVATION, ...EMERGENCY_CLIPS, ...ACK_CLIPS, ...start, ...notCounted];
 }
 
 // 0.05 s of silence: playing it inside the tap is what unlocks sound on phones. It is turned into a blob: address
