@@ -72,3 +72,17 @@ test("'am I doing it right?' is answered from the camera's numbers, in the app's
   assert.equal(formAnswer("How are you?", "Dana", base), null);
   assert.equal(formAnswer("Am I doing it right?", "Dana", null), null);
 });
+
+test("the name is said properly, and not in every answer", async () => {
+  const { forVoice, spokenName, withoutName } = await import("../src/lib/coach/voice-coach.ts");
+  assert.equal(spokenName("Dmitrii"), "Dmitri");
+  assert.equal(spokenName("Andriy"), "Andri");
+  assert.equal(spokenName("Margaret"), "Margaret");
+  assert.equal(forVoice("Hello Dmitrii! How are you feeling today?", "Dmitrii"), "Hello Dmitri! How are you feeling today?");
+  assert.equal(withoutName("Yes I can hear you loud and clear, Dmitrii.", "Dmitrii"), "Yes I can hear you loud and clear.");
+  assert.equal(withoutName("Yes Dmitrii, I can hear and see you perfectly.", "Dmitrii"), "Yes, I can hear and see you perfectly.");
+  assert.equal(withoutName("Take your time, Dmitrii. I am watching, so go ahead and try one.", "Dmitrii"), "Take your time. I am watching, so go ahead and try one.");
+  assert.equal(withoutName("Dmitrii, let's try one repetition.", "Dmitrii"), "Let's try one repetition.");
+  assert.equal(withoutName("That is the spirit, Dmitrii! Let's keep going.", "Dmitrii"), "That is the spirit! Let's keep going.");
+  assert.equal(withoutName("It is 14 degrees and clear in Toronto.", "Dmitrii"), "It is 14 degrees and clear in Toronto.");
+});

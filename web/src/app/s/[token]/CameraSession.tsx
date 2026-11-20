@@ -101,6 +101,7 @@ export function CameraSession(p: Props) {
   const [turns, setTurns] = useState<{ who: "you" | "coach"; text: string }[]>([]);
   const [log, setLog] = useState<LogRow[]>([]);
   const [pausedUi, setPausedUi] = useState(false);
+  const [voicePath, setVoicePath] = useState("");      // which speech servers this session is using, shown small
   const pauseRef = useRef<(on: boolean) => void>(() => {});
   const okayRef = useRef<() => void>(() => {});
   const lastWordsRef = useRef(false);     // the coach is saying its last words (after "it hurts"): do not cut them off
@@ -130,6 +131,12 @@ export function CameraSession(p: Props) {
     };
     lookForHelper();
     const keepWarm = window.setInterval(() => { if (!finished) warm(); }, 180_000);
+    // Which speech servers are in use (the fast helper, or our hosted ones), and how the microphone is read.
+    const showVoicePath = () => {
+      const base = getVoiceBase();
+      setVoicePath(`${!base ? "standard voice" : base.includes("127.0.0.1") ? "fast voice, this computer" : "fast voice"}${captureMode() ? ` · mic ${captureMode()}` : ""}`);
+    };
+    const voicePathTimer = window.setInterval(showVoicePath, 3000);
     const counter = new RepCounter(profile.counter);
     const frames: Frame[] = [];
     const kneesInFlags: boolean[] = [];
@@ -770,6 +777,10 @@ export function CameraSession(p: Props) {
           }
           if (!rep) return;
           if (!countsAsRep(profile, rep)) {
+            if (process.env.NODE_ENV !== "production") {
+              const w = window as unknown as { __jhealthReps?: object[] };
+              (w.__jhealthReps ??= []).push({ measure: Math.round(profile.repMeasure(rep)), fault: "too_small" });
+            }
             // Too small to be a repetition: say so and why, and do not count it.
             lastProgressAt = performance.now();
             reachedThisRep = false;
@@ -799,6 +810,15 @@ export function CameraSession(p: Props) {
             quality === null ? null : 1 - quality, model?.flag_threshold,
           );
           if (!model) quality = ruleQuality(fault);
+          if (process.env.NODE_ENV !== "production") {
+            // Development only: every finished movement with the numbers the rules judged it on.
+            const w = window as unknown as { __jhealthReps?: object[] };
+            (w.__jhealthReps ??= []).push({
+              measure: Math.round(profile.repMeasure(rep)), fault,
+              hands: profile.handsShare ? Number(profile.handsShare({ rep, frames: slice, times: counter.times.slice(rep.startIndex, rep.endIndex + 1), liveFlags: flags }).toFixed(2)) : null,
+              seconds: Number(rep.activeSeconds.toFixed(1)),
+            });
+          }
           if (fault && NOT_COUNTED_FAULTS.includes(fault)) {
             // Pushed up with the hands: the legs did not do the work, so it is named, shown, and not counted.
             lastProgressAt = performance.now();
@@ -909,6 +929,7 @@ export function CameraSession(p: Props) {
       }
       window.clearTimeout(emergencyTimer);
       window.clearInterval(keepWarm);
+      window.clearInterval(voicePathTimer);
       window.clearTimeout(helperTimer);
       window.clearInterval(bargeIn);
       onHeard(null);
@@ -982,7 +1003,7 @@ export function CameraSession(p: Props) {
           <span className="readout-live">{p.exerciseName} · set {Math.min(p.sets, Math.floor(done / p.reps) + 1)} of {p.sets}</span>
           {bend !== null && <span className="readout-live"><small>{profileFor(p.exerciseId).liveLabel}</small> <b>{bend}°</b></span>}
           {avg !== null && <span className="readout-live"><small>Quality</small> <b>{avg}/100</b></span>}
-          {modelNote && <span className="model-note">{modelNote}</span>}
+          {(modelNote || voicePath) && <span className="model-note">{[modelNote, voicePath].filter(Boolean).join(" · ")}</span>}
         </div>
       </div>
       <div className="set-progress" aria-hidden>

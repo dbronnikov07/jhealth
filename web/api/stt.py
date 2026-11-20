@@ -28,6 +28,11 @@ MODEL_SHA256 = "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002
 MAX_BYTES = 16000 * 2 * 12
 # Words Whisper should expect. Without it, a question about "the weather" at two metres from a laptop came back as
 # "the name of the map" (live log, 20 November). A short hint of the vocabulary, not sentences to copy.
+# The hint costs about 0.4 s on our small hosted server, so only the fast voice helper (scripts/voice-dev.py) uses it.
+USE_PROMPT = False
+# Only ever set on the team's own computer, to find out why something was misheard: the last utterances are kept
+# there as .wav files. Never set on the hosted site, where audio is transcribed in memory and dropped.
+DEBUG_DIR = os.environ.get("STT_DEBUG_DIR") or None
 PROMPT = ("A patient talks to Motiva, their rehab coach, during chair squats and sit-to-stand: repetitions, knee bend, "
           "form, the camera, the weather today, how are you, can you hear me.")
 _model = None
@@ -62,7 +67,8 @@ def _load():
         # The first real transcription is the slow one (2 to 3 s with the bigger model), so it is done here, on two
         # seconds of faint noise with the same settings as a real request. Silence is not enough: it returns early.
         noise = (np.random.default_rng(0).standard_normal(32000) * 0.02).astype(np.float32)
-        m.transcribe(noise, language="en", single_segment=True, no_context=True, suppress_blank=True, audio_ctx=228, initial_prompt=PROMPT)
+        m.transcribe(noise, language="en", single_segment=True, no_context=True, suppress_blank=True, audio_ctx=228,
+                     **({"initial_prompt": PROMPT} if USE_PROMPT else {}))
         _model = m
     return _model
 
@@ -90,6 +96,29 @@ def clean(text):
         if not out or p.lower() != out[-1].lower():
             out.append(p)
     return " ".join(out)[:300]
+
+
+def keep_for_debugging(audio, text):
+    """Team computer only (STT_DEBUG_DIR): the utterance as a .wav next to what Whisper made of it; the newest 40."""
+    try:
+        import wave
+        import numpy as np
+        os.makedirs(DEBUG_DIR, exist_ok=True)
+        name = time.strftime("%H%M%S") + f"-{int(time.time() * 1000) % 1000:03d}"
+        with wave.open(os.path.join(DEBUG_DIR, name + ".wav"), "wb") as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000)
+            w.writeframes((np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
+        with open(os.path.join(DEBUG_DIR, name + ".txt"), "w") as f:
+            f.write(text + "\n")
+        old = sorted(n for n in os.listdir(DEBUG_DIR) if n.endswith(".wav"))[:-40]
+        for n in old:
+            for ext in (".wav", ".txt"):
+                try:
+                    os.remove(os.path.join(DEBUG_DIR, n[:-4] + ext))
+                except OSError:
+                    pass
+    except Exception:
+        pass
 
 
 class handler(BaseHTTPRequestHandler):
@@ -130,9 +159,11 @@ class handler(BaseHTTPRequestHandler):
                 segments = m.transcribe(
                     audio, language="en", single_segment=True, no_context=True, suppress_blank=True,
                     audio_ctx=min(1500, int(seconds * 50) + 128),     # only as much context as there is audio: faster
-                    initial_prompt=PROMPT,
+                    **({"initial_prompt": PROMPT} if USE_PROMPT else {}),
                 )
             text = clean(" ".join(s.text for s in segments))
+            if DEBUG_DIR:
+                keep_for_debugging(audio, text)
             self._timing = f"stt;dur={(time.perf_counter() - t0) * 1000:.0f}"
             self._send(200, json.dumps({"text": text}).encode())
         except Exception:

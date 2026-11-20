@@ -152,7 +152,9 @@ test("knees caving in is only judged when the person faces the camera", () => {
 test("a small bob of the knees is not a squat: it does not count", () => {
   const rep = (minKnee: number) => ({ startIndex: 0, endIndex: 1, startTime: 0, endTime: 1, minKnee, topKnee: 158, depth: 158 - minKnee, activeSeconds: 2 });
   assert.equal(countsAsRep(EXERCISES.squat, rep(140)), false);        // knees bent 40 degrees: a couple of centimetres
-  assert.equal(countsAsRep(EXERCISES.squat, rep(118)), true);         // 62 degrees: a real chair squat
+  assert.equal(countsAsRep(EXERCISES.squat, rep(118)), false);        // 62 degrees: a dip, not down to the chair
+  assert.equal(countsAsRep(EXERCISES.squat, rep(110)), true);         // 70 degrees: a real chair squat
+  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(125)), false); // thighs at 55 degrees: hovered, never sat
   assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(150)), false); // thighs only 30 degrees from vertical: never sat
   assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(110)), true);  // thighs at 70 degrees: sat on the chair
   assert.equal(countsAsRep(EXERCISES.arm_raise, rep(130)), false);    // arm lifted 50 degrees

@@ -93,6 +93,8 @@ export type RepContext = {
 
 export type ExerciseProfile = {
   id: string;
+  /** Share of the push with the hands low or on a leg (exercises where pushing up with the hands does not count). */
+  handsShare?(c: RepContext): number;
   repSignal(f: Frame): number;
   counter: RepCounterOptions;
   /** Shown live under the video. */
@@ -122,7 +124,7 @@ export function countsAsRep(profile: ExerciseProfile, rep: CompletedRep): boolea
 }
 
 /** A squat that bends the knees less than this (degrees) gets "a little deeper". */
-export const SQUAT_SHALLOW_BEND = 60;
+export const SQUAT_SHALLOW_BEND = 70;
 
 const shareOf = (flags: boolean[]) => flags.filter(Boolean).length / Math.max(1, flags.length);
 
@@ -166,24 +168,63 @@ export function thighTilt(f: Frame): number {
 }
 const thighSignal = (f: Frame) => 180 - thighTilt(f);     // dips when sitting down, like the knee angle did
 
-/** Hands low: the higher wrist is not clearly above the hips (arms crossed puts both wrists at the chest). */
+/**
+ * Hands low: the higher wrist is below chest height. Arms crossed put both wrists at the chest (about 0.6 torso
+ * lengths above the hips); reaching forward, higher still. Hands on the thighs or knees sit at about hip height, and
+ * hanging arms below it. Measured on 44 correct sit-to-stands filmed in real homes (WLU), where nearly everyone had
+ * their hands on their thighs: the higher wrist sat 0.14 torso lengths above the hips (10th percentile 0.18), and
+ * 0.12 m from the thigh. The first line, 0.1, let all of those through (seven pushed-up stands were counted on
+ * 20 November). At 0.3 they are caught, and arms crossed on the chest (about 0.6) are not.
+ */
+export const HANDS_LOW_RATIO = -0.3;
 function handsLow(f: Frame): boolean {
   const hipY = (f[23][1] + f[24][1]) / 2;
   const torso = Math.hypot((f[11][0] + f[12][0] - f[23][0] - f[24][0]) / 2, (f[11][1] + f[12][1] - f[23][1] - f[24][1]) / 2,
     (f[11][2] + f[12][2] - f[23][2] - f[24][2]) / 2) + 1e-9;
-  return (Math.min(f[15][1], f[16][1]) - hipY) / torso > -0.1;
+  return (Math.min(f[15][1], f[16][1]) - hipY) / torso > HANDS_LOW_RATIO;
+}
+
+/** Distance from a point to the segment a-b, in the landmarks' own units (metres). */
+function toSegment(p: Vec, a: Vec, b: Vec): number {
+  const ab: Vec = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const ap: Vec = [p[0] - a[0], p[1] - a[1], p[2] - a[2]];
+  const t = Math.min(1, Math.max(0, (ap[0] * ab[0] + ap[1] * ab[1] + ap[2] * ab[2]) / (ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2] + 1e-9)));
+  return Math.hypot(ap[0] - t * ab[0], ap[1] - t * ab[1], ap[2] - t * ab[2]);
+}
+
+/** A hand on a leg: either wrist within this distance (metres) of either thigh, hip to knee. */
+export const HAND_ON_LEG_M = 0.15;
+function handOnLeg(f: Frame): boolean {
+  const hipY = (f[23][1] + f[24][1]) / 2;
+  const torso = Math.hypot((f[11][0] + f[12][0] - f[23][0] - f[24][0]) / 2, (f[11][1] + f[12][1] - f[23][1] - f[24][1]) / 2,
+    (f[11][2] + f[12][2] - f[23][2] - f[24][2]) / 2) + 1e-9;
+  // Near a thigh AND below the chest: arms crossed on the chest come close to the thighs in a deep forward lean.
+  return [f[15], f[16]].some((w) => (w[1] - hipY) / torso > -0.45
+    && (toSegment(w, f[23], f[25]) < HAND_ON_LEG_M || toSegment(w, f[24], f[26]) < HAND_ON_LEG_M));
 }
 
 /**
- * Did the hands stay low (on the thighs, the knees, the chair, or hanging) for most of the way back up? Standing up
- * should be done by the legs: arms crossed on the chest, or reaching forward. Such a repetition does not count.
+ * Share of the push (from the lowest point until four fifths of the way back up) during which the hands are low or
+ * on a leg. The push is where the hands help; the moment after standing up says nothing.
  */
-function pushedWithHands(c: RepContext, signal: (f: Frame) => number): boolean {
+export function handsShare(c: RepContext, signal: (f: Frame) => number): number {
   const s = c.frames.map(signal);
   let v = 0;
   for (let i = 1; i < s.length; i++) if (s[i] < s[v]) v = i;
-  const rise = c.frames.slice(v);
-  return rise.length >= 3 && rise.filter(handsLow).length / rise.length >= 0.5;
+  const top = Math.max(s[0], s[s.length - 1]);
+  const upTo = s[v] + 0.8 * (top - s[v]);
+  let e = v;
+  while (e < s.length - 1 && s[e] < upTo) e++;
+  const push = c.frames.slice(v, Math.max(e, v + 2) + 1);
+  return push.filter((f) => handsLow(f) || handOnLeg(f)).length / Math.max(1, push.length);
+}
+
+/** At or above this share of the push with the hands low or on a leg, the repetition was pushed up. */
+export const HANDS_SHARE = 0.5;
+
+/** Was this repetition pushed up with the hands? Standing up should be done by the legs. It does not count. */
+function pushedWithHands(c: RepContext, signal: (f: Frame) => number): boolean {
+  return handsShare(c, signal) >= HANDS_SHARE;
 }
 
 /** A repetition with one of these mistakes is shown and named, but not counted. */
@@ -224,6 +265,7 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     id: "squat",
     repSignal: kneeBoth,
     counter: { ...DEFAULT_REP_OPTIONS, minDepth: 15 },
+    handsShare: (c) => handsShare(c, kneeBoth),
     liveLabel: "Knee bend",
     liveValue: (f) => Math.max(0, 180 - kneeBoth(f)),
     repMeasure: (r) => 180 - r.minKnee,
@@ -241,8 +283,8 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
       return null;
     },
     // Correct squats in the public data reach a knee angle of 87 (fixed camera) to 109 degrees (phones), a bend of
-    // 70 to 90. Under 55 degrees of bend it is not a squat yet, so it does not count.
-    minCount: 55,
+    // 70 to 90. Under 65 degrees of bend (a dip, a wiggle of the hips) it is not a chair squat, so it does not count.
+    minCount: 65,
     notCounted: "That one didn't count. Go lower, sit back toward the chair.",
   },
   sit_to_stand: {
@@ -250,6 +292,7 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     // Counted on the thigh angle (thighTilt), not the knee: see there for why.
     repSignal: thighSignal,
     counter: { ...DEFAULT_REP_OPTIONS, minDepth: 30 },
+    handsShare: (c) => handsShare(c, thighSignal),
     liveLabel: "Hip bend",
     liveValue: (f) => Math.max(0, Math.round(thighTilt(f))),
     repMeasure: (r) => 180 - r.minKnee,                          // the deepest thigh angle: how far down they sat
@@ -273,8 +316,8 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
       if (c.rep.activeSeconds < 1.5) return "too_fast";
       return null;
     },
-    // Sitting on a chair puts the thighs at about 71 degrees (WLU; 10th percentile 62). Under 50 they never sat.
-    minCount: 50,
+    // Sitting on a chair puts the thighs at about 71 degrees (WLU; 10th percentile 62). Under 58 they never sat down.
+    minCount: 58,
     notCounted: "That one didn't count. Sit all the way down, then stand up.",
   },
   seated_knee_extension: {

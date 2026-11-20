@@ -53,6 +53,26 @@ test("walking up to the camera, or bowing to reach the laptop, is not a fall", (
   assert.equal(run(new FallWatch(), [...hold(2, { lean: 8, feet: 0.85 }), ...hold(3, { lean: 85, feet: 0.1 })]).length, 1);
 });
 
+test("dropping to the floor and staying there, in full view, is a possible fall; sitting on a chair is not", () => {
+  const stand = hold(3, { lean: 8, hip: 0.45, torso: 0.2 });
+  // hips 0.3 of the picture lower (1.5 torso lengths), trunk still fairly upright: sitting on the floor after a fall
+  assert.equal(run(new FallWatch(), [...stand, { lean: 25, hip: 0.6, torso: 0.2 }, ...hold(4, { lean: 25, hip: 0.75, torso: 0.2 })]).length, 1);
+  // a chair takes the hips about 0.8 torso lengths down, however long they stay seated
+  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(8, { lean: 15, hip: 0.61, torso: 0.2 })]), []);
+  // a quick dip to the floor and straight back up (picking something up) is not one either
+  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(1, { lean: 30, hip: 0.75, torso: 0.2 }), ...hold(3, { lean: 8, hip: 0.45, torso: 0.2 })]), []);
+});
+
+test("close to the camera nothing is a fall, whatever the body seems to do", () => {
+  const w = new FallWatch();
+  const stand = hold(3, { lean: 8, hip: 0.45, torso: 0.2 });
+  // walks up: the torso doubles on screen, the hips slide down the picture, the pose goes wild, then out of view
+  const walkUp = [{ hip: 0.5, torso: 0.24 }, { hip: 0.56, torso: 0.28 }, { hip: 0.64, torso: 0.34 }, { hip: 0.75, torso: 0.4 },
+    ...hold(3, { lean: 85, hip: 0.9, torso: 0.45, feet: 0.1 }), ...hold(6, { gone: true })];
+  assert.deepEqual(run(w, [...stand, ...walkUp]), []);
+  assert.equal(w.isNear, true);
+});
+
 test("after a pause the fall watch starts fresh", () => {
   const w = new FallWatch();
   run(w, hold(2, { lean: 8 }));

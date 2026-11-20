@@ -15,7 +15,9 @@ const csp = [
   "media-src 'self' blob:",
   // http://127.0.0.1:8799 is the optional fast voice helper on the demo laptop (npm run voice:fast); browsers treat
   // the loopback address as trustworthy, and nothing else on the machine is reachable from the page.
-  `connect-src 'self' http://127.0.0.1:8799${isDev ? " ws: wss:" : ""}`,
+  // https://*.trycloudflare.com is the same helper reached through its tunnel, so phones can use it too; the page
+  // only ever gets that address from our own server (api/voice-helper), and the helper only answers signed requests.
+  `connect-src 'self' http://127.0.0.1:8799 https://*.trycloudflare.com${isDev ? " ws: wss:" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'none'",
   "frame-ancestors 'none'",

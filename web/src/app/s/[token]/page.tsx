@@ -76,6 +76,10 @@ export default async function SessionPage({
     ),
     loadRecovery(db, patient.id, protocol, 6),
   ]);
+  // The team's fast voice helper, if it has checked in during the last two minutes.
+  const [helper] = await db.query<{ url: string }>(
+    "select url from bridge_status where name = 'voice' and url is not null and last_seen > now() - interval '2 minutes'",
+  );
   const [visit] = await db.query<{ status: string; chosen_at: Date | null; clinic: string | null }>(
     `select v.status, v.chosen_at, d.clinic from visits v left join doctors d on d.id = v.doctor_id
       where v.patient_id = $1 and (v.status = 'proposed' or (v.status = 'confirmed' and v.chosen_at > now() - interval '2 hours'))
@@ -114,6 +118,7 @@ export default async function SessionPage({
           token={token} items={items} source={source} step={!!source && query.step === "1"}
           emergency={patient.emergency_name && patient.emergency_phone ? { name: patient.emergency_name, phone: patient.emergency_phone } : null}
           listenTicket={sttTicket()}
+          voiceHelper={helper?.url ?? null}
         />
       )}
       <section className="journey" aria-labelledby="journey-title">

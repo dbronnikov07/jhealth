@@ -177,6 +177,13 @@ export function getVoiceBase(): string {
 }
 
 const LOCAL_VOICE = "http://127.0.0.1:8799";
+let remoteVoice = "";                        // the team's fast voice helper, reached through its tunnel (from our server)
+
+/** The fast voice helper's public address, when it is running (the session page gets it from our server). */
+export function setRemoteVoice(url: string | null): void {
+  remoteVoice = url && /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(url) ? url : "";
+  if (voiceBase !== LOCAL_VOICE) voiceBase = remoteVoice;
+}
 const FAST_VOICE_KEY = "motiva.fastVoice";
 
 /** Is this browser set up to use the fast voice helper on this laptop (the /fast-voice page turns it on)? Off by
@@ -211,9 +218,9 @@ export async function findVoiceServer(force = false): Promise<string> {
       return voiceBase;
     }
   } catch {
-    // not running: use the server
+    // not running on this computer: the helper through its tunnel if there is one, else the server
   }
-  voiceBase = "";
+  voiceBase = remoteVoice;
   return voiceBase;
 }
 
@@ -222,12 +229,13 @@ export async function findVoiceServer(force = false): Promise<string> {
 export async function voiceFetch(path: "/api/tts" | "/api/stt", init: RequestInit): Promise<Response | null> {
   const base = voiceBase;
   try {
-    const res = await fetch(`${base}${path}`, init);
+    // The helper answers in well under a second; if it has not in 5 s, it is gone, and the server takes over.
+    const res = await fetch(`${base}${path}`, base ? { ...init, signal: AbortSignal.timeout(5000) } : init);
     if (res.ok || !base) return res;
   } catch {
     if (!base) return null;
   }
-  voiceBase = "";
+  if (voiceBase === base) voiceBase = "";
   return fetch(path, init).catch(() => null);
 }
 

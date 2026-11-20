@@ -42,6 +42,7 @@ if SMALL.exists() and os.environ.get("STT_MODEL", "small.en") == "small.en":
     stt.MODEL_NAME = "small.en"
 elif (CACHE / "whisper" / "ggml-base.en.bin").exists():
     stt.MODEL_PATH = str(CACHE / "whisper" / "ggml-base.en.bin")
+stt.USE_PROMPT = True          # the vocabulary hint: free on this computer, about 0.4 s on the hosted one
 
 
 ALLOWED_ORIGINS = {"https://motiva-health.vercel.app", "https://jhealth-beta.vercel.app", "http://localhost:3100"}

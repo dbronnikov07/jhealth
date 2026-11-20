@@ -133,6 +133,38 @@ export function splitSentences(text: string): string[] {
   return out;
 }
 
+/**
+ * A first name as the voice should say it. Names transliterated from Russian or Ukrainian often end in "ii" or "iy"
+ * (Dmitrii, Yurii, Andriy); the voice read "Dmitrii" as "Dmitri-eye", and the patient corrected it out loud three
+ * times (live log, 20 November). One "i" is said right.
+ */
+export function spokenName(name: string): string {
+  return name.replace(/(ii|iy|yi)$/i, "i");
+}
+
+/** The text with the patient's name respelled for the voice (the screen keeps the real spelling). */
+export function forVoice(text: string, firstName: string): string {
+  const said = spokenName(firstName);
+  return said === firstName || !firstName ? text : text.split(firstName).join(said);
+}
+
+/**
+ * The answer without the patient's name. The AI put the name into almost every answer ("Yes, I can hear you,
+ * Dmitrii." eleven times in two minutes); a person says it now and then. The greeting and the summaries keep it.
+ */
+export function withoutName(text: string, firstName: string): string {
+  if (!firstName) return text;
+  const n = firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const out = text
+    .replace(new RegExp(`\\s*,\\s*${n}(?=\\s*[.!?])`, "g"), "")                                   // "..., Dmitrii."  -> "..."
+    .replace(new RegExp(`(^|[.!?]\\s+)${n}\\s*,\\s*(\\w)`, "g"), (_m, a: string, b: string) => a + b.toUpperCase())   // "Dmitrii, let's" -> "Let's"
+    .replace(new RegExp(`\\s*,\\s*${n}\\s*,\\s*`, "g"), ", ")                                      // "Yes, Dmitrii, I" -> "Yes, I"
+    .replace(new RegExp(`\\s+${n}\\s*,`, "g"), ",")                                                 // "Yes Dmitrii, I"  -> "Yes, I"
+    .replace(new RegExp(`\\s*\\b${n}\\b`, "g"), "")
+    .replace(/\s+([.,!?])/g, "$1").replace(/\s{2,}/g, " ").trim();
+  return out.length >= 2 ? out : text;
+}
+
 /** Removes what sounds wrong when spoken, and keeps it short. */
 export function forSpeech(text: string): string {
   return text

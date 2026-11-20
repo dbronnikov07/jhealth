@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { getDb } from "@/lib/db";
 import { assessMessage } from "@/lib/safety";
 import { raiseSafetyAlert } from "@/lib/safety-actions";
-import { forSpeech, formAnswer, liveFacts, speech, splitSentences, ttsTicket, voiceReply, type FormData, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
+import { forSpeech, forVoice, formAnswer, liveFacts, speech, splitSentences, ttsTicket, voiceReply, withoutName, type FormData, type VoiceContext, type VoiceEvent } from "@/lib/coach/voice-coach";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -95,7 +95,11 @@ export async function POST(request: Request) {
     reply = event === "prepare" ? (await voiceReply(event, heard, ctx, { keepLines: true })).text : (await voiceReply(event, heard, ctx)).text;
   }
 
-  const audio = event === "prepare" ? null : await speech(reply);
+  // In the middle of a conversation the name is left out (the AI adds it to nearly every answer); the greeting and
+  // the summaries keep it. What is spoken uses a spelling the voice reads properly ("Dmitrii" -> "Dmitri").
+  if (event === "heard" && !safety) reply = withoutName(reply, ctx.firstName);
+  const say = (t: string) => forVoice(t, ctx.firstName);
+  const audio = event === "prepare" ? null : await speech(say(reply));
   await db.query(
     "insert into voice_turns (patient_id, event, exercise_id, heard, reply) values ($1, $2, $3, $4, $5)",
     [patient.id, event, exerciseId, heard, reply.slice(0, 600)],
@@ -104,9 +108,9 @@ export async function POST(request: Request) {
   if (event === "prepare") {
     // Five personal lines for during the set, each its own speech ticket; the browser makes them in the background.
     const lines = reply.split(/\n+|(?<=[.!?])\s+(?=[A-Z])/).map((l) => forSpeech(l.replace(/^[\s\d.)\-*"]+|"$/g, ""))).filter((l) => l.length >= 4).slice(0, 5);
-    return Response.json({ reply: lines.join(" "), action, audio: null, lines: lines.map((l) => ({ text: l, tts: ttsTicket(l) })) });
+    return Response.json({ reply: lines.join(" "), action, audio: null, lines: lines.map((l) => ({ text: l, tts: ttsTicket(say(l)) })) });
   }
-  const tickets = audio ? [] : splitSentences(reply).map(ttsTicket).filter((t) => t !== null);
+  const tickets = audio ? [] : splitSentences(reply).map((t) => ttsTicket(say(t))).filter((t) => t !== null);
   return Response.json({ reply, action, audio: audio ? audio.toString("base64") : null, tts: tickets.length ? tickets : null });
 }
 
