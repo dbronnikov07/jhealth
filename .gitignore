@@ -28,3 +28,4 @@ web/scripts/mock-whatsapp.jsonl
 .DS_Store
 .vscode/
 .idea/
+/voice-samples/

@@ -13,6 +13,7 @@ import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
+import { playVoice, preloadVoice, repClips, sessionClips, stopVoice, voiceReady } from "@/lib/voice";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
 export type SessionSummary = { reps: number; quality: number | null; knee_bend: number | null; previous_knee_bend: number | null };
@@ -49,6 +50,19 @@ function speak(text: string, interrupt = false) {
   window.speechSynthesis.speak(u);
 }
 
+/**
+ * Say something in the coach's recorded voice (lib/voice.ts). `text` is what the browser's own voice says instead
+ * when the recording is not available: sound was never unlocked by a tap, or a clip did not download.
+ */
+function say(clips: string[], text: string, when: "now" | "next" | "queue" = "queue") {
+  if (playVoice(clips, when)) {
+    if (when !== "queue" && typeof window !== "undefined") window.speechSynthesis?.cancel();
+    return;
+  }
+  if (when !== "queue") stopVoice();
+  speak(text, when !== "queue");
+}
+
 export function CameraSession(p: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,6 +88,7 @@ export function CameraSession(p: Props) {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
     const profile = profileFor(p.exerciseId);
+    preloadVoice(sessionClips(p.exerciseId, target, Object.keys(CUE)));   // small files; ready before the first repetition
     const counter = new RepCounter(profile.counter);
     const frames: Frame[] = [];
     const kneesInFlags: boolean[] = [];
@@ -145,7 +160,6 @@ export function CameraSession(p: Props) {
       stop();
       if (repResults.length === 0) return p.onDone(null);
       setStatus("saving");
-      if (reason === "target") speak("Nice work. That set is complete.", true);
       try {
         const res = await fetch("/api/session", {
           method: "POST",
@@ -323,7 +337,8 @@ export function CameraSession(p: Props) {
           showSetupIssue(null);
           if (!startSpoken) {
             startSpoken = true;
-            speak(`Camera's ready. We'll do ${p.exerciseName}: ${target} repetitions. Take your time.`);
+            const own = `start_${p.exerciseId}`;
+            say([voiceReady([own]) ? own : "start"], `Camera's ready. We'll do ${p.exerciseName}: ${target} repetitions. Take your time.`);
           }
           const frame: Frame = world.map((l) => [l.x, l.y, l.z] as Vec);
           const signal = profile.repSignal(frame);
@@ -361,7 +376,7 @@ export function CameraSession(p: Props) {
           const liveCue = profile.liveWarningFault ? CUE[profile.liveWarningFault] : null;
           if (kneesInRun === 8 && liveCue) {
             if (!cueSpokenThisRep && performance.now() - lastSpokenCue > 4000) {
-              speak(liveCue, true);
+              say([profile.liveWarningFault as string], liveCue, "now");
               cueSpokenThisRep = true;
               lastSpokenCue = performance.now();
             }
@@ -409,16 +424,17 @@ export function CameraSession(p: Props) {
           cueSpokenThisRep = false;
 
           const n = repResults.length;
-          const spoken = repSpokenText(
-            n,
-            fault && fault !== profile.liveWarningFault ? fault : null,
-            fault && fault !== profile.liveWarningFault ? CUE[fault] : null,
+          // The live warning was already said during the repetition; do not repeat it after the count.
+          const named = fault && fault !== profile.liveWarningFault ? fault : null;
+          const allDone = n >= target;
+          const setDone = !allDone && n % p.reps === 0;
+          const spoken = repSpokenText(n, named, named ? CUE[named] : null);
+          say(
+            repClips(n, named, { allDone, setDone, halfway: target >= 8 && n * 2 === target }),
+            allDone ? `${spoken} Nice work. That's all of them.`
+              : setDone ? `${spoken} Set ${n / p.reps} is done. Take a breather, then continue.` : spoken,
+            "next",       // a warning still being spoken finishes its sentence before the count
           );
-          if (n % p.reps === 0 && n < target) {
-            speak(`${spoken} Set ${n / p.reps} is done. Take a breather, then continue.`, true);
-          } else {
-            speak(spoken, true);
-          }
           if (n >= target) return finish("target");
         };
 
@@ -471,6 +487,7 @@ export function CameraSession(p: Props) {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
       stop();
+      stopVoice();
       window.speechSynthesis?.cancel();
     };
     // The session runs once per mount; its inputs do not change while it runs.
@@ -483,6 +500,7 @@ export function CameraSession(p: Props) {
 
   const hurts = async () => {
     stopRef.current();
+    stopVoice();
     window.speechSynthesis?.cancel();
     const res = await fetch("/api/session/pain", {
       method: "POST",

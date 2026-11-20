@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { CameraSession, type SessionSummary } from "./CameraSession";
+import { unlockVoice } from "@/lib/voice";
 
 export type PlanItem = {
   exercise_id: string;
@@ -88,7 +89,7 @@ export function SessionApp({ token, items, source, step = false }: { token: stri
             {done[item.exercise_id] ? (
               <span className="done-badge"><Icon name="check" /> {done[item.exercise_id]}</span>
             ) : item.tracking === "camera" ? (
-              <button className="btn primary" onClick={() => setActive(item.exercise_id)}><Icon name="camera" /> Start with camera</button>
+              <button className="btn primary" onClick={() => { unlockVoice(); setActive(item.exercise_id); }}><Icon name="camera" /> Start with camera</button>
             ) : (
               <button className="btn" onClick={() => markDone(item)} disabled={busy === item.exercise_id}>
                 {busy === item.exercise_id ? "Saving…" : <><Icon name="check" /> Mark done</>}

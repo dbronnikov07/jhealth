@@ -1,0 +1,154 @@
+// The coach's voice: short recorded clips (public/voice/*.mp3) played back to back.
+//
+// Why not the browser's speech synthesiser: it sounds robotic, and different on every device. The session only ever
+// says about fifty short things (the count, the cues, a few set phrases), so they are recorded once with a natural
+// voice (scripts/make-voice.py) and the same voice plays on every phone and laptop. Nothing is generated or sent
+// anywhere while a patient exercises. To use a real person's voice, replace the files: public/voice/lines.json
+// lists what each one says.
+//
+// One <audio> element plays everything. A phone lets a page make sound only after a tap, so unlockVoice() is called
+// from the tap that starts the session; after that the element can be reused freely. (An <audio> element is also
+// still heard when an iPhone's ringer switch is on silent, which Web Audio is not.)
+//
+// If a clip is missing or sound was never unlocked, playVoice() returns false and the caller falls back to the
+// browser's own voice (lib/speech.ts), so the session is never silent because of a failed download.
+
+/** Counted aloud up to here; a longer set falls back to the browser's voice for the higher numbers. */
+export const COUNT_CLIPS = 30;
+/** Exercises with their own "Camera's ready. Let's do ..." line. */
+export const START_CLIPS = ["squat", "sit_to_stand", "arm_raise"];
+/** Set phrases that are not cues. */
+export const PHRASE_CLIPS = ["start", "halfway", "set_done", "all_done"];
+
+/**
+ * What to say after repetition number `rep`: the count, then the cue if a rule objected, then where we are.
+ * A person counting says "Seven", not "Nice. That's seven." twenty times in a row.
+ */
+export function repClips(rep: number, fault: string | null, at: { halfway?: boolean; setDone?: boolean; allDone?: boolean } = {}): string[] {
+  const clips = [`n${rep}`];
+  if (fault) clips.push(fault);
+  if (at.allDone) clips.push("all_done");
+  else if (at.setDone) clips.push("set_done");
+  else if (at.halfway && !fault) clips.push("halfway");
+  return clips;
+}
+
+/** Every clip one session can need, to fetch while the camera starts. */
+export function sessionClips(exerciseId: string, target: number, cues: string[]): string[] {
+  const numbers = Array.from({ length: Math.min(target, COUNT_CLIPS) }, (_, i) => `n${i + 1}`);
+  const start = START_CLIPS.includes(exerciseId) ? [`start_${exerciseId}`] : [];
+  return [...numbers, ...cues, ...PHRASE_CLIPS, ...start];
+}
+
+// 0.05 s of silence: playing it inside the tap is what unlocks sound on phones. It is turned into a blob: address
+// because the site's Content-Security-Policy allows media only from itself and from blob:, never from data:.
+const SILENCE_WAV = "UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+let silenceUrl: string | null = null;
+function silence(): string {
+  if (!silenceUrl) {
+    const bytes = Uint8Array.from(atob(SILENCE_WAV), (c) => c.charCodeAt(0));
+    silenceUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  }
+  return silenceUrl;
+}
+
+let player: HTMLAudioElement | null = null;
+let unlocked = false;
+let queue: string[] = [];
+let busy = false;
+let turn = 0;                                   // guards against a late "play() was interrupted" from an older clip
+const loaded = new Map<string, string>();       // clip -> object URL, ready to play at once
+const requested = new Set<string>();
+
+function audio(): HTMLAudioElement | null {
+  if (typeof window === "undefined" || typeof Audio === "undefined") return null;
+  if (!player) {
+    player = new Audio();
+    player.preload = "auto";
+    player.addEventListener("ended", playNext);
+    player.addEventListener("error", playNext);
+  }
+  return player;
+}
+
+function playNext(): void {
+  const a = player;
+  if (!a) return;
+  const clip = queue.shift();
+  const url = clip ? loaded.get(clip) : undefined;
+  if (!url) {
+    busy = false;
+    return;
+  }
+  busy = true;
+  const mine = ++turn;
+  a.src = url;
+  a.play().catch((e: unknown) => {
+    if ((e as { name?: string } | null)?.name === "NotAllowedError") {
+      // The browser wants a tap first after all: stop trying, and let the caller's fallback voice take over.
+      unlocked = false;
+      queue = [];
+      busy = false;
+    } else if (mine === turn) {
+      playNext();
+    }
+  });
+}
+
+/** Call from the tap that starts the session. Safe to call again. */
+export function unlockVoice(): void {
+  const a = audio();
+  if (!a || unlocked || busy) return;
+  a.src = silence();
+  // Calling play() inside the tap is what counts. The silence itself may be cut short by the first real clip (or by
+  // React remounting the session in development), so only an outright refusal means sound is still locked.
+  unlocked = true;
+  a.play().catch((e: unknown) => {
+    if ((e as { name?: string } | null)?.name === "NotAllowedError") unlocked = false;
+  });
+}
+
+/** Fetch clips ahead of time. Missing ones are simply never ready. */
+export function preloadVoice(clips: string[]): void {
+  if (typeof window === "undefined") return;
+  for (const clip of clips) {
+    if (requested.has(clip)) continue;
+    requested.add(clip);
+    fetch(`/voice/${clip}.mp3`)
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((blob) => { if (blob) loaded.set(clip, URL.createObjectURL(blob)); })
+      .catch(() => { requested.delete(clip); });
+  }
+}
+
+export function voiceReady(clips: string[]): boolean {
+  return unlocked && clips.length > 0 && clips.every((clip) => loaded.has(clip));
+}
+
+/**
+ * Say these clips back to back.
+ *   "now"    stop whatever is being said and say this at once (a live warning);
+ *   "next"   let the clip that is playing finish its word, drop anything still waiting, then say this (the count);
+ *   "queue"  say it after everything already waiting.
+ * Returns false and plays nothing when sound is locked or a clip is not loaded: the caller then uses its fallback.
+ */
+export function playVoice(clips: string[], when: "now" | "next" | "queue" = "queue"): boolean {
+  if (!voiceReady(clips)) return false;
+  if (when === "now") {
+    queue = [...clips];
+    player?.pause();
+    playNext();
+  } else {
+    queue = when === "next" ? [...clips] : [...queue, ...clips];
+    // `busy` can be stale if the system paused the sound (a call, the tab going to the background).
+    if (!busy || player?.paused || player?.ended) playNext();
+  }
+  return true;
+}
+
+export function stopVoice(): void {
+  queue = [];
+  busy = false;
+  turn++;
+  player?.pause();
+}
