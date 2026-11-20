@@ -899,3 +899,10 @@ textarea { resize: vertical; min-height: 60px; }
 .talk-bar .heard b { color: #0b1240; }
 .mic-error { color: #a8201a; font-weight: 600; }
 
+/* Patient record: deleting a patient, folded away at the bottom. */
+.danger-zone { margin-top: 32px; border: 1px solid #f0c8c4; background: #fff7f6; border-radius: 16px; padding: 14px 18px; }
+.danger-zone summary { cursor: pointer; font-weight: 650; color: #a8201a; width: fit-content; }
+.danger-zone form { margin-top: 12px; max-width: 560px; }
+.btn.danger { background: #a8201a; border-color: #a8201a; color: #ffffff; }
+.btn.danger:hover { background: #8e1b16; }
+

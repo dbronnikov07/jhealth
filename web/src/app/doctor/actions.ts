@@ -59,6 +59,29 @@ export async function createPatient(_prev: FormState, form: FormData): Promise<F
   redirect(`/doctor/patients/${id}`);
 }
 
+/**
+ * Delete a patient and everything about them: plan, sessions and repetitions, messages, memories, alerts and the
+ * spoken conversation (every table refers to the patient with ON DELETE CASCADE). It cannot be undone, so the
+ * physiotherapist types the patient's first name to confirm.
+ */
+export async function deletePatient(patientId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  await requireDoctor();
+  assertUuid(patientId);
+  const typed = String(form.get("confirm") ?? "").trim().toLowerCase();
+  const db = await getDb();
+  const [patient] = await db.query<{ first_name: string }>(
+    "select split_part(trim(display_name), ' ', 1) as first_name from patients where id = $1",
+    [patientId],
+  );
+  if (!patient) redirect("/doctor");
+  if (!typed || typed !== patient.first_name.trim().toLowerCase()) {
+    return { error: `Type ${patient.first_name} to confirm.`, values: { confirm: String(form.get("confirm") ?? "") } };
+  }
+  await db.query("delete from patients where id = $1", [patientId]);
+  revalidatePath("/doctor");
+  redirect("/doctor");
+}
+
 /** The patient record's "Emergency contact" form. Both empty removes the contact. */
 export async function saveEmergencyContact(patientId: string, _prev: FormState, form: FormData): Promise<FormState> {
   await requireDoctor();

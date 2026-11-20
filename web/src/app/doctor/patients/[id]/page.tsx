@@ -16,6 +16,7 @@ import { whatsappConfig } from "@/lib/whatsapp/client";
 import { sessionUrl } from "@/lib/whatsapp/outbox";
 import { maskHandle } from "@/lib/imessage/format";
 import { addNote, resolveAlert, retryMessages } from "../../actions";
+import { DeleteForm } from "./DeleteForm";
 import { EmergencyForm } from "./EmergencyForm";
 import { PlanForm } from "./PlanForm";
 
@@ -290,6 +291,7 @@ export default async function PatientPage({
             </section>
           </div>
         </div>
+        <DeleteForm patientId={patient.id} name={patient.display_name} firstName={patient.display_name.trim().split(/\s+/)[0] || patient.display_name} />
       </main>
     </>
   );
