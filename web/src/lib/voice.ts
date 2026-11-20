@@ -26,7 +26,8 @@ export const MOTIVATION = ["m1", "m2", "m3", "m4", "m5"];
 /** A possible fall, a call for help, and what follows. */
 /** Said at once when the patient finishes a sentence, while the spoken coach's answer is being made. */
 export const ACK_CLIPS = ["ack_ok", "ack_question", "ack_got_it"];
-export const EMERGENCY_CLIPS = ["fall_check", "help_check", "ask_help", "tap_911", "tap_contact", "glad_ok", "told_physio", "pain_stop"];
+export const EMERGENCY_CLIPS = ["fall_check", "help_check", "ask_help", "tap_911", "tap_contact", "glad_ok", "told_physio", "pain_stop",
+  "fall_ask", "help_ask", "ask_again", "decline_ok", "confirm_911"];
 
 /**
  * What to say after repetition number `rep`: the count, then the cue if a rule objected, then one line about where we

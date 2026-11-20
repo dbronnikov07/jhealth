@@ -5,7 +5,7 @@ Safari, sends audio to Apple or Google, and on our test devices it never returne
 records short utterances itself (with the browser's echo cancellation, so the coach's voice is removed) and posts
 them here. Nothing is stored: the audio is transcribed in memory and dropped.
 
-POST /api/stt   body: raw 16 kHz mono 16-bit PCM (at most 12 s)   headers: x-exp, x-sig   ->  {"text": "..."}
+POST /api/stt   body: raw 16 kHz mono 16-bit PCM (at most 30 s)   headers: x-exp, x-sig   ->  {"text": "..."}
     x-sig is an HMAC-SHA256 with TTS_SECRET over "stt.<exp>", issued by the session page for a few hours, so only
     someone with a patient link can use this endpoint.
 GET  /api/stt   ->  204 after loading the model (the session calls it while the camera starts).
@@ -25,7 +25,7 @@ from http.server import BaseHTTPRequestHandler
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
 MODEL_PATH = "/tmp/ggml-base.en.bin"
 MODEL_SHA256 = "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
-MAX_BYTES = 16000 * 2 * 12
+MAX_BYTES = 16000 * 2 * 30          # 30 s: a WhatsApp voice note (live phrases are at most 10 s)
 # Words Whisper should expect. Without it, a question about "the weather" at two metres from a laptop came back as
 # "the name of the map" (live log, 20 November). A short hint of the vocabulary, not sentences to copy.
 # The hint costs about 0.4 s on our small hosted server, so only the fast voice helper (scripts/voice-dev.py) uses it.

@@ -19,7 +19,11 @@ type IncomingMessage = {
   text?: { body?: string };
   button?: { text?: string; payload?: string };
   interactive?: { button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } };
+  audio?: { id?: string; mime_type?: string; voice?: boolean };
 };
+
+/** A voice note stored as "[voice message]", to be turned into text after the webhook has answered Meta. */
+export type VoiceNoteJob = { patientId: string; messageId: string; mediaId: string; isNew: boolean };
 type StatusUpdate = { id: string; status: string; errors?: { code?: number | string; title?: string; message?: string; error_data?: { details?: string } }[] };
 type WebhookBody = {
   object?: string;
@@ -43,10 +47,13 @@ function textOf(m: IncomingMessage): string {
  * Returns the patients who may now have messages to send (replies, or messages waiting for the 24-hour window),
  * and the ordinary messages the AI coach should answer (after the webhook has answered Meta).
  */
-export async function handleWebhook(body: WebhookBody): Promise<{ patients: string[]; toCoach: { patientId: string; messageId: string }[] }> {
+export async function handleWebhook(body: WebhookBody): Promise<{
+  patients: string[]; toCoach: { patientId: string; messageId: string }[]; voiceNotes: VoiceNoteJob[];
+}> {
   const db = await getDb();
   const touched = new Set<string>();
   const toCoach: { patientId: string; messageId: string }[] = [];
+  const voiceNotes: VoiceNoteJob[] = [];
 
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
@@ -89,6 +96,21 @@ export async function handleWebhook(body: WebhookBody): Promise<{ patients: stri
           await db.query("update patients set whatsapp_user_id = $2 where id = $1", [patient.id, userId]);
         }
 
+        // A voice note: stored now (so a second delivery is ignored), listened to after Meta has its answer.
+        if (m.type === "audio" && m.audio?.id) {
+          const [stored] = await db.query<{ id: string }>(
+            `insert into messages (patient_id, direction, kind, body, payload, status, provider_id)
+             values ($1, 'in', 'audio', '[voice message]', $2::jsonb, 'received', $3)
+             on conflict (provider_id) do nothing returning id`,
+            [patient.id, JSON.stringify({ type: "audio", voice: m.audio.voice ?? null, mime: m.audio.mime_type ?? null, whatsapp_timestamp: m.timestamp ?? null }), m.id],
+          );
+          if (!stored) continue;
+          await db.query("select requeue_after_reply($1)", [patient.id]);
+          touched.add(patient.id);
+          voiceNotes.push({ patientId: patient.id, messageId: stored.id, mediaId: m.audio.id, isNew });
+          continue;
+        }
+
         const text = textOf(m);
         const result = await ingestMessage(db, {
           patientId: patient.id, isNew, providerId: m.id, kind: m.type === "text" ? "text" : "buttons", text,
@@ -101,7 +123,7 @@ export async function handleWebhook(body: WebhookBody): Promise<{ patients: stri
       }
     }
   }
-  return { patients: [...touched], toCoach };
+  return { patients: [...touched], toCoach, voiceNotes };
 }
 
 type Db = Awaited<ReturnType<typeof getDb>>;
@@ -116,7 +138,6 @@ export async function ingestMessage(db: Db, m: {
   buttonId: string | null; payload: Record<string, unknown>;
 }): Promise<{ stored: boolean; coachMessageId: string | null }> {
   const patient = { id: m.patientId };
-  const isNew = m.isNew;
   const text = m.text;
   // Store the message. A channel may deliver the same message more than once: the unique provider id
   // makes the second copy a no-op.
@@ -131,6 +152,22 @@ export async function ingestMessage(db: Db, m: {
 
   // The patient just wrote, so the 24-hour window is open: re-queue anything WhatsApp refused for that reason.
   await db.query("select requeue_after_reply($1)", [patient.id]);
+  return respondToMessage(db, { patientId: m.patientId, isNew: m.isNew, storedId: stored.id, text: m.text, buttonId: m.buttonId });
+}
+
+/**
+ * What happens to a stored patient message: a tapped quick reply is handled in code, then the pain rule, then
+ * sign-up, then the AI coach (returned as coachMessageId; the caller runs the coach). Also used for a voice note,
+ * once it has been turned into text.
+ */
+export async function respondToMessage(db: Db, r: {
+  patientId: string; isNew: boolean; storedId: string; text: string; buttonId: string | null;
+}): Promise<{ stored: boolean; coachMessageId: string | null }> {
+  const patient = { id: r.patientId };
+  const stored = { id: r.storedId };
+  const isNew = r.isNew;
+  const text = r.text;
+  const m = { buttonId: r.buttonId };
 
   // A tapped quick-reply button (reminder time, "what got in the way?") is handled by code, not the AI.
   const tapped = quickReplyAction(m.buttonId);

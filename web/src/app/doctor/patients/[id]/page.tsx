@@ -418,6 +418,7 @@ export default async function PatientPage({
                   {[...messages].reverse().map((m) => (
                     <li key={m.id} className={m.direction}>
                       {m.type === "coach_reply" && <span className="ai">AI coach</span>}
+                      {m.type === "audio" && <span className="ai voice">Voice note, transcribed</span>}
                       {m.type === "coach_fallback" && <span className="ai failed">AI coach could not answer</span>}
                       {m.body}
                       {(m.start_button || m.type === "new_plan") && (

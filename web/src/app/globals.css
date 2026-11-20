@@ -1140,3 +1140,4 @@ textarea { resize: vertical; min-height: 60px; }
 .visit-banner.wait .icon { color: #6b4a00; }
 .patient:has(.call) .visit-banner { display: none; }
 @media (max-width: 640px) { .visit-slots { grid-template-columns: 1fr; } }
+.chat .ai.voice { color: var(--sage-deep); border-color: var(--green-line); background: var(--green-soft); }

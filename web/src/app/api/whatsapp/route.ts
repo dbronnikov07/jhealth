@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     `${c.field} (${c.value?.messages?.length ?? 0} messages, ${c.value?.statuses?.length ?? 0} receipts)`)).join("; ") || "empty");
 
   // If this throws (for example the database is down) we answer 500 and Meta retries later.
-  const { patients, toCoach } = await handleWebhook(body);
-  after(() => deliverAndCoach(patients, toCoach));
+  const { patients, toCoach, voiceNotes } = await handleWebhook(body);
+  after(() => deliverAndCoach(patients, toCoach, voiceNotes));
   return new Response("OK", { status: 200 });
 }

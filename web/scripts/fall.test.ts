@@ -2,7 +2,7 @@
 // Run:  npm run test:unit
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { matchCommand } from "../src/lib/listen.ts";
+import { emergencyAnswer, matchCommand } from "../src/lib/listen.ts";
 import { FallWatch } from "../src/lib/pose/fall.ts";
 
 const FPS = 15;
@@ -116,4 +116,18 @@ test("a sentence made of the coach's own recent words is an echo; the patient's 
   assert.equal(isEcho("seven", 20000), false);                       // long ago: not an echo any more
   assert.equal(looksLikeNoise("Thank you.", 0.6), true);             // what Whisper writes for a cough
   assert.equal(looksLikeNoise("Thank you.", 2.0), false);
+});
+
+test("after a fall: 'Should I call 911?' is answered by voice, and 'don't call' never calls", () => {
+  for (const no of ["No, no, no, because it's like a demo. Don't call it.", "No.", "No, I'm okay.", "I'm fine", "Don't call 911",
+    "It's just a demo", "False alarm", "Nope, all good", "Yes, I'm okay", "Please don't call anyone"]) assert.equal(emergencyAnswer(no), "no", no);
+  for (const yes of ["Yes", "Yes, please call", "Call 911", "Help", "No, I'm not okay", "I can't get up", "It hurts", "Call an ambulance"]) {
+    assert.equal(emergencyAnswer(yes), "yes", yes);
+  }
+  assert.equal(emergencyAnswer("What's the weather?"), null);
+  // outside the dialog too: a negated call is never a call
+  assert.equal(matchCommand("don't call 911"), null);
+  assert.equal(matchCommand("no need to call an ambulance, I'm okay"), "okay");
+  assert.equal(matchCommand("I don't need help"), null);
+  assert.equal(matchCommand("call 911"), "call_911");
 });

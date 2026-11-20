@@ -38,8 +38,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // PGlite (local Postgres) and the Postgres driver run as plain Node packages, not bundled.
-  serverExternalPackages: ["@electric-sql/pglite", "postgres"],
+  // PGlite (local Postgres), the Postgres driver and the voice-note decoder (WebAssembly, loads its parts itself)
+  // run as plain Node packages, not bundled.
+  serverExternalPackages: ["@electric-sql/pglite", "postgres", "ogg-opus-decoder"],
   // This folder is the project root (there is an unrelated package-lock.json in the home folder).
   turbopack: { root: __dirname },
   poweredByHeader: false,                                            // do not advertise the framework

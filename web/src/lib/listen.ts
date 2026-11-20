@@ -14,6 +14,10 @@ export type Command = "call_911" | "call_contact" | "help" | "okay" | "pain" | "
 /** Which command, if any, a piece of heard text is. `contactName` is the emergency contact ("Mom", "Anna Lee"). */
 export function matchCommand(heard: string, contactName: string | null = null): Command | null {
   const t = ` ${heard.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim()} `;
+  // "Don't call 911" must never read as "call 911", nor "I don't need help" as "help".
+  if (/ (don't|dont|do not|no need to|not|never|no) (call|dial|phone|ring) /.test(t) || / (don't|dont|do not) need (any )?help /.test(t)) {
+    return / (i'm|i am|im) (ok|okay|fine|all right|alright|good) /.test(t) ? "okay" : null;
+  }
   if (/ (call|dial|phone|get) (9 ?1 ?1|nine one one|911|an ambulance|ambulance|emergency|emergency services) /.test(t)) return "call_911";
   const names = ["mom", "mum", "mommy", "mother", "dad", "daddy", "father", "my parents?", "my contact", "my emergency contact", "emergency contact"];
   const first = contactName?.toLowerCase().replace(/[^a-z ]+/g, "").trim().split(" ")[0];
@@ -26,6 +30,19 @@ export function matchCommand(heard: string, contactName: string | null = null): 
   const words = t.trim().split(" ").length;
   if (words <= 5 && / (pause|take a break|i need a break|give me a (minute|second|moment)|wait a (minute|second|moment)|hold on|stop the camera|camera off|turn off the camera) /.test(t)) return "pause";
   if (words <= 5 && / (resume|continue|i'm back|i am back|im back|let's continue|lets continue|let's go|keep going|camera on|turn on the camera|start again|i'm ready|i am ready) /.test(t)) return "resume";
+  return null;
+}
+
+/**
+ * The answer to "Are you okay? Should I call 911?" after a possible fall: "no" (I'm fine, it's a demo, don't call),
+ * "yes" (call, help, I'm hurt), or null when it is neither. Order matters: "No, I'm not okay" is a yes, and
+ * "No, no, don't call it, it's a demo" says "call" but is a no.
+ */
+export function emergencyAnswer(heard: string): "yes" | "no" | null {
+  const t = ` ${heard.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim()} `;
+  if (/ (not (ok|okay|fine|good|alright|all right)|can't get up|cannot get up|can not get up|i'm hurt|i am hurt|it hurts|hurts|i fell|i'm bleeding|bleeding|can't move|cannot move) /.test(t)) return "yes";
+  if (/ (no|nope|nah|don't|dont|do not|no need|not needed|false alarm|never mind|nevermind|cancel|i'm (ok|okay|fine|good|alright|all right)|i am (ok|okay|fine|good|alright|all right)|im (ok|okay|fine|good)|all good|i'm good|it's (a |just a )?(demo|test|drill)|its (a |just a )?(demo|test|drill)|demo|just a test|just testing|on purpose) /.test(t)) return "no";
+  if (/ (yes|yeah|yep|yup|please|call|help|ambulance|911|9 1 1|nine one one|emergency) /.test(t)) return "yes";
   return null;
 }
 

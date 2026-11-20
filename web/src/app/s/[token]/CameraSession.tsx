@@ -15,7 +15,7 @@ import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
 import { isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
 import { MOTIVATION, playUrl, playVoice, preloadVoice, repClips, sessionClips, spokeDuring, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
-import { captureMode, fakeMicrophoneForTest, fastVoiceWanted, feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, voiceFetch, watchListening, type ListenState } from "@/lib/listen";
+import { captureMode, emergencyAnswer, fakeMicrophoneForTest, fastVoiceWanted, feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, voiceFetch, watchListening, type ListenState } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
@@ -290,27 +290,29 @@ export function CameraSession(p: Props) {
     const raiseEmergency = (reason: "fall" | "help", asked: Emergency["asked"] = "none") => {
       if (!emergencyOn) {
         emergencyOn = true;
-        const first = reason === "fall" ? ["fall_check", "ask_help"] : ["help_check", "ask_help"];
-        const text = reason === "fall" ? "Are you okay? It looks like you went down." : "I'm here. Are you okay?";
-        say(first, `${text} Tell me you're okay, or tap a button. I can call 911, or your emergency contact.`, "now");
+        stopVoice();
+        // One clear question, answered by voice ("no, I'm okay" / "yes, call 911") or with the buttons.
+        if (reason === "fall") say(["fall_ask"], "Are you okay? It looks like you fell. Should I call 911?", "now");
+        else say(["help_ask"], "I'm here. Are you okay? Should I call 911?", "now");
         fetch("/api/session/alert", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: p.token, kind: reason, exercise: p.exerciseName }),
         }).catch(() => {});
-        // No answer: say that the physiotherapist knows, and ask again, every 25 s.
+        // No answer: ask again every 20 s, and say that the physiotherapist knows.
         const again = () => {
           if (!emergencyOn) return;
-          say(["told_physio", "ask_help"], "I've let your physiotherapist know. Tell me you're okay, or tap a button.", "queue");
-          emergencyTimer = window.setTimeout(again, 25000);
+          say(["ask_again"], "I've let your physiotherapist know. Should I call 911? Say yes or no.", "now");
+          emergencyTimer = window.setTimeout(again, 20000);
         };
-        emergencyTimer = window.setTimeout(again, 25000);
+        emergencyTimer = window.setTimeout(again, 20000);
       }
-      if (asked === "911") say(["tap_911"], "Tap the red button to call 911.", "now");
+      if (asked === "911") say(["confirm_911"], "Tap the red button now to call 911. Your physiotherapist knows.", "now");
       if (asked === "contact") say(["tap_contact"], "Tap the button to call your emergency contact.", "now");
       setEmergency((e) => ({ reason: e?.reason ?? reason, asked: asked !== "none" ? asked : e?.asked ?? "none" }));
     };
-    okayRef.current = () => {
+    /** "No, I'm okay" (by voice or the button): close the question, say so warmly, and carry on. */
+    const standDown = () => {
       if (!emergencyOn) return;
       emergencyOn = false;
       window.clearTimeout(emergencyTimer);
@@ -318,8 +320,9 @@ export function CameraSession(p: Props) {
       counter.resetAfterTrackingGap();
       stableFrames = 0;
       fallWatch.reset();
-      say(["glad_ok"], "Glad you're okay. Take your time, then carry on.", "now");
+      say(["decline_ok"], "Okay, I won't call anyone. Glad you're alright. I've let your physiotherapist know, just in case.", "now");
     };
+    okayRef.current = standDown;
     // What the microphone hears. Ignored while the coach is talking, and the same command twice within 4 s counts once.
     let lastCommand = { what: "", at: 0 };
     let lastAsked = { text: "", at: 0 };
@@ -330,6 +333,15 @@ export function CameraSession(p: Props) {
       if (spokeDuring(when.startMs, when.endMs) > 0.5 && isEcho(heard)) return;
       if (looksLikeNoise(heard, (when.endMs - when.startMs) / 1000)) return;
       setHeardLive(heard);
+      // While "Are you okay? Should I call 911?" is open, any answer counts, even a single "no".
+      if (emergencyOn) {
+        const contact = matchCommand(heard, p.emergency?.name ?? null) === "call_contact";
+        const answer = contact ? "contact" : emergencyAnswer(heard);
+        if (answer === "no") standDown();
+        else if (answer === "yes") raiseEmergency("help", "911");
+        else if (answer === "contact") raiseEmergency("help", p.emergency ? "contact" : "911");
+        return;
+      }
       let command = matchCommand(heard, p.emergency?.name ?? null);
       // "Continue" only means something while paused; otherwise it is just something they said to the coach.
       if (command === "resume" && !userPaused) command = null;
@@ -1056,16 +1068,16 @@ export function CameraSession(p: Props) {
           <div className="emergency-card">
             <h2 id="emergency-title">Are you okay?</h2>
             <p id="emergency-sub">
-              {emergency.reason === "fall" ? "It looks like you went down." : "You asked for help."} Your physiotherapist has been told.
+              {emergency.reason === "fall" ? "It looks like you fell." : "You asked for help."} <b>Should I call 911?</b>
             </p>
-            <button className="btn ok" onClick={() => okayRef.current()}>I&apos;m okay</button>
-            <a className={`btn call-911${emergency.asked === "911" ? " asked" : ""}`} href="tel:911">Call 911</a>
+            <button className="btn ok" onClick={() => okayRef.current()}>No, I&apos;m okay</button>
+            <a className={`btn call-911${emergency.asked === "911" ? " asked" : ""}`} href="tel:911">Yes, call 911</a>
             {p.emergency && (
               <a className={`btn call-contact${emergency.asked === "contact" ? " asked" : ""}`} href={`tel:${p.emergency.phone}`}>
                 Call {p.emergency.name}
               </a>
             )}
-            <p className="faint small">You can also say &ldquo;I&apos;m okay&rdquo;, &ldquo;call 911&rdquo;{p.emergency ? <> or &ldquo;call {p.emergency.name}&rdquo;</> : null}.</p>
+            <p className="faint small">Just answer out loud: &ldquo;No, I&apos;m okay&rdquo; or &ldquo;Yes, call 911&rdquo;{p.emergency ? <>, or &ldquo;call {p.emergency.name}&rdquo;</> : null}. Your physiotherapist has been told.</p>
           </div>
         </div>
       )}
