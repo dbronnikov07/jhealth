@@ -53,6 +53,27 @@ export function kneesInRatio(f: Frame): number {
   return Math.abs(f[25][0] - f[26][0]) / (Math.abs(f[27][0] - f[28][0]) + 1e-9);
 }
 
+/**
+ * How squarely the person faces the camera: 1 = front on, 0 = side on (the sideways share of the shoulder line).
+ * Knees caving in can only be seen from the front. Side on, both knees and both ankles sit on one line, the ratio
+ * above is noise, and on phone squat footage the rule then objected to up to half of the CORRECT repetitions
+ * (REHAB26, views of 80 to 90 degrees). At FACING_MIN it stays silent from about 60 degrees to the side onwards.
+ */
+export const FACING_MIN = 0.6;
+export function facingCamera(f: Frame): number {
+  const dx = f[11][0] - f[12][0];
+  return Math.abs(dx) / (Math.hypot(dx, f[11][1] - f[12][1], f[11][2] - f[12][2]) + 1e-9);
+}
+const kneesCaving = (f: Frame) => facingCamera(f) >= FACING_MIN && kneesInRatio(f) < KNEES_IN_RATIO;
+
+/**
+ * "Stand up tall": the knee angle at the top below which the app says so. A standing person's knee measures 150 to
+ * 160 degrees from a single camera, not 180. The old line of 155 objected to 47% of correct sit-to-stand clips
+ * filmed in real homes (WLU, 79 clips) and to 17% of correct phone squats (REHAB26); 145 objects to 1% and 4%.
+ * Measured in ml/wlu_sit_to_stand.py, written up in docs/ML_RESULTS.md.
+ */
+export const UPRIGHT_KNEE = 145;
+
 /** Trunk angle from vertical (degrees), forward/back and sideways together. */
 function trunkLean(f: Frame): number {
   const midSh: Vec = [(f[11][0] + f[12][0]) / 2, (f[11][1] + f[12][1]) / 2, (f[11][2] + f[12][2]) / 2];
@@ -127,13 +148,13 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     repMeasure: (r) => 180 - r.minKnee,
     measureLabel: "deepest knee bend",
     measureColumn: "knee_bend_deg",
-    liveWarning: (f, isDown) => isDown && kneeBoth(f) < 150 && kneesInRatio(f) < KNEES_IN_RATIO,
+    liveWarning: (f, isDown) => isDown && kneeBoth(f) < 150 && kneesCaving(f),
     liveWarningFault: "knees_in",
     fault: (c) => {
       if (shareOf(c.liveFlags) >= 0.25) return "knees_in";
       // The live goal is 70 degrees of knee bend (lib/pose/live.ts); more than 10 short of it is called out.
       if (180 - c.rep.minKnee < SQUAT_SHALLOW_BEND) return "not_deep";
-      if (c.rep.topKnee < 155) return "not_upright";
+      if (c.rep.topKnee < UPRIGHT_KNEE) return "not_upright";
       if (c.rep.activeSeconds < 1.2) return "too_fast";
       return null;
     },
@@ -147,11 +168,11 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     repMeasure: (r) => 180 - r.minKnee,
     measureLabel: "deepest knee bend",
     measureColumn: "knee_bend_deg",
-    liveWarning: (f, isDown) => isDown && kneeBoth(f) < 150 && kneesInRatio(f) < KNEES_IN_RATIO,
+    liveWarning: (f, isDown) => isDown && kneeBoth(f) < 150 && kneesCaving(f),
     liveWarningFault: "knees_in",
     fault: (c) => {
       if (shareOf(c.liveFlags) >= 0.25) return "knees_in";
-      if (c.rep.topKnee < 155) return "not_upright";
+      if (c.rep.topKnee < UPRIGHT_KNEE) return "not_upright";
       // Sitting down is the half people rush: the lowering phase should take about a second or more.
       const s = c.frames.map(kneeBoth);
       let v = 0;

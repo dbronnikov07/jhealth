@@ -52,6 +52,7 @@ For one repetition of one exercise: **was it done correctly, or with a mistake?*
 | [REHAB26-ViewAngles](https://zenodo.org/records/23018128) | 3 iPhones, front to side | squat, arm raise | 5 | 1,662 + 1,668 | CC BY-NC |
 | [UI-PRMD](https://doi.org/10.5281/zenodo.23104965) | Vicon motion capture (lab) | sit-to-stand, squat, arm raise | 10 | 199 + 200 + 199 | public domain |
 | [IntelliRehabDS](https://zenodo.org/records/4610859) | Kinect (lab), patients | arm raise | 28 | 522 | CC BY 4.0 |
+| [WLU Rehabilitation Posture](https://www.kaggle.com/datasets/sulaimanmuhammed/wlu-rehabilitation-posture) | phones and webcams in people's homes | sit-to-stand (test only) | 6 rooms, nobody named | 127 clips | MIT |
 
 Camera data today: **4,076 labelled repetitions from 14 people**. Each repetition was marked correct or incorrect by the dataset's authors (in REHAB24-6, under a physiotherapist's instruction). The number that limits us is people, not repetitions: the model is always tested on a person it has never seen.
 
@@ -93,7 +94,9 @@ No single family wins on both devices. The soft-vote ensemble is the steadiest, 
 | Arm raise | fixed camera | 9 / 356 | 0.702 | 0.784 | 0.680 / 0.750 |
 | Sit-to-stand | motion capture only | 10 / 199 | 0.914 | 0.978 | 0.880 / 0.960 |
 
-**Sit-to-stand has no camera score.** No public dataset labels sit-to-stand repetitions filmed with an ordinary camera, and a motion-capture model loses a lot on camera points (squat: 0.83 → 0.55). In the app, sit-to-stand is coached by rules and scored by the squat model as a labelled stand-in.
+**Sit-to-stand on camera.** No public dataset has camera sit-to-stand repetitions with technique mistakes labelled, and the motion-capture model does not survive the move to a camera (AUC 0.54 on real home video). What does exist is 127 home clips labelled as a valid repetition or not (WLU). On those, the app's sit-to-stand check agrees with the labels on **87%** of clips (macro F1 0.87, 90% of correct clips accepted). Before this test it agreed on 61%: the "stand up tall" rule expected a knee angle that a single camera never measures, so it objected to almost half of the correct clips. The same rule was wrong on 17% of correct phone squats. Both are fixed. The squat model, used as the stand-in for sit-to-stand, scores a typical correct home repetition 85 out of 100 and flags none of them. Details: [docs/SIT_TO_STAND_CAMERA.md](docs/SIT_TO_STAND_CAMERA.md).
+
+![Sit-to-stand on home video: knee angle while standing, and the rules before and after](docs/img/sit_to_stand_camera.png)
 
 Where the models err:
 
@@ -131,11 +134,11 @@ The app only says "that one was off" when the model is confident. On phone foota
 
 ### Rules and model together
 
-A rules-only squat corrector (angle thresholds per frame) gives instant feedback but has no measurable accuracy and no notion of an unseen person. jHealth uses rules for what must be instant and explainable (depth, knees, elbow), and a tested model for the overall quality score.
+A rules-only squat corrector (angle thresholds per frame) gives instant feedback but has no measurable accuracy and no notion of an unseen person. jHealth uses rules for what must be instant and explainable (depth, knees, elbow), and a tested model for the overall quality score. The rules are measured too: on 127 home sit-to-stand clips they were wrong more often than we thought, and two of them were corrected ([docs/SIT_TO_STAND_CAMERA.md](docs/SIT_TO_STAND_CAMERA.md)).
 
 ## Honest limits
 
-- **People.** 14 people on camera, healthy adults in labs, not older patients at home.
+- **People.** The models learn from 14 people on camera, healthy adults in labs, not older patients at home. Only the sit-to-stand check has been tested on ordinary home video.
 - **0.9 is not reached on camera.** It is reached on lab motion capture (sit-to-stand 0.91, arm raise 0.97). The route on camera is more labelled people.
 - **A webcam is a stand-in.** REHAB24-6's fixed cameras stand in for a laptop webcam; no labelled laptop recordings exist yet.
 - **Angles from one camera are a trend, not a clinical measurement.**

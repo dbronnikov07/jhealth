@@ -6,7 +6,7 @@ import type { Frame } from "./features";
 /** Knee distance divided by ankle distance, side to side. Below KNEES_IN_RATIO, the knees cave inwards. */
 export const KNEES_IN_RATIO = 0.8;
 /** Knee angle at the top below this: the patient did not stand up fully. */
-export const UPRIGHT_KNEE_DEG = 155;
+export const UPRIGHT_KNEE_DEG = 145;
 /** Moving part of a repetition shorter than this: too fast. */
 export const MIN_REP_SECONDS = 1.2;
 /** Share of the bent part of a repetition with knees caving in that makes it a "knees in" repetition. */

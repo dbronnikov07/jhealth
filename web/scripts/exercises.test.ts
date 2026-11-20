@@ -2,7 +2,7 @@
 // Run:  npm run test:unit
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EXERCISES, profileFor, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
+import { EXERCISES, FACING_MIN, UPRIGHT_KNEE, facingCamera, profileFor, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
 import type { Frame, Vec } from "../src/lib/pose/features.ts";
 import { RepCounter } from "../src/lib/pose/reps.ts";
 
@@ -113,4 +113,38 @@ test("the stored number is the right one for each exercise", () => {
   assert.equal(EXERCISES.squat.repMeasure({ ...rep, minKnee: 95 }), 85);      // deepest knee bend
   assert.equal(EXERCISES.squat.measureColumn, "knee_bend_deg");
   assert.equal(EXERCISES.arm_raise.measureColumn, "rom_deg");
+});
+
+/** A standing or sitting-down body with both knees at `kneeDeg`; `yaw` turns it away from the camera (90 = side on). */
+function legs(o: { kneeDeg: number; yaw?: number; kneesTogether?: boolean }): Frame {
+  const f = body({});
+  const t = rad((180 - o.kneeDeg) / 2);
+  for (const [hip, knee, ankle] of [[23, 25, 27], [24, 26, 28]] as const) {
+    f[knee] = add(f[hip], [0, 0.45 * Math.cos(t), -0.45 * Math.sin(t)]);
+    f[ankle] = add(f[knee], [0, 0.45 * Math.cos(t), 0.45 * Math.sin(t)]);
+    if (o.kneesTogether) f[knee] = [f[knee][0] * 0.3, f[knee][1], f[knee][2]];
+  }
+  const a = rad(o.yaw ?? 0);
+  return f.map(([x, y, z]) => [x * Math.cos(a) + z * Math.sin(a), y, -x * Math.sin(a) + z * Math.cos(a)] as Vec);
+}
+
+test("standing tall is judged at the angle a single camera really measures", () => {
+  // Real home clips: a person standing normally measures 150 to 160 degrees at the knee, not 180.
+  assert.equal(UPRIGHT_KNEE, 145);
+  for (const exercise of ["sit_to_stand", "squat"]) {
+    const normal = run(exercise, movement(152, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k })));
+    assert.deepEqual(normal, { reps: 1, faults: [null] }, `${exercise}: standing at 152 degrees is standing`);
+    const stooped = run(exercise, movement(140, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k })));
+    assert.deepEqual(stooped, { reps: 1, faults: ["not_upright"] }, `${exercise}: 140 degrees is not upright`);
+  }
+});
+
+test("knees caving in is only judged when the person faces the camera", () => {
+  assert.ok(facingCamera(legs({ kneeDeg: 170 })) > 0.99);
+  assert.ok(facingCamera(legs({ kneeDeg: 170, yaw: 45 })) > FACING_MIN);
+  assert.ok(facingCamera(legs({ kneeDeg: 170, yaw: 85 })) < FACING_MIN);
+  const squat = (yaw: number) => run("squat", movement(165, 90, 1.5, 0.5, 1.5).map((k) => legs({ kneeDeg: k, yaw, kneesTogether: k < 150 })));
+  assert.deepEqual(squat(0), { reps: 1, faults: ["knees_in"] });
+  assert.deepEqual(squat(30), { reps: 1, faults: ["knees_in"] });
+  assert.deepEqual(squat(85), { reps: 1, faults: [null] });     // side on: the camera cannot see it, so say nothing
 });

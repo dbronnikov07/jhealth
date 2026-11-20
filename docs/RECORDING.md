@@ -1,12 +1,12 @@
-# Recording guide: clips for the jHealth demo models (all four exercises)
+# Recording guide: clips for the jHealth demo models (three camera exercises)
 
 The public datasets have healthy adults in a lab, filmed by fixed cameras. Our demo has our own laptop camera, our own room and our own chair. A model trained on clips recorded **the way the demo is filmed** will be better at the demo than any amount of public data, and because every teammate does the *same named mistakes*, the labels are far cleaner too. This is also the honest test for the slide: the score is measured on a teammate the model never saw.
 
-**What we need:** at least 6 people × 4 exercises × 4 clips × about 10 to 15 reps. Record the same four clips once on a laptop webcam and once on an iPhone/phone for every person. That is about 20 minutes of filming per person. It gives us a meaningful held-person result for both devices instead of hoping that a laptop score transfers to a phone.
+**What we need:** at least 6 people × 3 exercises × 4 clips × about 10 to 15 reps. Record the same four clips once on a laptop webcam and once on an iPhone/phone for every person. That is about 15 minutes of filming per person. Sit-to-stand matters most: it is the one exercise with no labelled camera data anywhere, so these clips give it its first real camera score. It gives us a meaningful held-person result for both devices instead of hoping that a laptop score transfers to a phone.
 
-**Where the files go:** `clips/<exercise>/<person>/<device>/<label>_<n>.mp4`, for example `clips/arm_raise/anna/iphone/bent_elbow_1.mp4`. Use `iphone`, `phone`, `android`, `laptop`, or `webcam` as the device folder. The four exercise folders are `squat`, `sit_to_stand`, `seated_knee_extension`, `arm_raise`.
+**Where the files go:** `clips/<exercise>/<person>/<device>/<label>_<n>.mp4`, for example `clips/arm_raise/anna/iphone/bent_elbow_1.mp4`. Use `iphone`, `phone`, `android`, `laptop`, or `webcam` as the device folder. The three exercise folders are `squat`, `sit_to_stand`, `arm_raise`. (Seated knee extension is self-reported in the app since 19 November, so it needs no clips.)
 
-## The four exercises and their mistakes
+## The three exercises and their mistakes
 
 Every clip: stand (or sit) still for 2 seconds, do the reps, stay still for 2 seconds. Do **the same thing in every rep of a clip**, clearly but realistically.
 
@@ -14,10 +14,9 @@ Every clip: stand (or sit) still for 2 seconds, do the reps, stay still for 2 se
 |---|---|---|---|
 | `squat` | front or 45°, whole body | controlled squat to about thighs parallel, knees over toes, chest up | `shallow` (only a third of the way down), `knees_in` (knees fall toward each other), `lean_forward` (chest far forward) |
 | `sit_to_stand` | 45° from the front, whole body and chair | from standing: sit down slowly, stand up fully, arms crossed | `uses_hands` (push off the thighs or chair), `not_upright` (don't straighten up at the top), `too_fast` (drop into the chair) |
-| `seated_knee_extension` | **side-on**, chair and whole leg in view | straighten one knee until the leg is level, hold 2 s, lower slowly | `not_straight` (stop halfway), `no_hold` (straighten and drop at once), `lean_back` (lean the trunk back as the leg goes up) |
 | `arm_raise` | front, whole upper body and hips | straight arm out to the side up to shoulder height, lower slowly, body still | `not_high` (only halfway), `bent_elbow` (elbow clearly bent), `body_sway` (lean to the other side to get the arm up) |
 
-Start sit-to-stand clips **standing** (the counter counts a sit-down plus stand-up, like the lab data). Seated knee extension: one leg per clip is fine; the software finds the working leg.
+Start sit-to-stand clips **standing** (the counter counts a sit-down plus stand-up, like the lab data).
 
 ## 1. Set up the camera (this matters more than anything else)
 
@@ -60,7 +59,6 @@ clips/
         bent_elbow_1.mp4
         body_sway_1.mp4
   sit_to_stand/ ...
-  seated_knee_extension/ ...
 ```
 
 - The first **folder** is the person (lower case, one word). The test hides one person at a time, so the folder name must be right.
@@ -81,7 +79,7 @@ All commands run from `~/jhealth/ml`.
 ~/jhealth-cache/venv/bin/python extract_clips.py --exercise squat
 ```
 
-(`--exercise sit_to_stand`, `--exercise seated_knee_extension`, `--exercise arm_raise` for the others. The heavy pose tracker is slow on this laptop; Colab is the alternative.)
+(`--exercise sit_to_stand`, `--exercise arm_raise` for the others. The heavy pose tracker is slow on this laptop; Colab is the alternative.)
 
 **Step 2. Check what it found.** The table lists every clip, its device, how many reps it found, and the fraction of frames where every joint needed for that exercise was clearly visible. Anything near what you did and at least 75% clear-joint coverage is fine. If a clip says 9 and you did 15, or there is a note in the last column, open the matching picture in `~/jhealth/clips_report/<exercise>/`. It shows the rep signal (the knee angle for squats) over time with every found rep in green and every skipped dip as a red cross. Usual causes: part of the body out of the picture, a squat too shallow to count, or not standing fully upright between squats. Re-record that clip.
 
