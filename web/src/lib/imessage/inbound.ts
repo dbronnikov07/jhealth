@@ -34,12 +34,13 @@ export async function handleIMessage(raw: IncomingIMessage): Promise<{ patientId
   }
 
   // "2" or "Afternoon" only counts as an answer if the coach's last message offered those answers.
-  const [last] = await db.query<{ payload: { quick_replies?: { id?: string }[] } | null }>(
+  const [last] = await db.query<{ payload: { quick_replies?: { id?: string; title?: string }[] } | null }>(
     "select payload from messages where patient_id = $1 and direction = 'out' order by created_at desc limit 1",
     [patient.id],
   );
   const offered = (last?.payload?.quick_replies ?? [])
-    .map((q) => KNOWN.find((b) => b.id === q.id))
+    // known buttons, or a check-up visit's (their titles are the offered times, different every time)
+    .map((q) => KNOWN.find((b) => b.id === q.id) ?? (q.id && /^visit_(1|2|call)$/.test(q.id) ? { id: q.id, title: q.title ?? "" } : undefined))
     .filter((b): b is Button => !!b);
   const tapped = offered.length ? matchQuickReply(text, offered) : null;
   const buttonId = tapped && quickReplyAction(tapped.id) ? tapped.id : null;

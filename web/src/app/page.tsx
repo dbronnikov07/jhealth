@@ -28,6 +28,7 @@ const CHAT = [
   { title: "Progress after every session", body: "Reps, quality and knee bend compared with last time, plus one thing to work on." },
   { title: "Answers in seconds", body: "An AI coach replies to questions. Code blocks any medicine or dose advice, and the physio sees every reply." },
   { title: "Pain goes straight to the physio", body: "Pain of 7 out of 10 or more stops the plan, sends a safety reply and alerts the physio. The AI is never involved." },
+  { title: "Check-up visits booked with a tap", body: "When the physio wants to see the patient, they offer two times. The patient taps one in the chat, or asks for a call, and both sides see the same date." },
 ];
 
 const PATIENTS = [

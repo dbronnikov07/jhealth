@@ -8,6 +8,7 @@ import { getDb, pgCode, pgMessage } from "@/lib/db";
 import { fictionalPhone } from "@/lib/demo-phone";
 import { normalizePhone } from "@/lib/format";
 import { clampPhase, DONE, protocolFor, signOffMessage } from "@/lib/phases";
+import { cancelText, clinicTimeToUtc, proposalText, visitButtons } from "@/lib/visits";
 import { processOutbox } from "@/lib/whatsapp/outbox";
 
 // values: what was typed, sent back on an error so the form can refill itself (React clears forms after submit).
@@ -205,5 +206,75 @@ export async function addWin(patientId: string, form: FormData) {
   if (text.length < 2) return;
   const db = await getDb();
   await db.query("insert into wins (patient_id, text, author) values ($1, $2, 'doctor')", [patientId, text]);
+  refresh();
+}
+
+/**
+ * The physiotherapist proposes a check-up visit: one or two times, typed in clinic time. The patient gets a message
+ * with a button per time and "Call me instead". An earlier proposal that was never answered is withdrawn.
+ */
+export async function proposeVisit(patientId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  await requireDoctor();
+  assertUuid(patientId);
+  const typed = [String(form.get("slot1") ?? ""), String(form.get("slot2") ?? "")];
+  const reason = String(form.get("reason") ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 120) || null;
+  const values = { slot1: typed[0], slot2: typed[1], reason: reason ?? "" };
+  const now = Date.now();
+  const slots: Date[] = [];
+  for (const t of typed) {
+    if (!t.trim()) continue;
+    const at = clinicTimeToUtc(t);
+    if (!at) return { error: "Choose a date and a time.", values };
+    if (at.getTime() < now + 10 * 60_000) return { error: "Choose a time in the future.", values };
+    if (at.getTime() > now + 120 * 86_400_000) return { error: "Choose a time within the next four months.", values };
+    if (!slots.some((s) => s.getTime() === at.getTime())) slots.push(at);
+  }
+  if (slots.length === 0) return { error: "Offer at least one time.", values };
+  slots.sort((a, b) => a.getTime() - b.getTime());
+
+  const db = await getDb();
+  const [p] = await db.query<{ first_name: string; doctor_id: string; doctor: string | null; clinic: string | null }>(
+    `select split_part(trim(p.display_name), ' ', 1) as first_name, p.doctor_id, d.name as doctor, d.clinic
+       from patients p left join doctors d on d.id = p.doctor_id where p.id = $1`,
+    [patientId],
+  );
+  if (!p) return { error: "Patient not found.", values };
+  await db.query("update visits set status = 'cancelled', closed_at = now() where patient_id = $1 and status in ('proposed', 'call_requested')", [patientId]);
+  await db.query(
+    "insert into visits (patient_id, doctor_id, options, reason) values ($1, $2, $3::jsonb, $4)",
+    [patientId, p.doctor_id, JSON.stringify(slots.map((s) => s.toISOString())), reason],
+  );
+  await db.query(
+    "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'buttons', $2, $3::jsonb, 'queued')",
+    [patientId, proposalText({ firstName: p.first_name, doctor: p.doctor, clinic: p.clinic, slots, reason }),
+      JSON.stringify({ type: "visit_proposal", quick_replies: visitButtons(slots) })],
+  );
+  after(() => processOutbox(patientId));
+  revalidatePath(`/doctor/patients/${patientId}`);
+  return { error: null };
+}
+
+/** After the visit (it happened, or the patient did not come), or to cancel one. A cancelled booking tells the patient. */
+export async function closeVisit(visitId: string, to: "done" | "missed" | "cancelled") {
+  await requireDoctor();
+  assertUuid(visitId);
+  if (!["done", "missed", "cancelled"].includes(to)) return;
+  const db = await getDb();
+  const from = to === "cancelled" ? ["proposed", "confirmed", "call_requested"] : ["confirmed"];
+  const [v] = await db.query<{ patient_id: string; was: string; chosen_at: Date | null; first_name: string }>(
+    `with before as (select id, status from visits where id = $1)
+     update visits v set status = $2, closed_at = now()
+       from before b, patients p
+      where v.id = b.id and p.id = v.patient_id and b.status in (${from.map((_, i) => `$${i + 3}`).join(", ")})
+      returning v.patient_id, b.status as was, v.chosen_at, split_part(trim(p.display_name), ' ', 1) as first_name`,
+    [visitId, to, ...from],
+  );
+  if (v && to === "cancelled" && v.was === "confirmed" && v.chosen_at) {
+    await db.query(
+      "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'text', $2, $3::jsonb, 'queued')",
+      [v.patient_id, cancelText(v.first_name, new Date(v.chosen_at)), JSON.stringify({ type: "visit_cancelled" })],
+    );
+    after(() => processOutbox(v.patient_id));
+  }
   refresh();
 }

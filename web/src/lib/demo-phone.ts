@@ -9,11 +9,13 @@
 // and only work for patients the physiotherapist put on the demo channel. Input is length-limited, only the coach's
 // own buttons can be tapped, and each patient may send at most RATE.perTenMinutes messages per 10 minutes and
 // RATE.perDay per day, which also caps what the AI coach can spend.
-import { quickReplyAction, TIME_BUTTONS, WHY_BUTTONS, type Button } from "./quick-replies.ts";
+import { CONDITION_BUTTONS, quickReplyAction, SIDE_BUTTONS, TIME_BUTTONS, WHY_BUTTONS, type Button } from "./quick-replies.ts";
 
 export const MAX_TEXT = 1000;
 export const RATE = { perTenMinutes: 20, perDay: 200 };
-const KNOWN_BUTTONS: Button[] = [...TIME_BUTTONS, ...WHY_BUTTONS];
+const KNOWN_BUTTONS: Button[] = [...TIME_BUTTONS, ...WHY_BUTTONS, ...CONDITION_BUTTONS, ...SIDE_BUTTONS];
+/** A check-up visit's buttons: fixed ids, but their words are the times the clinic offered (lib/visits.ts). */
+const VISIT_BUTTON = /^visit_(1|2|call)$/;
 
 export type DemoRequest =
   | { ok: true; token: string; action: "list" }
@@ -34,7 +36,8 @@ export function parseDemoRequest(raw: unknown): DemoRequest {
   const hasButton = r.button !== undefined && r.button !== null;
   if (hasText === hasButton) return bad("Send either a text or a button.");
   if (hasButton) {
-    const button = KNOWN_BUTTONS.find((b) => b.id === r.button);
+    const button = KNOWN_BUTTONS.find((b) => b.id === r.button)
+      ?? (typeof r.button === "string" && VISIT_BUTTON.test(r.button) ? { id: r.button, title: r.button === "visit_call" ? "Call me instead" : "That time works" } : undefined);
     if (!button || !quickReplyAction(button.id)) return bad("Unknown button.");
     return { ok: true, token: r.token, action: "send", text: null, button };
   }
@@ -80,7 +83,8 @@ export function toPhoneMessage(row: MessageRow): PhoneMessage {
   const payload = row.payload ?? {};
   const mine = row.direction === "in";
   const buttons = mine ? [] : (payload.quick_replies ?? [])
-    .map((q) => KNOWN_BUTTONS.find((b) => b.id === q.id))
+    .map((q) => KNOWN_BUTTONS.find((b) => b.id === q.id)
+      ?? (typeof q.id === "string" && VISIT_BUTTON.test(q.id) && typeof q.title === "string" ? { id: q.id, title: q.title.slice(0, 24) } : undefined))
     .filter((b): b is Button => !!b)
     .slice(0, 3);
   return {

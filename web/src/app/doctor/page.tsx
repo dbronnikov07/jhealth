@@ -7,7 +7,8 @@ import { PhaseMini } from "@/components/PhaseStepper";
 import { QrCode } from "@/components/QrCode";
 import { TopBar } from "@/components/TopBar";
 import { textUsLink } from "@/lib/imessage/format";
-import { getDoctor, listPatients, sessionsThisWeek, type Status } from "@/lib/data";
+import { getDoctor, listPatients, openVisits, sessionsThisWeek, type Status } from "@/lib/data";
+import { slotShort } from "@/lib/visits";
 import { STATUS_LABEL, timeAgo } from "@/lib/format";
 import { cameraTargetsMet, checkCriteria, phaseAt, protocolFor } from "@/lib/phases";
 
@@ -15,7 +16,8 @@ const IMESSAGE = process.env.IMESSAGE_ADDRESS?.trim() || null;
 
 export default async function Dashboard() {
   await connection(); // always read fresh data, never a copy made at build time
-  const [{ doctor, mode }, patients, sessions] = await Promise.all([getDoctor(), listPatients(), sessionsThisWeek()]);
+  const [{ doctor, mode }, patients, sessions, visits] = await Promise.all([getDoctor(), listPatients(), sessionsThisWeek(), openVisits()]);
+  const visitOf = new Map(visits.map((v) => [v.patient_id, v]));
 
   // A plan started in the last few days has not had a fair chance yet, so it does not pull the average down.
   const withPlan = patients.filter((p) => p.adherence_7d !== null && p.status !== "new");
@@ -104,6 +106,11 @@ export default async function Dashboard() {
                       <div className="phase-line">
                         <PhaseMini protocol={protocolFor(p.condition)} phase={p.phase} />
                         {ready.has(p.id) && <span className="tag ready">Ready to sign off</span>}
+                        {visitOf.get(p.id)?.status === "confirmed" && visitOf.get(p.id)!.chosen_at && (
+                          <span className="tag visit">Check-up {slotShort(new Date(visitOf.get(p.id)!.chosen_at!))}</span>
+                        )}
+                        {visitOf.get(p.id)?.status === "proposed" && <span className="tag">Check-up offered</span>}
+                        {visitOf.get(p.id)?.status === "call_requested" && <span className="tag call">Wants a call</span>}
                       </div>
                     </div>
                     <p className="note"><span className="sr-only">{STATUS_LABEL[p.status]}: </span>{p.status_reason}</p>

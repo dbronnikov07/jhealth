@@ -148,11 +148,23 @@ A rules-only squat corrector (angle thresholds per frame) gives instant feedback
 - **Licences.** REHAB24-6 and REHAB26 are CC BY-NC: research and prototype use only.
 - **Motiva Health does not diagnose or change the plan.** The physiotherapist prescribes; Motiva coaches, measures and reports.
 
+## The full cycle
+
+Home rehab is one step of a longer path, and Motiva now carries the whole of it:
+
+1. **Start.** A patient messages the WhatsApp number from the website (button or QR code), answers two questions with a tap (what they are recovering from, which side) and gets a starter plan. Or the physiotherapist adds them and prescribes.
+2. **Exercise at home.** The Start button opens the camera session. Every repetition is counted, scored and commented on; a repetition pushed up with the hands is named and not counted; the patient can ask "am I doing it right?" out loud.
+3. **The physiotherapist sees it.** Adherence, quality, range, pain alerts, and which patients have met the camera targets of their recovery phase.
+4. **Recovery phases.** Four phases per operation (knee replacement, hip replacement, ACL, osteoarthritis). The camera shows which targets are met; only the physiotherapist signs a phase off, and the patient gets the milestone ("Clear to walk with a cane").
+5. **Check-up visit.** When the physiotherapist wants to see the patient, they offer one or two times from the patient's record. The patient taps a time in the chat, or "Call me instead"; if they write "mornings don't work, my daughter can drive me after three", that note lands next to the offer. The same date then shows on the dashboard, the patient's record and the patient's page. After the visit the physiotherapist records it and signs off the phase or changes the plan.
+
+What Motiva does not do: it never decides that a visit or a scan is needed, and it never books a time the clinic did not offer. Finding the nearest or cheapest clinic and booking prescribed imaging are next steps that need a partner clinic's real availability and prices; Ontario publishes [clinic locations](https://data.ontario.ca/dataset/publicly-funded-physiotherapy-clinic-locations) and [imaging wait times](https://www.ontario.ca/page/wait-times-diagnostic-imaging) as open data to start from.
+
 ## The rest of the product
 
-- **Chat.** Patients text Motiva Health in iMessage (a small bridge on a Mac, `web/scripts/imessage-bridge.mjs`), or use the demo phone, a chat page on the site with the same coach and rules. Pain of 7/10 or a red flag stops the plan, sends a fixed safety reply and alerts the physio.
+- **Chat.** Patients text Motiva Health on WhatsApp (Meta's Cloud API, signed webhooks), in iMessage (a small bridge on a Mac, `web/scripts/imessage-bridge.mjs`), or use the demo phone, a chat page on the site with the same coach and rules. Pain of 7/10 or a red flag stops the plan, sends a fixed safety reply and alerts the physio.
 - **Dashboard.** Patients, plans, sessions, alerts, the chat thread. Sign-in with a signed session cookie.
-- **Security.** Tested with 51 scripted attacks (`web/scripts/attack.sh`); the database is locked to the server. See [`docs/SECURITY.md`](docs/SECURITY.md).
+- **Security.** Tested with 58 scripted attacks (`web/scripts/attack.sh`); the database is locked to the server. See [`docs/SECURITY.md`](docs/SECURITY.md).
 - **Hosting.** Next.js on Vercel (Montreal), Postgres on Supabase (Canada).
 
 More: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md), [`docs/HOW_WE_BUILT_IT.md`](docs/HOW_WE_BUILT_IT.md), [`docs/PROJECT_NOTES.md`](docs/PROJECT_NOTES.md) (older, longer notes; parts describe earlier versions).

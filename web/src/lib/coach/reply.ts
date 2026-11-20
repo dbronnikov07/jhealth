@@ -2,6 +2,7 @@
 // coach should know, ask the model, check the answer, then save the reply, any new facts and any flag for
 // the physiotherapist. Runs after the webhook has already answered Meta (see app/api/whatsapp/route.ts).
 import { coachLine, protocolFor } from "../phases";
+import { visitCoachLine } from "../visits";
 import { getDb, type Db } from "../db";
 import { currentStreak } from "../engagement";
 import { adaptionConfig, AdaptionError, chatJson } from "./adaption";
@@ -76,11 +77,18 @@ export async function loadContext(db: Db, patientId: string, messageId: string):
     [patientId, messageId],
   );
 
+  const [openVisit] = await db.query<{ status: string; options: string[]; chosen_at: Date | null }>(
+    `select status, options, chosen_at from visits
+      where patient_id = $1 and (status in ('proposed', 'call_requested') or (status = 'confirmed' and chosen_at > now() - interval '2 hours'))
+      order by created_at desc limit 1`,
+    [patientId],
+  );
   const now = new Date();
   const ctx: CoachContext = {
     now: `${when(now, true)} (Toronto time)`,
     patient: { firstName: patient.first_name, condition: patient.condition, side: patient.side, language: patient.language },
     recovery: coachLine(protocolFor(patient.condition), patient.phase ?? 1),
+    visit: openVisit ? visitCoachLine({ status: openVisit.status, options: openVisit.options, chosenAt: openVisit.chosen_at ? new Date(openVisit.chosen_at) : null }) : null,
     plan: plan
       ? { daysPerWeek: plan.days_per_week, startsOn: new Date(plan.starts_on).toISOString().slice(0, 10), notes: plan.notes, exercises }
       : null,

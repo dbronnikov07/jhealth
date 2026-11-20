@@ -28,6 +28,7 @@ export type CoachContext = {
   openAlerts: string[];
   exerciseOnHold: boolean;
   recovery?: string;                 // their recovery phase and next milestone (lib/phases.ts coachLine)
+  visit?: string | null;             // an open check-up visit and what the coach may say about it (lib/visits.ts)
   streak?: number;                   // days in a row with a session, up to today           // an open pain or red-flag alert: the patient was told to stop until the physio has looked
   chat: { who: "patient" | "coach"; when: string; text: string }[];  // oldest first, WITHOUT the latest message
   latest: string;
@@ -116,6 +117,7 @@ export function buildUserMessage(ctx: CoachContext): string {
   lines.push("");
   lines.push(`PATIENT: ${ctx.patient.firstName}. Condition: ${ctx.patient.condition}${ctx.patient.side ? ` (${ctx.patient.side} side)` : ""}.`);
   if (ctx.recovery) lines.push(ctx.recovery);
+  if (ctx.visit) lines.push(ctx.visit);
   lines.push("");
   if (ctx.plan) {
     lines.push(`PLAN (from their physiotherapist, started ${ctx.plan.startsOn}): ${ctx.plan.daysPerWeek} days a week.`);

@@ -82,6 +82,8 @@ const HOURS: Record<string, { hour: number; words: string }> = {
 };
 
 export type QuickReplyAction =
+  | { kind: "visit_pick"; index: number }
+  | { kind: "visit_call" }
   | { kind: "set_condition"; condition: string; askSide: boolean }
   | { kind: "set_side"; side: "left" | "right" | "both" }
   | { kind: "set_time"; hour: number; reply: string }
@@ -90,6 +92,9 @@ export type QuickReplyAction =
 
 export function quickReplyAction(id: string | undefined | null): QuickReplyAction | null {
   if (!id) return null;
+  // A check-up visit (lib/visits.ts): one of the offered times, or "Call me instead".
+  if (id === "visit_1" || id === "visit_2") return { kind: "visit_pick", index: id === "visit_1" ? 0 : 1 };
+  if (id === "visit_call") return { kind: "visit_call" };
   const condition = CONDITIONS[id];
   if (condition) return { kind: "set_condition", ...condition };
   const side = SIDES[id];

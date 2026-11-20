@@ -9,16 +9,18 @@ import { Sparkline } from "@/components/Sparkline";
 import { StatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/TopBar";
 import {
-  getActivePlan, getDoctor, getPatient, getRecovery, listExercises, listMemories, listMessages, openAlerts, patientLink,
+  getActivePlan, getDoctor, getPatient, getRecovery, listExercises, listMemories, listMessages, listVisits, openAlerts, patientLink,
   recentSessions,
 } from "@/lib/data";
+import { defaultSlots, slotLong } from "@/lib/visits";
 import { cameraTargetsMet, checkCriteria, DONE, nextClearance, PHASES, phaseAt, protocolFor } from "@/lib/phases";
 import { prettyPhone, timeAgo } from "@/lib/format";
 import { QrCode } from "@/components/QrCode";
 import { whatsappConfig } from "@/lib/whatsapp/client";
 import { sessionUrl } from "@/lib/whatsapp/outbox";
 import { maskHandle } from "@/lib/imessage/format";
-import { addNote, addWin, changePhase, resolveAlert, retryMessages } from "../../actions";
+import { addNote, addWin, changePhase, closeVisit, resolveAlert, retryMessages } from "../../actions";
+import { VisitForm } from "./VisitForm";
 import { DeleteForm } from "./DeleteForm";
 import { EmergencyForm } from "./EmergencyForm";
 import { PlanForm } from "./PlanForm";
@@ -52,10 +54,14 @@ export default async function PatientPage({
   const patient = await getPatient(id);
   if (!patient) notFound();
 
-  const [{ doctor, mode }, plan, exercises, sessions, memories, messages, alerts, link, recovery] = await Promise.all([
+  const [{ doctor, mode }, plan, exercises, sessions, memories, messages, alerts, link, recovery, visits] = await Promise.all([
     getDoctor(), getActivePlan(id), listExercises(), recentSessions(id), listMemories(id), listMessages(id), openAlerts(id),
-    patientLink(id), getRecovery(id, patient.condition),
+    patientLink(id), getRecovery(id, patient.condition), listVisits(id),
   ]);
+  const firstName = patient.display_name.trim().split(/\s+/)[0] || patient.display_name;
+  // The open check-up, if any: waiting for an answer, wants a call, or booked. Otherwise the last one, for the record.
+  const visit = visits.find((v) => ["proposed", "call_requested", "confirmed"].includes(v.status)) ?? null;
+  const lastVisit = visits.find((v) => ["done", "missed"].includes(v.status)) ?? null;
   const protocol = protocolFor(patient.condition);
   const phase = phaseAt(protocol, patient.phase);
   const checked = phase ? checkCriteria(phase, { bend: patient.bend_7d, days: plan ? patient.days_active_7d : null, quality: patient.quality_7d }) : [];
@@ -174,6 +180,48 @@ export default async function PatientPage({
                 )}
               </div>
               <p className="footnote">Example criteria from common {protocol.label.toLowerCase()} rehab protocols. Adapt them to your patient: the camera only shows targets, you decide.</p>
+            </section>
+
+            <section className="card visit-card">
+              <div className="card-head">
+                <h2>Check-up visit</h2>
+                <span className="faint small">you decide when one is needed; {firstName} picks the time in the chat</span>
+              </div>
+              {visit?.status === "confirmed" && visit.chosen_at ? (
+                <>
+                  <p className="visit-when"><span className="pill on_track"><i aria-hidden />Booked</span> <b>{slotLong(new Date(visit.chosen_at))}</b></p>
+                  <p className="muted small">{firstName} chose this time{visit.answered_at ? ` ${timeAgo(visit.answered_at)}` : ""}.{visit.reason ? ` For: ${visit.reason}.` : ""} After the visit, record it here, then sign off the phase or change the plan.</p>
+                  <div className="row visit-actions">
+                    <form action={closeVisit.bind(null, visit.id, "done")}><button className="btn primary" type="submit">Visit happened</button></form>
+                    <form action={closeVisit.bind(null, visit.id, "missed")}><button className="btn" type="submit">Did not come</button></form>
+                    <form action={closeVisit.bind(null, visit.id, "cancelled")}><button className="linkish" type="submit">Cancel and tell {firstName}</button></form>
+                  </div>
+                </>
+              ) : visit?.status === "proposed" ? (
+                <>
+                  <p className="visit-when"><span className="pill new"><i aria-hidden />Waiting for {firstName}</span> <b>{visit.options.map((o) => slotLong(new Date(o))).join(" or ")}</b></p>
+                  {visit.patient_note && <p className="visit-note"><b>{firstName} wrote:</b> &ldquo;{visit.patient_note}&rdquo;</p>}
+                  <details className="history" open={!!visit.patient_note}>
+                    <summary>Offer different times</summary>
+                    <VisitForm patientId={patient.id} firstName={firstName} defaults={defaultSlots()} again />
+                  </details>
+                  <form action={closeVisit.bind(null, visit.id, "cancelled")} className="visit-actions"><button className="linkish" type="submit">Withdraw the offer</button></form>
+                </>
+              ) : visit?.status === "call_requested" ? (
+                <>
+                  <p className="visit-when"><span className="pill stalling"><i aria-hidden />Wants a call</span> <b>{firstName} asked the clinic to phone{patient.phone ? <> on <span className="num">{prettyPhone(patient.phone)}</span></> : ""}</b></p>
+                  {visit.patient_note && <p className="visit-note"><b>{firstName} wrote:</b> &ldquo;{visit.patient_note}&rdquo;</p>}
+                  <p className="muted small">Agree a time on the phone, then send it here so it is confirmed in the chat too.</p>
+                  <VisitForm patientId={patient.id} firstName={firstName} defaults={defaultSlots()} again />
+                </>
+              ) : (
+                <>
+                  {lastVisit?.chosen_at && (
+                    <p className="muted small visit-last">Last check-up: {slotLong(new Date(lastVisit.chosen_at))} · {lastVisit.status === "done" ? "happened" : "did not come"}</p>
+                  )}
+                  <VisitForm patientId={patient.id} firstName={firstName} defaults={defaultSlots()} />
+                </>
+              )}
             </section>
 
             <section className="card">
@@ -390,7 +438,7 @@ export default async function PatientPage({
             </section>
           </div>
         </div>
-        <DeleteForm patientId={patient.id} name={patient.display_name} firstName={patient.display_name.trim().split(/\s+/)[0] || patient.display_name} />
+        <DeleteForm patientId={patient.id} name={patient.display_name} firstName={firstName} />
       </main>
     </>
   );

@@ -9,6 +9,7 @@ import { PhaseStepper } from "@/components/PhaseStepper";
 import { getDb } from "@/lib/db";
 import { checkCriteria, earnedClearances, nextClearance, PHASES, phaseAt, protocolFor } from "@/lib/phases";
 import { loadRecovery } from "@/lib/recovery";
+import { slotLong } from "@/lib/visits";
 import { logWin } from "./actions";
 import { SessionApp, type PlanItem } from "./SessionApp";
 import { sttTicket } from "@/lib/coach/voice-coach";
@@ -75,6 +76,12 @@ export default async function SessionPage({
     ),
     loadRecovery(db, patient.id, protocol, 6),
   ]);
+  const [visit] = await db.query<{ status: string; chosen_at: Date | null; clinic: string | null }>(
+    `select v.status, v.chosen_at, d.clinic from visits v left join doctors d on d.id = v.doctor_id
+      where v.patient_id = $1 and (v.status = 'proposed' or (v.status = 'confirmed' and v.chosen_at > now() - interval '2 hours'))
+      order by v.created_at desc limit 1`,
+    [patient.id],
+  );
   const checked = phase && week ? checkCriteria(phase, { bend: week.bend_7d, days: week.days_active_7d, quality: week.quality_7d }) : [];
   const earned = earnedClearances(protocol, patient.phase);
   const logged = new Set(recovery.wins.map((w) => w.text));
@@ -91,6 +98,12 @@ export default async function SessionPage({
         )}
       </header>
       <h1>Hi {patient.first_name}, here is today&apos;s plan</h1>
+      {visit?.status === "confirmed" && visit.chosen_at && (
+        <p className="visit-banner"><Icon name="clipboard" size={26} /><span><b>Your check-up:</b> {slotLong(new Date(visit.chosen_at))}{visit.clinic ? `, ${visit.clinic}` : ""}</span></p>
+      )}
+      {visit?.status === "proposed" && (
+        <p className="visit-banner wait"><Icon name="chat" size={26} /><span><b>Your physiotherapist offered a check-up.</b> Pick a time in the chat.</span></p>
+      )}
       {items.length > 0 && (
         <p className="pt-sub">{items.length === 1 ? "1 exercise" : `${items.length} exercises`} from your physiotherapist. Take your time.</p>
       )}

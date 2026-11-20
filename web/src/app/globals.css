@@ -1115,3 +1115,28 @@ textarea { resize: vertical; min-height: 60px; }
   .rep-log li { grid-template-columns: 74px minmax(0, 1fr) auto; font-size: 16px; }
   .checks li { font-size: 15px; padding: 7px 12px 7px 8px; }
 }
+
+/* ---------- check-up visits ---------- */
+.visit-form { display: grid; gap: 14px; }
+.visit-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.visit-form input[type="datetime-local"] { font: inherit; font-size: 15px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; padding: 9px 12px; min-height: 42px; width: 100%; }
+.visit-form input[type="datetime-local"]:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.visit-form input[type="text"] { width: 100%; }
+.visit-form .form-actions { padding-top: 0; border-top: 0; margin-top: 0; }
+.visit-when { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 17px; margin-bottom: 8px; }
+.visit-note { margin: 8px 0; padding: 10px 14px; border-radius: 12px; background: var(--marker-soft); font-size: 14.5px; }
+.visit-actions { margin-top: 12px; gap: 10px; }
+.visit-card .history { margin-top: 10px; }
+.visit-card .history[open] summary { margin-bottom: 12px; }
+.visit-last { margin-bottom: 12px; }
+.tag.visit { background: var(--green-soft); color: var(--green); }
+.tag.call { background: var(--amber-soft); color: var(--amber); }
+.visit-banner {
+  display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: 20px; font-size: 19px; line-height: 1.4;
+  background: var(--green-soft); color: var(--text); border: 2px solid var(--green-line);
+}
+.visit-banner .icon { color: var(--green); flex: none; }
+.visit-banner.wait { background: var(--marker-soft); border-color: #f4d78c; }
+.visit-banner.wait .icon { color: #6b4a00; }
+.patient:has(.call) .visit-banner { display: none; }
+@media (max-width: 640px) { .visit-slots { grid-template-columns: 1fr; } }

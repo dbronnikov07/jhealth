@@ -196,3 +196,35 @@ export async function getRecovery(patientId: string, condition: string) {
   const db = await getDb();
   return loadRecovery(db, patientId, protocolFor(condition), 20);
 }
+
+export type Visit = {
+  id: string;
+  status: "proposed" | "confirmed" | "call_requested" | "done" | "missed" | "cancelled";
+  options: string[];            // ISO times offered
+  chosen_at: Date | null;
+  reason: string | null;
+  patient_note: string | null;
+  created_at: Date;
+  answered_at: Date | null;
+};
+
+/** The patient's check-up visits, newest first. */
+export async function listVisits(patientId: string) {
+  await requireDoctor();
+  const db = await getDb();
+  return db.query<Visit>(
+    "select id, status, options, chosen_at, reason, patient_note, created_at, answered_at from visits where patient_id = $1 order by created_at desc limit 6",
+    [patientId],
+  );
+}
+
+/** For the dashboard: each patient's open check-up (waiting for an answer, booked and not yet past, or wants a call). */
+export async function openVisits() {
+  await requireDoctor();
+  const db = await getDb();
+  return db.query<{ patient_id: string; status: Visit["status"]; chosen_at: Date | null }>(
+    `select distinct on (patient_id) patient_id, status, chosen_at from visits
+      where status in ('proposed', 'call_requested') or (status = 'confirmed' and chosen_at > now() - interval '12 hours')
+      order by patient_id, created_at desc`,
+  );
+}

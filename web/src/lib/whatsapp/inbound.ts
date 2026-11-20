@@ -7,6 +7,7 @@ import {
 import { assessMessage, HIGH_PAIN_REPLY } from "../safety";
 import { raiseSafetyAlert } from "../safety-actions";
 import { isConversational, isOurNumber } from "./filter";
+import { AVAILABILITY, confirmText, VISIT_CALL_TEXT, VISIT_GONE_TEXT } from "../visits";
 
 type Contact = { wa_id?: string; user_id?: string; profile?: { name?: string } };
 type IncomingMessage = {
@@ -133,6 +134,30 @@ export async function ingestMessage(db: Db, m: {
 
   // A tapped quick-reply button (reminder time, "what got in the way?") is handled by code, not the AI.
   const tapped = quickReplyAction(m.buttonId);
+  // A check-up visit: the patient tapped one of the offered times, or asked for a call.
+  if (tapped && !isNew && (tapped.kind === "visit_pick" || tapped.kind === "visit_call")) {
+    const [v] = await db.query<{ id: string; options: string[]; doctor: string | null; clinic: string | null; first_name: string }>(
+      `select v.id, v.options, d.name as doctor, d.clinic, split_part(trim(p.display_name), ' ', 1) as first_name
+         from visits v join patients p on p.id = v.patient_id left join doctors d on d.id = v.doctor_id
+        where v.patient_id = $1 and v.status = 'proposed' order by v.created_at desc limit 1`,
+      [patient.id],
+    );
+    let reply = VISIT_GONE_TEXT;
+    const slot = v && tapped.kind === "visit_pick" ? v.options[tapped.index] : null;
+    if (v && tapped.kind === "visit_call") {
+      await db.query("update visits set status = 'call_requested', answered_at = now() where id = $1 and status = 'proposed'", [v.id]);
+      reply = VISIT_CALL_TEXT;
+    } else if (v && slot) {
+      // Only a time the clinic offered can be booked: the slot comes from the stored proposal, never from the message.
+      await db.query("update visits set status = 'confirmed', chosen_at = $2, answered_at = now() where id = $1 and status = 'proposed'", [v.id, slot]);
+      reply = confirmText({ firstName: v.first_name, doctor: v.doctor, clinic: v.clinic, slot: new Date(slot) });
+    }
+    await db.query(
+      "insert into messages (patient_id, direction, kind, body, payload, status) values ($1, 'out', 'text', $2, $3::jsonb, 'queued')",
+      [patient.id, reply, JSON.stringify({ type: "visit_answer", in_reply_to: stored.id })],
+    );
+    return { stored: true, coachMessageId: null };
+  }
   // Sign-up taps: what they are recovering from, then which side. Then a starter plan goes out.
   if (tapped && !isNew && (tapped.kind === "set_condition" || tapped.kind === "set_side")) {
     if (tapped.kind === "set_condition") {
@@ -192,6 +217,15 @@ export async function ingestMessage(db: Db, m: {
       [patient.id, setupQuestion(p?.first_name ?? null, !isNew), JSON.stringify({ type: "welcome", quick_replies: CONDITION_BUTTONS })],
     );
   } else {
+    // While a check-up proposal is waiting, words about when they can come ("mornings don't work, after three is
+    // fine") are kept next to it for the clinic. The coach still answers the message.
+    if (AVAILABILITY.test(text)) {
+      await db.query(
+        `update visits set patient_note = $2
+          where id = (select id from visits where patient_id = $1 and status = 'proposed' order by created_at desc limit 1)`,
+        [patient.id, text.slice(0, 500)],
+      );
+    }
     return { stored: true, coachMessageId: stored.id };
   }
   return { stored: true, coachMessageId: null };

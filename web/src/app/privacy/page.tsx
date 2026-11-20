@@ -56,6 +56,7 @@ export default function PrivacyPage() {
           <li><b>Facts the coach saves</b> from your messages, such as a goal, a preferred time to exercise or a pain report. Each fact is linked to the message it came from, so your physiotherapist can see why.</li>
           <li><b>Exercise results:</b> how many repetitions, a quality score for each one, joint angles, and when you exercised. Also the wins you log, like &ldquo;walked around the block&rdquo;.</li>
           <li><b>The voice coach:</b> the text of what you say to it (up to 400 characters at a time) and what it answered.</li>
+          <li><b>Check-up visits:</b> the times your physiotherapist offers, the one you pick, and anything you write about when you can come.</li>
           <li><b>Safety alerts:</b> when you report pain or a warning sign, or the camera sees a possible fall.</li>
         </ul>
       </section>
