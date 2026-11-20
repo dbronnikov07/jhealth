@@ -17,6 +17,7 @@ import hmac
 import json
 import os
 import re
+import threading
 import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler
@@ -26,9 +27,18 @@ MODEL_PATH = "/tmp/ggml-base.en.bin"
 MODEL_SHA256 = "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
 MAX_BYTES = 16000 * 2 * 12
 _model = None
+# One transcription at a time per instance: whisper.cpp is not safe to call from two threads at once, and two
+# overlapping requests crashed the function twice in the live log (20 November, 00:58).
+_lock = threading.Lock()
 
 
 def model():
+    global _model
+    with _lock:
+        return _load()
+
+
+def _load():
     global _model
     if _model is None:
         if not os.path.exists(MODEL_PATH):
@@ -102,10 +112,12 @@ class handler(BaseHTTPRequestHandler):
             # Whisper invents words for silence ("directional."), so near-silent audio is answered with nothing.
             if float(np.sqrt(np.mean(audio * audio))) < 0.004:
                 return self._send(200, b'{"text": ""}')
-            segments = model().transcribe(
-                audio, language="en", single_segment=True, no_context=True, suppress_blank=True,
-                audio_ctx=min(1500, int(seconds * 50) + 96),      # only as much context as there is audio: much faster
-            )
+            m = model()
+            with _lock:
+                segments = m.transcribe(
+                    audio, language="en", single_segment=True, no_context=True, suppress_blank=True,
+                    audio_ctx=min(1500, int(seconds * 50) + 96),      # only as much context as there is audio: faster
+                )
             text = clean(" ".join(s.text for s in segments))
             self._send(200, json.dumps({"text": text}).encode())
         except Exception:

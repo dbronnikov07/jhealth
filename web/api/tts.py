@@ -14,6 +14,7 @@ import hmac
 import io
 import json
 import os
+import threading
 import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler
@@ -24,9 +25,15 @@ MODEL_SHA256 = "6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb
 VOICES_PATH = os.path.join(os.path.dirname(__file__), "voices-heart.npz")
 MAX_TEXT = 400
 _kokoro = None
+_lock = threading.Lock()   # one model load and one synthesis at a time per instance
 
 
 def model():
+    with _lock:
+        return _load()
+
+
+def _load():
     global _kokoro
     if _kokoro is None:
         if not os.path.exists(MODEL_PATH):
@@ -82,7 +89,9 @@ class handler(BaseHTTPRequestHandler):
             return self._send(403, b"not signed")
         try:
             import soundfile as sf
-            samples, rate = model().create(text, voice="af_heart", speed=1.05, lang="en-us")   # a touch brisk: shorter to make
+            k = model()
+            with _lock:
+                samples, rate = k.create(text, voice="af_heart", speed=1.05, lang="en-us")   # a touch brisk: shorter to make
             buf = io.BytesIO()
             sf.write(buf, samples, rate, format="MP3")
             self._send(200, buf.getvalue(), "audio/mpeg")
