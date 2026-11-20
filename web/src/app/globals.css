@@ -617,6 +617,12 @@ textarea { resize: vertical; min-height: 60px; }
   color: #ffffff; text-align: center; padding: 24px;
   background: radial-gradient(60% 60% at 50% 40%, rgb(70 92 230 / 0.35), transparent 70%), var(--ink-950);
 }
+/* The camera check sits OVER the live video, so the patient can see where to stand while it asks them to move. */
+.stage-loading.setup-check { background: none; place-content: end center; padding-bottom: 64px; }
+.stage-loading.setup-check p {
+  background: rgb(6 9 20 / 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-radius: 18px; padding: 14px 20px; max-width: 520px;
+}
 .stage-loading p { font-size: 20px; font-weight: 750; }
 .stage-loading small { display: block; font-size: 16px; font-weight: 500; color: var(--ink-soft); margin-top: 4px; }
 .stage-loading .spinner {

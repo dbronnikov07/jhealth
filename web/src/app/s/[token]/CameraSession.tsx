@@ -279,8 +279,38 @@ export function CameraSession(p: Props) {
           vision.PoseLandmarker.createFromOptions(fileset, {
             baseOptions: { modelAssetPath, delegate }, runningMode: "VIDEO", numPoses: 1,
           });
-        const pose = await make("GPU").catch(() => make("CPU"));
+        type Tracker = Awaited<ReturnType<typeof make>>;
+        let delegate: "GPU" | "CPU" = "GPU";
+        let pose: Tracker = await make("GPU").catch(() => { delegate = "CPU"; return make("CPU"); });
         landmarker = pose;
+        // Some phone and tablet browsers create the GPU tracker without an error and then never find a body in the
+        // camera picture. When nobody has been found for a while, a CPU tracker looks at the same frame once; if it
+        // finds a person, the session switches to it for good. (No person in view: both find nothing, nothing changes.)
+        let missingSince = -1;
+        let probes = 0;
+        let probing = false;
+        const probeCpu = async (ts: number) => {
+          probing = true;
+          probes++;
+          try {
+            const cpu = await make("CPU");
+            const found = (cpu.detectForVideo(video, ts + 1) as { worldLandmarks?: unknown[] }).worldLandmarks?.length;
+            if (found && !cancelled && !finished) {
+              pose.close();
+              pose = cpu;
+              landmarker = cpu;
+              delegate = "CPU";
+              lastTs = ts + 1;
+            } else {
+              cpu.close();
+            }
+          } catch {
+            // the CPU tracker could not start: keep the GPU one
+          } finally {
+            probing = false;
+            missingSince = -1;
+          }
+        };
         const connections = vision.PoseLandmarker.POSE_CONNECTIONS;
 
         if (p.source) {
@@ -300,18 +330,26 @@ export function CameraSession(p: Props) {
         }
         /** Everything that happens for one video frame. t = seconds on the session clock, ts = tracker timestamp (ms). */
         const processFrame = (t: number, ts: number) => {
+          frameClock.push(performance.now() / 1000);
+          if (frameClock.length > 20) frameClock.shift();
+          const nowFps = fpsOf(frameClock);
+          if (nowFps && nowFps !== lastFps) { lastFps = nowFps; setFps(nowFps); }
+          if (probing) return;
           const result = pose.detectForVideo(video, ts) as {
             landmarks?: { x: number; y: number }[][];
             worldLandmarks?: { x: number; y: number; z: number }[][];
           };
           const world = result.worldLandmarks?.[0];
           if (!world) {
+            if (missingSince < 0) missingSince = performance.now();
+            if (delegate === "GPU" && probes < 3 && performance.now() - missingSince > 4000) void probeCpu(ts);
             draw(undefined, connections, null);
             stableFrames = 0;
             needsCounterReset = true;
             showSetupIssue("Step into view so the camera can find you.");
             return;
           }
+          missingSince = -1;
           const screen = result.landmarks?.[0];
           const issue = poseSetupIssue(p.exerciseId, screen);
           if (issue) {
@@ -367,10 +405,6 @@ export function CameraSession(p: Props) {
             focus: goal && screen ? goal.joint[focusSide(p.exerciseId, frame, vis)] : null,
             label: `${value}°`,
           });
-          frameClock.push(performance.now() / 1000);
-          if (frameClock.length > 20) frameClock.shift();
-          const nowFps = fpsOf(frameClock);
-          if (nowFps && nowFps !== lastFps) { lastFps = nowFps; setFps(nowFps); }
 
           // Say it at the moment it happens: a live warning (knees caving) for about half a second, once per repetition.
           const liveCue = profile.liveWarningFault ? CUE[profile.liveWarningFault] : null;
