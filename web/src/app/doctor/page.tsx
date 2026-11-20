@@ -57,7 +57,10 @@ export default async function Dashboard() {
               A finished session shows up here within seconds.
             </p>
           </div>
-          <Link href="/doctor/patients/new" className="btn primary"><Icon name="plus" size={18} /> Add patient</Link>
+          <div className="row board-actions">
+            <Link href="/doctor/manage" className="btn">Manage patients</Link>
+            <Link href="/doctor/patients/new" className="btn primary"><Icon name="plus" size={18} /> Add patient</Link>
+          </div>
         </header>
 
         {IMESSAGE && (

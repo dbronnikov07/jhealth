@@ -278,3 +278,32 @@ export async function closeVisit(visitId: string, to: "done" | "missed" | "cance
   }
   refresh();
 }
+
+/**
+ * Manage patients: delete one at once (from the list, with a second tap to confirm). Everything about them goes
+ * (every table refers to the patient with ON DELETE CASCADE), so the same phone number can sign up again as new.
+ */
+export async function removePatient(patientId: string) {
+  await requireDoctor();
+  assertUuid(patientId);
+  const db = await getDb();
+  await db.query("delete from patients where id = $1", [patientId]);
+  revalidatePath("/doctor");
+  refresh();
+}
+
+/**
+ * Manage patients: start a patient over without deleting them. Their sessions, chat, alerts, saved facts, wins,
+ * check-ups and phase sign-offs go; the patient, their phone number and their exercise plan stay.
+ */
+export async function clearPatientHistory(patientId: string) {
+  await requireDoctor();
+  assertUuid(patientId);
+  const db = await getDb();
+  for (const table of ["sessions", "voice_turns", "alerts", "memories", "wins", "phase_signoffs", "visits", "messages"]) {
+    await db.query(`delete from ${table} where patient_id = $1`, [patientId]);
+  }
+  await db.query("update patients set phase = 1, phase_since = now() where id = $1", [patientId]);
+  revalidatePath("/doctor");
+  refresh();
+}
