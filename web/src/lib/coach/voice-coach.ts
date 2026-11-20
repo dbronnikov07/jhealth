@@ -61,21 +61,21 @@ The moment you are answering:
  */
 export function splitSentences(text: string): string[] {
   const parts = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-  // A long first sentence is cut early (at a comma, or after six words), so the first sound comes sooner:
-  // our voice server needs about 1.5 s per second of speech.
+  // The first piece is kept short (about five words), so the first sound comes sooner: on our server the voice takes
+  // about as long to make as to play. A long first sentence is cut where a speaker would breathe anyway.
   const first = parts[0] ?? "";
   const words = first.split(" ");
-  const earlyComma = words.findIndex((w, i) => i >= 2 && i <= 9 && w.endsWith(","));
-  if (words.length > 9 || (words.length > 5 && earlyComma >= 0 && words.length - earlyComma - 1 >= 2)) {
-    // Best: after an early comma. Next best: before a small linking word, where a speaker would breathe anyway.
-    const commaWord = earlyComma;
-    const linkWord = words.findIndex((w, i) => i >= 4 && i <= 9 && /^(and|but|so|for|to|with|then|while|until|because|if)$/i.test(w));
-    const cut = commaWord >= 0 ? commaWord + 1 : linkWord >= 0 ? linkWord : 6;
+  if (words.length > 6) {
+    // Best: after an early comma. Next best: before a small linking word. Otherwise after five words.
+    const comma = words.findIndex((w, i) => i >= 2 && i <= 6 && w.endsWith(",") && words.length - i - 1 >= 2);
+    const link = words.findIndex((w, i) => i >= 3 && i <= 7 && /^(and|but|so|for|to|with|then|while|until|because|if)$/i.test(w));
+    const cut = comma >= 0 ? comma + 1 : link >= 0 ? link : 5;
     if (words.length - cut >= 3) parts.splice(0, 1, words.slice(0, cut).join(" "), words.slice(cut).join(" "));
   }
+  // Later pieces: very short ones join the one before, and there are at most three pieces.
   const out: string[] = [];
   for (const p of parts) {
-    if (out.length && (out[out.length - 1].length < 14 || out.length >= 3)) out[out.length - 1] += ` ${p}`;
+    if (out.length > 1 && (out[out.length - 1].length < 14 || out.length >= 3)) out[out.length - 1] += ` ${p}`;
     else out.push(p);
   }
   return out;

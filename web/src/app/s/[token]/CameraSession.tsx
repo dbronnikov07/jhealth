@@ -15,7 +15,7 @@ import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
 import { isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
 import { MOTIVATION, playUrl, playVoice, preloadVoice, registerUrl, repClips, sessionClips, spokeDuring, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
-import { feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, watchListening, type ListenState } from "@/lib/listen";
+import { fastVoiceWanted, feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, voiceFetch, watchListening, type ListenState } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
@@ -109,7 +109,16 @@ export function CameraSession(p: Props) {
     preloadVoice(sessionClips(p.exerciseId, target, Object.keys(CUE)));   // small files; ready before the first repetition
     // Wake the voice server while the camera starts, and keep it awake during the session (a cold start costs ~3 s).
     const warm = () => { for (const u of ["/api/tts", "/api/stt"]) fetch(`${getVoiceBase()}${u}`, { method: "GET" }).catch(() => {}); };
-    void findVoiceServer().then(warm);
+    // On the demo laptop (fast voice turned on at /fast-voice) the helper may still be starting: look again for a minute.
+    let helperLooks = 0;
+    let helperTimer = 0;
+    const lookForHelper = () => {
+      void findVoiceServer().then((base) => {
+        if (base || helperLooks === 0) warm();
+        if (!base && fastVoiceWanted() && ++helperLooks < 12 && !finished && !cancelled) helperTimer = window.setTimeout(lookForHelper, 5000);
+      });
+    };
+    lookForHelper();
     const keepWarm = window.setInterval(() => { if (!finished) warm(); }, 180_000);
     const counter = new RepCounter(profile.counter);
     const frames: Frame[] = [];
@@ -197,7 +206,7 @@ export function CameraSession(p: Props) {
           let first = true;
           for (let waited = 0; isHearing() && waited < 3000; waited += 100) await new Promise((r) => setTimeout(r, 100));
           for (const ticket of data.tts) {
-            const spoken = await fetch(`${getVoiceBase()}/api/tts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ticket) }).catch(() => null);
+            const spoken = await voiceFetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ticket) });
             const ok = spoken?.ok && spoken.headers.get("content-type")?.includes("audio");
             const url = ok ? URL.createObjectURL(await spoken!.blob()) : null;
             if (!url || !playUrl(url, first ? when : "queue")) say([], ticket.text, first ? when : "queue");
@@ -234,7 +243,7 @@ export function CameraSession(p: Props) {
         const data = (await res.json()) as { lines?: { text: string; tts: { text: string; exp: number; sig: string } | null }[] };
         for (const line of data.lines ?? []) {
           if (finished || cancelled || !line.tts) continue;
-          const spoken = await fetch(`${getVoiceBase()}/api/tts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(line.tts) }).catch(() => null);
+          const spoken = await voiceFetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(line.tts) });
           if (spoken?.ok && spoken.headers.get("content-type")?.includes("audio")) personal.push({ url: URL.createObjectURL(await spoken.blob()), text: line.text });
         }
       } catch {
@@ -794,6 +803,7 @@ export function CameraSession(p: Props) {
       }
       window.clearTimeout(emergencyTimer);
       window.clearInterval(keepWarm);
+      window.clearTimeout(helperTimer);
       window.clearInterval(bargeIn);
       onHeard(null);
       stopListening();

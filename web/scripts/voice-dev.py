@@ -1,11 +1,13 @@
 """The fast voice helper: the two Python voice functions (api/tts.py, api/stt.py) on http://127.0.0.1:8799.
 
-    npm run voice:fast       (uses ~/jhealth-cache/tts/venv and the models already downloaded there)
+    npm run voice:start      in the background: Terminal can be closed (npm run voice:stop to stop it)
+    npm run voice:fast       in this Terminal window, for watching its log
+    (both use ~/jhealth-cache/tts/venv and the models already downloaded there)
 
 Two uses:
 - The live site (https://motiva-health.vercel.app) looks for it when a camera session starts and, if it answers,
-  sends speech to text and the coach's voice here instead of to our server: on this laptop's 8 cores that is about
-  0.1 s and 0.3 s instead of 0.8 s and 1.5 s. It accepts only the same signed tickets as the server (TTS_SECRET from
+  sends speech to text and the coach's voice here instead of to our server: on this laptop that is about 0.05 s and
+  0.2-0.4 s instead of 0.8 s and 1.5-3.5 s. Only browsers where /fast-voice was opened look for it. It accepts only the same signed tickets as the server (TTS_SECRET from
   web/.env.local), answers only to our own site's pages (CORS), and listens on the loopback address only, so nothing
   outside this laptop can reach it.
 - Development: next.config.ts passes /api/tts and /api/stt through to it while `npm run dev` runs.
@@ -72,6 +74,11 @@ class Both(BaseHTTPRequestHandler):
         print("voice", self.command, self.path, args[1] if len(args) > 1 else "")
 
 
-print("Fast voice helper on http://127.0.0.1:8799 (speech to text: Whisper base.en, voice: Kokoro heart).")
-print("Leave this window open during the demo; camera sessions on this laptop will use it automatically.")
+# Both models load (and run once) before the helper answers, so the session's first check finds it ready.
+import time
+t = time.perf_counter()
+tts.model()
+stt.model()
+print(f"Models ready in {time.perf_counter() - t:.1f} s (voice threads: {tts.threads()}).", flush=True)
+print("Fast voice helper on http://127.0.0.1:8799 (speech to text: Whisper base.en, voice: Kokoro heart).", flush=True)
 ThreadingHTTPServer(("127.0.0.1", 8799), Both).serve_forever()

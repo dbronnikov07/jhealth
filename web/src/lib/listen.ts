@@ -171,15 +171,38 @@ export function getVoiceBase(): string {
   return voiceBase;
 }
 
-/**
- * The fast voice helper (npm run voice:fast) runs speech to text and the coach's voice on this laptop: about 0.1 s
- * and 0.3 s instead of 0.8 s and 1.5 s on our server. Used when it answers within 400 ms; otherwise the server.
- */
-export async function findVoiceServer(): Promise<string> {
+const LOCAL_VOICE = "http://127.0.0.1:8799";
+const FAST_VOICE_KEY = "motiva.fastVoice";
+
+/** Is this browser set up to use the fast voice helper on this laptop (the /fast-voice page turns it on)? Off by
+ *  default: looking for it on a stranger's laptop would make Chrome ask them about devices on their network. */
+export function fastVoiceWanted(): boolean {
   try {
-    const res = await fetch("http://127.0.0.1:8799/api/tts", { method: "GET", signal: AbortSignal.timeout(400) });
+    return localStorage.getItem(FAST_VOICE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+export function setFastVoiceWanted(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(FAST_VOICE_KEY, "1");
+    else localStorage.removeItem(FAST_VOICE_KEY);
+  } catch {
+    // private window: stays off
+  }
+}
+
+/**
+ * The fast voice helper (npm run voice:start) runs speech to text and the coach's voice on this laptop: about 0.05 s
+ * and 0.2-0.4 s instead of 0.8 s and 1.5-3.5 s on our server. Used when this browser asked for it and it answers;
+ * otherwise the server.
+ */
+export async function findVoiceServer(force = false): Promise<string> {
+  if (!force && !fastVoiceWanted()) return voiceBase;
+  try {
+    const res = await fetch(`${LOCAL_VOICE}/api/tts`, { method: "GET", signal: AbortSignal.timeout(1500) });
     if (res.status === 204) {
-      voiceBase = "http://127.0.0.1:8799";
+      voiceBase = LOCAL_VOICE;
       return voiceBase;
     }
   } catch {
@@ -187,6 +210,20 @@ export async function findVoiceServer(): Promise<string> {
   }
   voiceBase = "";
   return voiceBase;
+}
+
+/** A request to the speech functions: the fast helper when it is on, else our server. If the helper stops answering
+ *  mid-session, this request and the ones after it go to the server. */
+export async function voiceFetch(path: "/api/tts" | "/api/stt", init: RequestInit): Promise<Response | null> {
+  const base = voiceBase;
+  try {
+    const res = await fetch(`${base}${path}`, init);
+    if (res.ok || !base) return res;
+  } catch {
+    if (!base) return null;
+  }
+  voiceBase = "";
+  return fetch(path, init).catch(() => null);
 }
 
 /** While the coach is speaking, the detector needs a louder voice to start, so a trace of the coach's own voice
@@ -206,12 +243,12 @@ async function transcribe(u: Utterance): Promise<void> {
   for (let i = 0; i < u.audio.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(u.audio[i] * 32768)));
   setState({ working: true });
   try {
-    const res = await fetch(`${voiceBase}/api/stt`, {
+    const res = await voiceFetch("/api/stt", {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream", "x-exp": String(ticket.exp), "x-sig": ticket.sig },
       body: pcm.buffer,
     });
-    if (!res.ok) return;
+    if (!res?.ok) return;
     const { text } = (await res.json()) as { text?: string };
     if (text && text.trim()) handler?.(text.trim(), { startMs: u.startMs, endMs: u.endMs });
   } catch {

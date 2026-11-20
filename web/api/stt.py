@@ -53,7 +53,10 @@ def _load():
                 raise RuntimeError("speech model download did not match its checksum")
             os.replace(tmp, MODEL_PATH)
         from pywhispercpp.model import Model
-        _model = Model(MODEL_PATH, print_realtime=False, print_progress=False, n_threads=max(1, os.cpu_count() or 1))
+        m = Model(MODEL_PATH, print_realtime=False, print_progress=False, n_threads=max(1, min(4, os.cpu_count() or 1)))
+        import numpy as np
+        m.transcribe(np.zeros(16000, dtype=np.float32), language="en", single_segment=True, no_context=True, audio_ctx=146)
+        _model = m      # the first transcription is the slow one: done here, during the warm-up call
     return _model
 
 
@@ -88,6 +91,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", kind)
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
+        if getattr(self, "_timing", None):
+            self.send_header("Server-Timing", self._timing)   # how long transcription took, for our own speed checks
         self.end_headers()
         if body:
             self.wfile.write(body)
@@ -113,12 +118,14 @@ class handler(BaseHTTPRequestHandler):
             if float(np.sqrt(np.mean(audio * audio))) < 0.004:
                 return self._send(200, b'{"text": ""}')
             m = model()
+            t0 = time.perf_counter()
             with _lock:
                 segments = m.transcribe(
                     audio, language="en", single_segment=True, no_context=True, suppress_blank=True,
                     audio_ctx=min(1500, int(seconds * 50) + 96),      # only as much context as there is audio: faster
                 )
             text = clean(" ".join(s.text for s in segments))
+            self._timing = f"stt;dur={(time.perf_counter() - t0) * 1000:.0f}"
             self._send(200, json.dumps({"text": text}).encode())
         except Exception:
             self._send(503, b'{"error":"could not transcribe"}')
