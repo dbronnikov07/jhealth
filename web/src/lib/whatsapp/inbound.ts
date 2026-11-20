@@ -3,6 +3,7 @@ import { getDb } from "../db";
 import { quickReplyAction, TIME_BUTTONS } from "../quick-replies";
 import { assessMessage, HIGH_PAIN_REPLY } from "../safety";
 import { raiseSafetyAlert } from "../safety-actions";
+import { isConversational, isOurNumber } from "./filter";
 
 type Contact = { wa_id?: string; user_id?: string; profile?: { name?: string } };
 type IncomingMessage = {
@@ -18,7 +19,10 @@ type IncomingMessage = {
 type StatusUpdate = { id: string; status: string; errors?: { code?: number | string; title?: string; message?: string; error_data?: { details?: string } }[] };
 type WebhookBody = {
   object?: string;
-  entry?: { changes?: { field?: string; value?: { contacts?: Contact[]; messages?: IncomingMessage[]; statuses?: StatusUpdate[] } }[] }[];
+  entry?: { changes?: { field?: string; value?: {
+    metadata?: { phone_number_id?: string; display_phone_number?: string };
+    contacts?: Contact[]; messages?: IncomingMessage[]; statuses?: StatusUpdate[];
+  } }[] }[];
 };
 
 const WELCOME =
@@ -48,6 +52,8 @@ export async function handleWebhook(body: WebhookBody): Promise<{ patients: stri
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
       if (change.field !== "messages" || !change.value) continue;
+      // Another phone number on the same Meta account: not ours to store or answer.
+      if (!isOurNumber(change.value.metadata, process.env.WHATSAPP_PHONE_NUMBER_ID)) continue;
       const { contacts = [], messages = [], statuses = [] } = change.value;
 
       for (const s of statuses) {
@@ -59,6 +65,7 @@ export async function handleWebhook(body: WebhookBody): Promise<{ patients: stri
       }
 
       for (const m of messages) {
+        if (!isConversational(m.type)) continue; // a reaction or system notice: nothing to answer
         const phone = m.from ? `+${m.from}` : null;
         const userId = m.from_user_id ?? null;
         if (!phone && !userId) continue;

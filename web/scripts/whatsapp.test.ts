@@ -67,3 +67,17 @@ test("webhook signatures: only Meta's own are accepted", () => {
   assert.ok(!isValidSignature(body, null, "app-secret"));
   assert.ok(!isValidSignature(body, "sha256=short", "app-secret"));
 });
+
+test("only events for our own phone number are handled", async () => {
+  const { isOurNumber } = await import("../src/lib/whatsapp/filter.ts");
+  assert.equal(isOurNumber({ phone_number_id: "1193023147227073" }, "1193023147227073"), true);
+  assert.equal(isOurNumber({ phone_number_id: "999" }, "1193023147227073"), false);   // another number, same account
+  assert.equal(isOurNumber(undefined, "1193023147227073"), false);
+  assert.equal(isOurNumber({ phone_number_id: "999" }, undefined), true);             // local tests: no number set
+});
+
+test("reactions and system notices get no reply; text, buttons and media do", async () => {
+  const { isConversational } = await import("../src/lib/whatsapp/filter.ts");
+  for (const t of ["text", "button", "interactive", "image", "audio"]) assert.equal(isConversational(t), true, t);
+  for (const t of ["reaction", "system", "unsupported", "request_welcome", undefined]) assert.equal(isConversational(t), false, String(t));
+});
