@@ -8,6 +8,7 @@ import { Icon } from "@/components/Icon";
 import { CUE, profileFor, ruleQuality, withModelFlag, type Fault } from "@/lib/pose/exercises";
 import { repFeatures, type Frame, type Vec } from "@/lib/pose/features";
 import { ANALYSIS_INTERVAL_MS, cameraConstraints, isPhoneDevice, poseSetupIssue } from "@/lib/pose/camera";
+import { bentElbowNow, focusSide, fpsOf, LIVE_GOALS, liveCoach, type LiveState, type LiveTone } from "@/lib/pose/live";
 import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
@@ -47,7 +48,9 @@ export function CameraSession(p: Props) {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<RepResult[]>([]);
   const [bend, setBend] = useState<number | null>(null);
-  const [cue, setCue] = useState<string | null>(null);
+  const [banner, setBanner] = useState<{ text: string; tone: LiveTone } | null>(null);
+  const [live, setLive] = useState<LiveState | null>(null);
+  const [fps, setFps] = useState<number | null>(null);
   const [modelNote, setModelNote] = useState<string | null>(null);
   const [setupIssue, setSetupIssue] = useState<string | null>("Checking that the camera can see the joints needed for this exercise…");
   const target = p.sets * p.reps;
@@ -77,6 +80,22 @@ export function CameraSession(p: Props) {
     let startSpoken = false;
     let lastSetupIssue = "Checking that the camera can see the joints needed for this exercise…";
     let finished = false;
+    // Live coaching (lib/pose/live.ts): the goal for this exercise, and what happened so far in this repetition.
+    const goal = LIVE_GOALS[p.exerciseId] ?? null;
+    const mirrored = !p.source;
+    let reachedThisRep = false;
+    let elbowRun = 0;
+    let repCue: { text: string; tone: LiveTone } | null = null;
+    let repCueUntil = 0;
+    let lastBanner = "";
+    let lastFps = 0;
+    const frameClock: number[] = [];
+    const showBanner = (next: { text: string; tone: LiveTone } | null) => {
+      const key = next ? `${next.tone}:${next.text}` : "";
+      if (key === lastBanner) return;
+      lastBanner = key;
+      setBanner(next);
+    };
 
     const showSetupIssue = (next: string | null) => {
       if (next === lastSetupIssue) return;
@@ -136,7 +155,11 @@ export function CameraSession(p: Props) {
     };
     finishRef.current = finish;
 
-    const draw = (points: { x: number; y: number }[] | undefined, kneesIn: boolean, connections: { start: number; end: number }[]) => {
+    // What is drawn over the video: the tracked skeleton, the measured joint with its angle, and any live mistake.
+    type Overlay = { tone: LiveTone; kneesIn: boolean; elbowBent: boolean; focus: [number, number, number] | null; label: string | null };
+    const SKY = "#4aa8ff", GOOD = "#34d399", WARN = "#ff5a52", AMBER = "#ffb020";
+    let fontFamily = "";
+    const draw = (points: { x: number; y: number }[] | undefined, connections: { start: number; end: number }[], o: Overlay | null) => {
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -144,21 +167,79 @@ export function CameraSession(p: Props) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (!points) return;
       const w = canvas.width, h = canvas.height;
-      ctx.lineWidth = Math.max(3, w / 300);
-      ctx.strokeStyle = "rgba(93, 202, 165, 0.95)";
+      const base = Math.min(w, h);
+      const X = (i: number) => points[i].x * w, Y = (i: number) => points[i].y * h;
+      const lw = Math.max(4, base / 130);
+
+      // bones: sky blue while tracking, green once the goal is reached, faint during the camera check
+      ctx.lineCap = "round";
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = !o ? "rgba(255, 255, 255, 0.6)" : o.tone === "good" ? GOOD : SKY;
+      ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+      ctx.shadowBlur = lw;
       for (const c of connections) {
         if (c.start < 11 || c.end < 11) continue; // skip the face
         ctx.beginPath();
-        ctx.moveTo(points[c.start].x * w, points[c.start].y * h);
-        ctx.lineTo(points[c.end].x * w, points[c.end].y * h);
+        ctx.moveTo(X(c.start), Y(c.start));
+        ctx.lineTo(X(c.end), Y(c.end));
         ctx.stroke();
       }
-      for (let i = 11; i < points.length; i++) {
-        const isKnee = i === 25 || i === 26;
-        ctx.fillStyle = isKnee && kneesIn ? "#e24b4a" : "#ffffff";
+      ctx.shadowBlur = 0;
+
+      // the measured joint: a filled wedge between the two bones, like a goniometer
+      if (o?.focus) {
+        const [a, v, c] = o.focus;
+        const a1 = Math.atan2(Y(a) - Y(v), X(a) - X(v));
+        let d = Math.atan2(Y(c) - Y(v), X(c) - X(v)) - a1;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        const R = base * 0.085;
         ctx.beginPath();
-        ctx.arc(points[i].x * w, points[i].y * h, isKnee ? Math.max(8, w / 110) : Math.max(4, w / 220), 0, Math.PI * 2);
+        ctx.moveTo(X(v), Y(v));
+        ctx.arc(X(v), Y(v), R, a1, a1 + d, d < 0);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(255, 176, 32, 0.3)";
         ctx.fill();
+        ctx.beginPath();
+        ctx.arc(X(v), Y(v), R, a1, a1 + d, d < 0);
+        ctx.strokeStyle = AMBER;
+        ctx.lineWidth = lw * 1.1;
+        ctx.stroke();
+        if (o.label) {
+          // The stage is mirrored like a mirror; text is flipped back so it reads normally.
+          const mid = a1 + d / 2 + Math.PI; // outside the joint, away from the wedge
+          const size = Math.round(base * 0.058);
+          fontFamily ||= getComputedStyle(canvas).fontFamily || "sans-serif";
+          ctx.save();
+          ctx.translate(X(v) + Math.cos(mid) * R * 1.5, Y(v) + Math.sin(mid) * R * 1.5);
+          if (mirrored) ctx.scale(-1, 1);
+          ctx.font = `600 ${size}px ${fontFamily}`;
+          const tw = ctx.measureText(o.label).width, padX = size * 0.4, bh = size * 1.45;
+          ctx.fillStyle = "rgba(6, 9, 20, 0.82)";
+          ctx.beginPath();
+          ctx.roundRect(-tw / 2 - padX, -bh / 2, tw + 2 * padX, bh, bh / 2);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(o.label, 0, size * 0.04);
+          ctx.restore();
+        }
+      }
+
+      // joints: white dots; the measured joint amber; a joint that is going wrong red
+      const r = Math.max(5, base / 110);
+      for (let i = 11; i < points.length; i++) {
+        if (i > 16 && i < 23) continue; // fingers
+        const bad = (o?.kneesIn && (i === 25 || i === 26)) || (o?.elbowBent && (i === 13 || i === 14));
+        const focus = o?.focus?.[1] === i;
+        ctx.beginPath();
+        ctx.arc(X(i), Y(i), bad || focus ? r * 1.7 : r, 0, Math.PI * 2);
+        ctx.fillStyle = bad ? WARN : focus ? AMBER : "#ffffff";
+        ctx.fill();
+        ctx.lineWidth = Math.max(2, lw * 0.35);
+        ctx.strokeStyle = bad || focus ? "#ffffff" : "rgba(6, 9, 20, 0.55)";
+        ctx.stroke();
       }
     };
 
@@ -201,7 +282,7 @@ export function CameraSession(p: Props) {
           };
           const world = result.worldLandmarks?.[0];
           if (!world) {
-            draw(undefined, false, connections);
+            draw(undefined, connections, null);
             stableFrames = 0;
             needsCounterReset = true;
             showSetupIssue("Step into view so the camera can find you.");
@@ -210,7 +291,7 @@ export function CameraSession(p: Props) {
           const screen = result.landmarks?.[0];
           const issue = poseSetupIssue(p.exerciseId, screen);
           if (issue) {
-            draw(screen, false, connections);
+            draw(screen, connections, null);
             stableFrames = 0;
             needsCounterReset = true;
             showSetupIssue(issue);
@@ -221,7 +302,7 @@ export function CameraSession(p: Props) {
           // a false repetition on either an iPhone or a laptop webcam.
           stableFrames++;
           if (stableFrames <= 8) {
-            draw(screen, false, connections);
+            draw(screen, connections, null);
             showSetupIssue("Hold still for a moment — camera check in progress.");
             return;
           }
@@ -240,13 +321,35 @@ export function CameraSession(p: Props) {
           frames.push(frame);
           kneesInFlags.push(kneesIn);
           kneesInRun = kneesIn ? kneesInRun + 1 : 0;
-          setBend(Math.round(profile.liveValue(frame)));
-          draw(screen, kneesIn, connections);
+          const value = Math.round(profile.liveValue(frame));
+          setBend(value);
+
+          // Live coaching: count down to the goal, say when it is reached, and show a mistake the moment it happens.
+          const elbowBent = p.exerciseId === "arm_raise" && counter.isDown && bentElbowNow(frame);
+          elbowRun = elbowBent ? elbowRun + 1 : 0;
+          const warning = kneesInRun >= 4 ? CUE.knees_in : elbowRun >= 5 ? CUE.bent_elbow : null;
+          let state: LiveState | null = null;
+          if (goal) {
+            if (value >= goal.goal) reachedThisRep = true;
+            state = liveCoach(goal, value, { moving: counter.isDown, reached: reachedThisRep, warning });
+            setLive(state);
+            // A finished repetition's verdict stays up for a moment, unless something is going wrong right now.
+            showBanner(repCue && performance.now() < repCueUntil && state.tone !== "warn" ? repCue : { text: state.message, tone: state.tone });
+          }
+          const vis = (i: number) => (screen?.[i] as { visibility?: number } | undefined)?.visibility ?? 1;
+          draw(screen, connections, {
+            tone: state?.tone ?? "move", kneesIn: kneesInRun >= 4, elbowBent: elbowRun >= 5,
+            focus: goal && screen ? goal.joint[focusSide(p.exerciseId, frame, vis)] : null,
+            label: `${value}°`,
+          });
+          frameClock.push(performance.now() / 1000);
+          if (frameClock.length > 20) frameClock.shift();
+          const nowFps = fpsOf(frameClock);
+          if (nowFps && nowFps !== lastFps) { lastFps = nowFps; setFps(nowFps); }
 
           // Say it at the moment it happens: a live warning (knees caving) for about half a second, once per repetition.
           const liveCue = profile.liveWarningFault ? CUE[profile.liveWarningFault] : null;
           if (kneesInRun === 8 && liveCue) {
-            setCue(liveCue);
             if (!cueSpokenThisRep && performance.now() - lastSpokenCue > 4000) {
               speak(liveCue, true);
               cueSpokenThisRep = true;
@@ -289,7 +392,10 @@ export function CameraSession(p: Props) {
           };
           repResults.push(r);
           setResults([...repResults]);
-          setCue(fault ? CUE[fault] : null);
+          repCue = fault ? { text: CUE[fault], tone: "warn" } : { text: quality === null ? "Good rep" : `Good rep, ${Math.round(quality * 100)} out of 100`, tone: "good" };
+          repCueUntil = performance.now() + 2500;
+          showBanner(repCue);
+          reachedThisRep = false;
           cueSpokenThisRep = false;
 
           const n = repResults.length;
@@ -386,10 +492,20 @@ export function CameraSession(p: Props) {
           </div>
         )}
         <div className="hud top">
-          <span className="live"><i /> {status === "running" ? "Coach is watching" : status === "loading" ? "Starting camera…" : status === "paused" ? "Paused: come back to this page to continue" : status === "saving" ? "Saving…" : "Stopped"}</span>
+          <span className="live"><i /> {status === "running" ? `33 body points${fps ? ` · ${fps} fps` : ""}` : status === "loading" ? "Starting camera…" : status === "paused" ? "Paused: come back to this page to continue" : status === "saving" ? "Saving…" : "Stopped"}</span>
           <span className="count" aria-live="polite">{done}<small> / {target}</small></span>
         </div>
-        {cue && <div className="cue" role="status"><Icon name="speaker" />{cue}</div>}
+        {status === "running" && !setupIssue && banner && <div className={`cue ${banner.tone}`} role="status">{banner.text}</div>}
+        {status === "running" && !setupIssue && live && (
+          <div className={`gauge ${live.tone}`} aria-hidden>
+            <span>{profileFor(p.exerciseId).liveLabel}</span>
+            <div className="gauge-track">
+              <i style={{ height: `${Math.min(100, (live.value / (live.goal * 1.3)) * 100)}%` }} />
+              <b style={{ bottom: `${(1 / 1.3) * 100}%` }}><em>Goal {live.goal}°</em></b>
+            </div>
+            <strong>{live.value}°</strong>
+          </div>
+        )}
         <div className="hud bottom">
           <span className="readout-live">{p.exerciseName} · set {Math.min(p.sets, Math.floor(done / p.reps) + 1)} of {p.sets}</span>
           {bend !== null && <span className="readout-live"><small>{profileFor(p.exerciseId).liveLabel}</small> <b>{bend}°</b></span>}

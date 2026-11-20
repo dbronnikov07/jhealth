@@ -1,4 +1,5 @@
-// The four camera exercises: how a repetition is counted, what is shown and stored, and which plain rules name
+// The camera exercises (three in the demo; seated knee extension is kept for old data but is self-reported now):
+// how a repetition is counted, what is shown and stored, and which plain rules name
 // a mistake. Same definitions as ml/exercises.py (keep them in step).
 //
 // Every exercise is counted by the same RepCounter: a repetition is a DIP in one "rep signal".
@@ -12,13 +13,14 @@ import { jointAngle, type Frame, type Vec } from "./features.ts";
 import { DEFAULT_REP_OPTIONS, type CompletedRep, type RepCounterOptions } from "./reps.ts";
 
 export type Fault =
-  | "knees_in" | "not_upright" | "too_fast" | "sit_slowly"
+  | "knees_in" | "not_deep" | "not_upright" | "too_fast" | "sit_slowly"
   | "not_straight" | "no_hold" | "lean_back"
   | "not_high" | "bent_elbow" | "body_sway"
   | "steady";
 
 export const CUE: Record<Fault, string> = {
   knees_in: "Knees out, over your toes",
+  not_deep: "A little deeper, if it's comfortable",
   not_upright: "Stand up tall at the top",
   too_fast: "A little slower",
   sit_slowly: "Sit down slowly, with control",
@@ -85,6 +87,9 @@ export type ExerciseProfile = {
   fault(c: RepContext): Fault | null;
 };
 
+/** A squat that bends the knees less than this (degrees) gets "a little deeper". */
+export const SQUAT_SHALLOW_BEND = 60;
+
 const shareOf = (flags: boolean[]) => flags.filter(Boolean).length / Math.max(1, flags.length);
 
 /** Seconds the signal spends within `band` degrees of the repetition's lowest point (the "hold"). */
@@ -126,6 +131,8 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     liveWarningFault: "knees_in",
     fault: (c) => {
       if (shareOf(c.liveFlags) >= 0.25) return "knees_in";
+      // The live goal is 70 degrees of knee bend (lib/pose/live.ts); more than 10 short of it is called out.
+      if (180 - c.rep.minKnee < SQUAT_SHALLOW_BEND) return "not_deep";
       if (c.rep.topKnee < 155) return "not_upright";
       if (c.rep.activeSeconds < 1.2) return "too_fast";
       return null;

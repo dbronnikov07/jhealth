@@ -18,9 +18,8 @@ export const metadata: Metadata = {
 
 const EXERCISES = [
   { name: "Chair squat", measures: "Deepest knee bend", names: "Knees caving in, not standing up fully, going too fast", score: "0.79", basis: "phone and webcam video" },
-  { name: "Sit-to-stand", measures: "Deepest knee bend", names: "Knees caving in, not upright at the top, sitting down too fast", score: "0.90", basis: "lab motion capture" },
-  { name: "Seated knee extension", measures: "Straightest knee", names: "Not straight, no 2-second hold, leaning back", score: null, basis: "movement rules" },
-  { name: "Arm raise to the side", measures: "Highest arm angle", names: "Not up to shoulder height, bent elbow, body swaying", score: "0.97", basis: "lab motion capture" },
+  { name: "Sit-to-stand", measures: "Deepest knee bend", names: "Knees caving in, not upright at the top, sitting down too fast", score: "0.90*", basis: "lab motion capture; camera F1 is not measured yet" },
+  { name: "Arm raise to the side", measures: "Highest arm angle", names: "Not up to shoulder height, bent elbow, body swaying", score: "0.66", basis: "phone and webcam video" },
 ];
 
 const CHAT = [
@@ -237,7 +236,7 @@ export default function Landing() {
         <section className="lp-section lp-grey" id="exercises" aria-labelledby="ex-title">
           <div className="lp-wrap lp-narrow">
             <div className="lp-head">
-              <h2 id="ex-title">Four exercises the camera can score</h2>
+              <h2 id="ex-title">Three exercises in the camera demo</h2>
               <p>Each one has its own rules for what counts as a rep, which angle to measure and which mistakes to call out.</p>
             </div>
             <ul className="lp-ex">
@@ -255,7 +254,7 @@ export default function Landing() {
                 </li>
               ))}
             </ul>
-            <p className="lp-fine center">Score: accuracy on people the model never saw (macro F1, where 1.0 is perfect).</p>
+            <p className="lp-fine center">Score: macro F1 on people the model never saw. *Sit-to-stand is measured on lab motion-capture data, not phone or webcam video.</p>
           </div>
         </section>
 
@@ -274,8 +273,8 @@ export default function Landing() {
             </div>
             <dl className="lp-scores">
               {[
-                { name: "Arm raise to the side", v: 0.97, basis: "lab motion capture" },
-                { name: "Sit-to-stand", v: 0.9, basis: "lab motion capture" },
+                { name: "Arm raise to the side", v: 0.66, basis: "phone and webcam video, 14 people" },
+                { name: "Sit-to-stand", v: 0.9, basis: "lab motion capture; no camera F1 yet" },
                 { name: "Chair squat", v: 0.79, basis: "phone and webcam video, 14 people" },
               ].map((s) => (
                 <div key={s.name}>

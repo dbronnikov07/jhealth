@@ -659,6 +659,39 @@ textarea { resize: vertical; min-height: 60px; }
   box-shadow: inset 6px 0 0 var(--amber-dot), 0 20px 44px -14px rgb(0 0 0 / 0.65);
 }
 .cue .icon { width: 32px; height: 32px; color: var(--accent); flex: none; }
+/* The coaching line sits in the top row, between the status chip and the counter, so it never covers the body.
+   It changes with what the patient is doing: counting down, goal reached, or a mistake right now. */
+.cue {
+  top: 14px; padding: 11px 20px; border-radius: 16px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em;
+  text-align: center; max-width: min(46%, 560px);
+}
+.cue.move { box-shadow: inset 6px 0 0 #4aa8ff, 0 20px 44px -14px rgb(0 0 0 / 0.65); }
+.cue.good { box-shadow: inset 6px 0 0 #34d399, 0 20px 44px -14px rgb(0 0 0 / 0.65); }
+.cue.warn { box-shadow: inset 6px 0 0 #ff5a52, 0 20px 44px -14px rgb(0 0 0 / 0.65); }
+.cue.idle { font-weight: 600; box-shadow: 0 20px 44px -14px rgb(0 0 0 / 0.65); }
+.patient:has(.call) .cue, .cue { animation: none; }
+.stage canvas { font-family: var(--font-num); }
+
+/* Depth gauge down the right edge of the video: fills as the joint bends, with the goal marked.
+   It lives between the counter (top) and the read-outs (bottom), whatever the video's height. */
+.gauge { position: absolute; right: 26px; top: 122px; bottom: 96px; width: 14px; min-height: 48px; color: #ffffff; text-shadow: 0 1px 2px rgb(0 0 0 / 0.7); }
+.gauge > span, .gauge > strong { display: none; }
+.gauge-track { position: absolute; inset: 0; border-radius: 999px; background: rgb(255 255 255 / 0.24); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3); }
+.gauge-track i { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 999px; background: #4aa8ff; transition: height 0.12s linear, background-color 0.2s; }
+.gauge.good .gauge-track i { background: #34d399; }
+.gauge.warn .gauge-track i { background: #ff5a52; }
+.gauge-track b { position: absolute; left: -7px; right: -7px; height: 3px; border-radius: 2px; background: #ffffff; }
+.gauge-track em { position: absolute; right: calc(100% + 6px); top: 50%; transform: translateY(-50%); font-style: normal; font-size: 13px; font-weight: 650; white-space: nowrap; }
+/* On a narrow video the coaching line drops to a second row, between the status chip and the counter box. */
+.stage { container-type: inline-size; }
+@container (max-width: 900px) {
+  .cue, .patient:has(.call) .cue { top: 66px; max-width: calc(100% - 270px); font-size: 20px; padding: 9px 16px; }
+}
+@container (max-width: 520px) {
+  .cue, .patient:has(.call) .cue { top: 118px; max-width: calc(100% - 28px); font-size: 19px; }
+  .gauge { right: 16px; top: 176px; }
+}
+@media (prefers-reduced-motion: reduce) { .gauge-track i { transition: none; } }
 .set-progress { display: grid; gap: 8px; }
 .set-progress .bar { height: 12px; border-radius: 6px; background: var(--surface-3); overflow: hidden; }
 .set-progress .bar > i { display: block; height: 100%; border-radius: 6px; background: var(--accent); transition: width 0.3s ease; }
@@ -692,7 +725,7 @@ textarea { resize: vertical; min-height: 60px; }
   .patient:has(.call) .hud .readout-live small { font-size: 15px; }
   .patient:has(.call) .hud .readout-live b { font-size: 34px; }
   .patient:has(.call) .hud .model-note { font-size: 15px; }
-  .patient:has(.call) .cue { font-size: 36px; }
+  .patient:has(.call) .cue { font-size: 26px; }
   .patient:has(.call) .reassure { grid-template-columns: 1fr 1fr; }
   .patient:has(.call) .reassure p + p { border-top: 0; border-left: 1px solid var(--border); }
 }
@@ -709,8 +742,7 @@ textarea { resize: vertical; min-height: 60px; }
   .stage { aspect-ratio: 3 / 4; border-radius: 20px; }
   .hud .count { font-size: 56px; }
   .hud .count small { font-size: 22px; }
-  .cue { font-size: 25px; }
-  .cue .icon { width: 26px; height: 26px; }
+
 }
 @media (max-width: 480px) {
   .patient { padding: 16px 16px 44px; gap: 20px; }

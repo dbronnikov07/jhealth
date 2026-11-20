@@ -18,7 +18,7 @@ insert into exercises (id, name, body_area, instructions, tracking, model_key, d
    'camera', 'sit_to_stand', 2, 10),
   ('seated_knee_extension', 'Seated knee extension', 'knee',
    'Sit tall on a chair, side-on to the camera. Slowly straighten one knee until the leg is level with the floor, hold for 2 seconds, then lower it slowly.',
-   'camera', 'seated_knee_extension', 2, 10),
+   'manual', null, 2, 10),
   ('squat', 'Chair squat', 'knee',
    'Stand in front of a sturdy chair, feet hip-width apart. Bend your knees and sit back as if to sit down, only as far as is comfortable, then stand up tall. Keep your knees in line with your toes.',
    'camera', 'squat', 2, 10),

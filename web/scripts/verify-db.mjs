@@ -33,8 +33,8 @@ console.log("  applied seed.sql twice");
 
 console.log("\nseed");
 ok((await one("select count(*)::int n from doctors where is_default")).n === 1, "exactly one default doctor");
-ok((await one("select count(*)::int n from exercises")).n === 5, "five exercises in the library (four of them camera-scored)");
-ok((await one("select count(*)::int n from exercises where tracking = 'camera'")).n === 4, "squat, sit-to-stand, seated knee extension and arm raise are camera-scored");
+ok((await one("select count(*)::int n from exercises")).n === 5, "five exercises in the library (three of them camera-scored)");
+ok((await one("select count(*)::int n from exercises where tracking = 'camera'")).n === 3, "squat, sit-to-stand and arm raise are camera-scored; seated knee extension is self-reported");
 ok((await one("select model_key from exercises where id = 'sit_to_stand'")).model_key === "sit_to_stand", "sit-to-stand asks for its own model");
 ok((await one("select count(*)::int n from patients where is_simulated")).n === 20, "20 simulated patients after two seed runs");
 const overview = await rows("select display_name, status, status_reason from patient_overview order by display_name");

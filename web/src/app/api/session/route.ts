@@ -19,6 +19,7 @@ type Body = {
 
 const TIPS: Record<string, string> = {
   knees_in: "Tip for next time: keep your knees in line with your toes.",
+  not_deep: "Tip for next time: bend your knees a little deeper, if it is comfortable.",
   too_fast: "Tip for next time: go a little slower, especially on the way down.",
   not_upright: "Tip for next time: stand up all the way at the top.",
   sit_slowly: "Tip for next time: sit down slowly, with control.",
