@@ -12,6 +12,7 @@ import { bentElbowNow, focusSide, fpsOf, LIVE_GOALS, liveCoach, type LiveState, 
 import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
+import { coachVoice, repSpokenText } from "@/lib/speech";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
 export type SessionSummary = { reps: number; quality: number | null; knee_bend: number | null; previous_knee_bend: number | null };
@@ -35,7 +36,16 @@ function speak(text: string, interrupt = false) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   if (interrupt) window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.rate = 1.05;
+  const voice = coachVoice(window.speechSynthesis.getVoices());
+  if (voice) {
+    u.voice = voice;
+    u.lang = voice.lang;
+  }
+  // Slow enough to be calming during movement, but not so slow that a live
+  // safety cue arrives after the patient has already finished the rep.
+  u.rate = 0.94;
+  u.pitch = 0.98;
+  u.volume = 0.9;
   window.speechSynthesis.speak(u);
 }
 
@@ -135,7 +145,7 @@ export function CameraSession(p: Props) {
       stop();
       if (repResults.length === 0) return p.onDone(null);
       setStatus("saving");
-      if (reason === "target") speak("Well done. Session complete.", true);
+      if (reason === "target") speak("Nice work. That set is complete.", true);
       try {
         const res = await fetch("/api/session", {
           method: "POST",
@@ -313,7 +323,7 @@ export function CameraSession(p: Props) {
           showSetupIssue(null);
           if (!startSpoken) {
             startSpoken = true;
-            speak(`Camera ready. ${p.exerciseName}, ${target} repetitions.`);
+            speak(`Camera's ready. We'll do ${p.exerciseName}: ${target} repetitions. Take your time.`);
           }
           const frame: Frame = world.map((l) => [l.x, l.y, l.z] as Vec);
           const signal = profile.repSignal(frame);
@@ -399,9 +409,17 @@ export function CameraSession(p: Props) {
           cueSpokenThisRep = false;
 
           const n = repResults.length;
-          speak(fault && fault !== profile.liveWarningFault ? `${n}. ${CUE[fault]}` : String(n), true);
+          const spoken = repSpokenText(
+            n,
+            fault && fault !== profile.liveWarningFault ? fault : null,
+            fault && fault !== profile.liveWarningFault ? CUE[fault] : null,
+          );
+          if (n % p.reps === 0 && n < target) {
+            speak(`${spoken} Set ${n / p.reps} is done. Take a breather, then continue.`, true);
+          } else {
+            speak(spoken, true);
+          }
           if (n >= target) return finish("target");
-          if (n % p.reps === 0) speak(`Set ${n / p.reps} done. Rest a moment, then continue.`);
         };
 
         if (p.source && p.step) {
