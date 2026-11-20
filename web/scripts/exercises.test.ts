@@ -2,7 +2,7 @@
 // Run:  npm run test:unit
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EXERCISES, FACING_MIN, UPRIGHT_KNEE, UPRIGHT_THIGH, countsAsRep, facingCamera, profileFor, thighTilt, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
+import { EXERCISES, FACING_MIN, UPRIGHT_KNEE, UPRIGHT_THIGH, barelyMoved, countsAsRep, facingCamera, hipDropShare, profileFor, thighTilt, withModelFlag, type Fault } from "../src/lib/pose/exercises.ts";
 import type { Frame, Vec } from "../src/lib/pose/features.ts";
 import { RepCounter } from "../src/lib/pose/reps.ts";
 
@@ -228,4 +228,32 @@ test("arms crossed are never 'pushing', however far the body leans forward", () 
   // seen from 45 degrees it is still read along the shoulders
   const turned = run("sit_to_stand", movement(170, 40, 1.6, 0.6, 1.6).map((k) => turn(low(true)(legs({ kneeDeg: k })), 45)));
   assert.deepEqual(turned, { reps: 1, faults: [null] });
+});
+
+test("a deep movement counts by how far the hips came down, even when the knee angle was read too small", () => {
+  const rep = (minKnee: number) => ({ startIndex: 0, endIndex: 1, startTime: 0, endTime: 1, minKnee, topKnee: 158, depth: 158 - minKnee, activeSeconds: 2 });
+  // the hips in the picture: standing at 0.50, down to `low`, back up; ankles at 0.90 (a leg of 0.40)
+  const track = (low: number, ankles = true) => [0.5, 0.5, 0.5, (0.5 + low) / 2, low, low, low, (0.5 + low) / 2, 0.5, 0.5, 0.5]
+    .map((hip) => ({ hip, leg: ankles ? 0.9 - hip : NaN, torso: 0.24 }));
+  assert.ok(Math.abs(hipDropShare(track(0.68))! - 0.45) < 0.03);              // down to the chair
+  assert.ok(Math.abs(hipDropShare(track(0.56))! - 0.15) < 0.03);              // a quarter squat
+  assert.ok(Math.abs(hipDropShare(track(0.68, false))! - 0.44) < 0.05);       // no ankles in view: the torso gives the scale
+  assert.equal(hipDropShare([]), null);
+  // one wild frame (the model guessing) changes nothing
+  const wild = track(0.56); wild[5] = { hip: 0.95, leg: NaN, torso: 0.24 };
+  assert.ok(hipDropShare(wild)! < 0.2);
+
+  const deep = hipDropShare(track(0.68)), shallow = hipDropShare(track(0.56)), step = hipDropShare(track(0.515));
+  // the angle said 50 degrees (thighs pointing at the camera), the hips said deep: it counts
+  assert.equal(countsAsRep(EXERCISES.squat, rep(130), deep), true);
+  assert.equal(countsAsRep(EXERCISES.sit_to_stand, rep(130), deep), true);
+  // really shallow by both measures: it does not, and the patient is told
+  assert.equal(countsAsRep(EXERCISES.squat, rep(125), shallow), false);
+  assert.equal(barelyMoved(EXERCISES.squat, rep(125), shallow), false);
+  // a step or a shift of weight: not counted and not mentioned
+  assert.equal(countsAsRep(EXERCISES.squat, rep(150), step), false);
+  assert.equal(barelyMoved(EXERCISES.squat, rep(150), step), true);
+  // without the picture measure the angle decides, as before
+  assert.equal(countsAsRep(EXERCISES.squat, rep(130)), false);
+  assert.equal(countsAsRep(EXERCISES.squat, rep(110)), true);
 });

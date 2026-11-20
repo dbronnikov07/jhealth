@@ -89,7 +89,37 @@ export type RepContext = {
   frames: Frame[];          // the repetition's frames, padding included
   times: number[];          // seconds, same length as frames
   liveFlags: boolean[];     // the exercise's live warning per frame (knees in), same length
+  drop?: number | null;     // how far the hips came down in the picture, as a share of the leg (hipDropShare)
 };
+
+/** What the picture itself shows of one frame (shares of its height): where the hips are, and how long the leg
+ *  (hips to ankles) and the torso are. NaN where a joint is not in view. */
+export type ScreenTrack = { hip: number; leg: number; torso: number };
+
+const pct = (values: number[], q: number) => {
+  const v = [...values].sort((a, b) => a - b);
+  return v[Math.min(v.length - 1, Math.max(0, Math.round(q * (v.length - 1))))];
+};
+
+/**
+ * How far the hips came down during one movement, as a share of the standing leg (hips to ankles), measured in the
+ * picture. Standing: 0. A quarter squat: about 0.15. Thighs level (a chair, a deep squat): 0.4 to 0.5.
+ *
+ * Why a second measure: the knee angle comes from the pose model's guess of depth, and with the phone in front of the
+ * patient the thighs point at the camera, so the angle is read far too small (live session, 20 November: deep squats
+ * measured under 65 degrees and refused; the ones that got through measured 97 to 112). How far the hips drop in
+ * the picture needs no depth at all. The 10th and 90th percentiles are used, so one wild frame changes nothing.
+ * Without ankles in view the leg is taken as 1.7 torso lengths (0.49 and 0.29 of body height).
+ */
+export function hipDropShare(track: ScreenTrack[]): number | null {
+  const hips = track.map((t) => t.hip).filter((v) => Number.isFinite(v));
+  if (hips.length < 6) return null;
+  const legs = track.map((t) => t.leg).filter((v) => Number.isFinite(v) && v > 0);
+  const torsos = track.map((t) => t.torso).filter((v) => Number.isFinite(v) && v > 0);
+  const leg = legs.length >= 4 ? pct(legs, 0.9) : torsos.length >= 4 ? pct(torsos, 0.9) * 1.7 : null;
+  if (!leg || leg < 0.05) return null;
+  return Math.max(0, (pct(hips, 0.9) - pct(hips, 0.1)) / leg);
+}
 
 export type ExerciseProfile = {
   id: string;
@@ -114,13 +144,25 @@ export type ExerciseProfile = {
    * count and why, instead of counting a little bob of the knees as a squat.
    */
   minCount: number;
+  /** ...or when the hips came down this share of the leg in the picture (hipDropShare), whatever the angle read. */
+  minDrop?: number;
   /** Said and shown when a movement did not count. */
   notCounted: string;
 };
 
-/** Does this finished movement count as a repetition? */
-export function countsAsRep(profile: ExerciseProfile, rep: CompletedRep): boolean {
-  return profile.repMeasure(rep) >= profile.minCount;
+/** Does this finished movement count as a repetition? By the measured angle, or by how far the hips came down. */
+export function countsAsRep(profile: ExerciseProfile, rep: CompletedRep, drop: number | null = null): boolean {
+  if (profile.repMeasure(rep) >= profile.minCount) return true;
+  return drop !== null && profile.minDrop !== undefined && drop >= profile.minDrop;
+}
+
+/**
+ * A movement so small that it was not an attempt at all (a step, a shift of weight): under half of what counts, by
+ * both measures. It is ignored quietly. "That one didn't count" is for real attempts that fell short.
+ */
+export function barelyMoved(profile: ExerciseProfile, rep: CompletedRep, drop: number | null = null): boolean {
+  if (profile.repMeasure(rep) >= profile.minCount * 0.6) return false;
+  return drop === null || profile.minDrop === undefined || drop < profile.minDrop * 0.5;
 }
 
 /** A squat that bends the knees less than this (degrees) gets "a little deeper". */
@@ -290,8 +332,9 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     fault: (c) => {
       if (pushedWithHands(c, kneeBoth)) return "uses_hands";
       if (shareOf(c.liveFlags) >= 0.25) return "knees_in";
-      // The live goal is 70 degrees of knee bend (lib/pose/live.ts); more than 10 short of it is called out.
-      if (180 - c.rep.minKnee < SQUAT_SHALLOW_BEND) return "not_deep";
+      // The live goal is 70 degrees of knee bend (lib/pose/live.ts); more than 10 short of it is called out, unless
+      // the hips plainly came down far enough and it is the angle that was read too small.
+      if (180 - c.rep.minKnee < SQUAT_SHALLOW_BEND && !(c.drop != null && c.drop >= 0.3)) return "not_deep";
       if (c.rep.topKnee < UPRIGHT_KNEE) return "not_upright";
       if (c.rep.activeSeconds < 1.2) return "too_fast";
       return null;
@@ -299,6 +342,7 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     // Correct squats in the public data reach a knee angle of 87 (fixed camera) to 109 degrees (phones), a bend of
     // 70 to 90. Under 65 degrees of bend (a dip, a wiggle of the hips) it is not a chair squat, so it does not count.
     minCount: 65,
+    minDrop: 0.24,         // hips down a quarter of the leg: thighs past 50 degrees, however the knee angle was read
     notCounted: "That one didn't count. Go lower, sit back toward the chair.",
   },
   sit_to_stand: {
@@ -332,6 +376,7 @@ export const EXERCISES: Record<string, ExerciseProfile> = {
     },
     // Sitting on a chair puts the thighs at about 71 degrees (WLU; 10th percentile 62). Under 58 they never sat down.
     minCount: 58,
+    minDrop: 0.32,         // sitting on a chair takes the hips down 0.4 to 0.5 of the leg; hovering over it, under 0.3
     notCounted: "That one didn't count. Sit all the way down, then stand up.",
   },
   seated_knee_extension: {

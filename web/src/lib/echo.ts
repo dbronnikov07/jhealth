@@ -27,3 +27,33 @@ export function looksLikeNoise(heard: string, seconds: number): boolean {
   const t = wordsOf(heard).join(" ");
   return seconds < 1.3 && ["you", "thank you", "thanks", "thanks for watching", "bye", "so", "oh", "the", "i"].includes(t);
 }
+
+const QUESTION_START = /^(so |and |but |ok |okay |hey |hi |hello |well |um |uh )*(what|how|why|when|where|who|which|can|could|should|would|will|do|does|did|is|are|am|was|were|may|shall|have|has)\b/;
+const TO_THE_COACH = new RegExp("\\b(" + [
+  "coach", "couch", "motiva", "you", "your",                                             // talking to it
+  "tell me", "show me", "help me", "explain", "repeat", "say (that|it) again", "one more time", "count",
+  "let's (start|go|begin|do|continue|stop)", "lets (start|go|begin|do|continue|stop)", "start", "stop", "next",
+  "i'm (ready|done|tired|finished|back|good|fine|okay|ok|not|sore)", "i am (ready|done|tired|finished|back|good|fine|okay|ok|not|sore)",
+  "i feel", "i can't", "i cannot", "i don't understand", "i need", "i want", "i did", "i think i",
+  "thanks", "thank you",
+  // what a session is about
+  "reps?", "repetitions?", "squats?", "sit", "stand", "standing", "exercises?", "knees?", "hips?", "legs?", "back", "form", "counted", "counts?",
+  "sets?", "deeper", "lower", "slower", "faster", "camera", "weather", "time", "pain", "hurts?", "tired", "break", "rest", "chair",
+].join("|") + ")\\b");
+
+/**
+ * Is this sentence meant for the coach? The microphone hears the whole room: a friend talking, a video, someone on
+ * the phone. In a live session on 20 November the coach answered all of it ("Roma cannot touch me." got "I am not
+ * sure who Roma is, but let's focus on your knees"), talking over the patient. It now answers:
+ *   - anything, right after the Talk button or when it has just asked a question itself;
+ *   - a question ("can you hear me?", "how many are left");
+ *   - a sentence that speaks to it or about the session ("coach, ...", "I'm ready", "that was a deep one", "my knee").
+ * Everything else is shown on screen as heard and left alone.
+ */
+export function meantForCoach(heard: string, o: { justAsked: boolean; talkButton: boolean }): boolean {
+  if (o.justAsked || o.talkButton) return true;
+  const t = heard.toLowerCase().replace(/[’`]/g, "'").replace(/[^a-z0-9'? ]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!t) return false;
+  if (t.endsWith("?") || QUESTION_START.test(t)) return true;
+  return TO_THE_COACH.test(t);
+}

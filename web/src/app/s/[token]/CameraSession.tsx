@@ -5,7 +5,7 @@
 // At the end:     only the numbers are sent to /api/session.
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { CHECKS, CUE, HANDS_NOT_COUNTED, NOT_COUNTED_FAULTS, countsAsRep, profileFor, ruleQuality, trunkLean, withModelFlag, type Fault } from "@/lib/pose/exercises";
+import { CHECKS, CUE, HANDS_NOT_COUNTED, NOT_COUNTED_FAULTS, barelyMoved, countsAsRep, hipDropShare, profileFor, ruleQuality, trunkLean, withModelFlag, type Fault, type ScreenTrack } from "@/lib/pose/exercises";
 import { repFeatures, type Frame, type Vec } from "@/lib/pose/features";
 import { ANALYSIS_INTERVAL_MS, cameraConstraints, DURING_SET, isPhoneDevice, poseSetupIssue, SHORT_GAP_SECONDS } from "@/lib/pose/camera";
 import { bentElbowNow, focusSide, fpsOf, LIVE_GOALS, liveCoach, type LiveState, type LiveTone } from "@/lib/pose/live";
@@ -13,7 +13,7 @@ import { describeModel, loadModel } from "@/lib/pose/loader";
 import { mistakeProbability } from "@/lib/pose/model";
 import { RepCounter } from "@/lib/pose/reps";
 import { coachVoice, repSpokenText } from "@/lib/speech";
-import { isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
+import { meantForCoach, isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
 import { playUrl, playVoice, preloadVoice, repClips, sessionClips, spokeDuring, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
 import { captureMode, emergencyAnswer, fakeMicrophoneForTest, fastVoiceWanted, feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, voiceFetch, watchListening, type ListenState } from "@/lib/listen";
 import { FallWatch } from "@/lib/pose/fall";
@@ -153,6 +153,7 @@ export function CameraSession(p: Props) {
     const counter = new RepCounter(profile.counter);
     const frames: Frame[] = [];
     const kneesInFlags: boolean[] = [];
+    const screenTrack: ScreenTrack[] = [];     // per frame, beside `frames`: where the hips are in the picture
     const repResults: RepResult[] = [];
     const started = new Date();
     let lastVideoTime = -1;
@@ -234,9 +235,17 @@ export function CameraSession(p: Props) {
     let lastCueText: string | null = null;
     let bestDegrees: number | null = null;
     const addTurn = (who: "you" | "coach", text: string) => setTurns((t) => [...t.slice(-5), { who, text }]);
+    // A sentence said in two breaths arrives as two pieces. The second piece is joined to the first and the first
+    // one's answer is thrown away (heardSeq), so the coach answers the whole thought once instead of cutting in.
+    let heardSeq = 0;
+    let pendingHeard: { text: string; at: number } | null = null;   // waiting for its answer to start
+    let cutReplyAt = 0;                                              // when the patient last talked over an answer
+    const stale = (event: string, my: number) => event === "heard" && my !== heardSeq;
     const talk = async (event: "heard" | "start" | "set_done" | "finished", heard?: string, previous?: number | null) => {
       if (talking && event !== "heard") return;      // a question always gets through; moments wait their turn
       talking = true;
+      const my = event === "heard" ? ++heardSeq : heardSeq;
+      if (event === "heard" && heard) pendingHeard = { text: heard, at: Date.now() };
       if (heard) addTurn("you", heard);
       try {
         const scores = repResults.map((r) => r.quality).filter((q): q is number => q !== null);
@@ -259,6 +268,7 @@ export function CameraSession(p: Props) {
         const data = (await res.json()) as {
           reply: string; action: "none" | "stop"; audio: string | null; tts: { text: string; exp: number; sig: string }[] | null;
         };
+        if (stale(event, my)) return;                  // they carried on talking: the longer sentence gets the answer
         addTurn("coach", data.reply);
         rememberSaid(data.reply);
         if (/\?\s*$/.test(data.reply.trim())) askedAt = Date.now();
@@ -269,11 +279,14 @@ export function CameraSession(p: Props) {
         } else if (data.tts) {
           // Our own voice (api/tts.py), one sentence at a time: the first plays while the next is being made.
           let first = true;
-          // If the patient is still talking, the answer waits for them, but only briefly: in a noisy room the
-          // microphone "hears" something all the time, and the answer came three seconds late.
-          for (let waited = 0; isHearing() && waited < 500; waited += 100) await new Promise((r) => setTimeout(r, 100));
+          // If the patient is still talking, the answer waits for them (their next piece replaces this answer), but
+          // not for long: in a noisy room the microphone "hears" something all the time.
+          for (let waited = 0; isHearing() && waited < 1200; waited += 100) await new Promise((r) => setTimeout(r, 100));
           for (const ticket of data.tts) {
+            if (stale(event, my)) return;
             const spoken = await voiceFetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ticket) });
+            if (stale(event, my)) return;
+            if (first && event === "heard") pendingHeard = null;       // the answer starts now: no longer waiting
             const ok = spoken?.ok && spoken.headers.get("content-type")?.includes("audio");
             const url = ok ? URL.createObjectURL(await spoken!.blob()) : null;
             if (!url || !playUrl(url, first ? when : "queue")) say([], ticket.text, first ? when : "queue");
@@ -292,7 +305,10 @@ export function CameraSession(p: Props) {
         // no answer this time; the session carries on
       } finally {
         talking = false;
-        if (event === "heard") answerPendingUntil = 0;
+        if (event === "heard" && my === heardSeq) {
+          answerPendingUntil = 0;
+          pendingHeard = null;
+        }
       }
     };
 
@@ -363,17 +379,24 @@ export function CameraSession(p: Props) {
       if (!command) {
         // Not a command: the coach answers it. After the Talk button one word is enough; otherwise two, so a stray
         // "okay" in the room does not start a conversation.
-        const words = heard.split(/\s+/).filter(Boolean).length;
+        const nowMs = Date.now();
+        // The second piece of a sentence: its first piece still waits for an answer, or its answer was just talked over.
+        let text = heard;
+        if (pendingHeard && nowMs - pendingHeard.at < 8000) text = `${pendingHeard.text} ${heard}`;
+        else if (cutReplyAt > lastAsked.at && nowMs - lastAsked.at < 8000 && lastAsked.text) text = `${lastAsked.text} ${heard}`;
+        const words = text.split(/\s+/).filter(Boolean).length;
         // One word is enough right after the Talk button, or when the coach has just asked something ("Good.").
-        const oneWordOk = pushing() || Date.now() - askedAt < 15000;
-        if (!emergencyOn && words >= (oneWordOk ? 1 : 2)) {
-          if (heard === lastAsked.text && Date.now() - lastAsked.at < 5000) return;
-          lastAsked = { text: heard, at: Date.now() };
-          askedAt = 0;
-          answerPendingUntil = performance.now() + 5000;
-          stopVoice();                                                                 // the patient talks: the coach stops
-          void talk("heard", heard);
-        }
+        const justAsked = nowMs - askedAt < 12000;
+        const oneWordOk = pushing() || justAsked;
+        if (emergencyOn || words < (oneWordOk ? 1 : 2)) return;
+        // The room talks too (a friend, a video): only what is meant for the coach gets an answer.
+        if (!meantForCoach(text, { justAsked, talkButton: pushing() })) return;
+        if (text === lastAsked.text && nowMs - lastAsked.at < 5000) return;
+        lastAsked = { text, at: nowMs };
+        askedAt = 0;
+        answerPendingUntil = performance.now() + 5000;
+        stopVoice();                                                                   // the patient talks: the coach stops
+        void talk("heard", text);
         return;
       }
       const now = performance.now();
@@ -409,7 +432,10 @@ export function CameraSession(p: Props) {
       const now = performance.now();
       // The patient talks over the coach's answer: the coach stops. The count and the cues (a second or two) are
       // finished instead: in a room with other voices they were cut off again and again, and nothing was heard.
-      if (hearingSince && now - hearingSince > 500 && voiceBusy() && now > cueUntil) stopVoice();
+      if (hearingSince && now - hearingSince > 500 && voiceBusy() && now > cueUntil) {
+        stopVoice();
+        cutReplyAt = Date.now();
+      }
       // A count that waited: said when the patient has stopped talking, or after 1.2 s if the room just is noisy.
       // One that waited for an answer for over three seconds is old news and is left out.
       if (held) {
@@ -775,6 +801,8 @@ export function CameraSession(p: Props) {
           const kneesIn = profile.liveWarning?.(frame, counter.isDown) ?? false;
           frames.push(frame);
           kneesInFlags.push(kneesIn);
+          const ankleY = Math.max(seenAt(27) && screen ? screen[27].y : -1, seenAt(28) && screen ? screen[28].y : -1);
+          screenTrack.push({ hip: hipY ?? NaN, leg: ankleY > 0 && hipY !== null ? ankleY - hipY : NaN, torso: torso ?? NaN });
           kneesInRun = kneesIn ? kneesInRun + 1 : 0;
           const value = Math.round(profile.liveValue(frame));
           setBend(value);
@@ -823,11 +851,15 @@ export function CameraSession(p: Props) {
             };
           }
           if (!rep) return;
-          if (!countsAsRep(profile, rep)) {
+          // How far the hips came down in the picture: counts a deep movement whose angle the camera read too small.
+          const drop = hipDropShare(screenTrack.slice(rep.startIndex, rep.endIndex + 1));
+          if (!countsAsRep(profile, rep, drop)) {
             if (process.env.NODE_ENV !== "production") {
               const w = window as unknown as { __jhealthReps?: object[] };
-              (w.__jhealthReps ??= []).push({ measure: Math.round(profile.repMeasure(rep)), fault: "too_small" });
+              (w.__jhealthReps ??= []).push({ measure: Math.round(profile.repMeasure(rep)), drop: drop === null ? null : Number(drop.toFixed(2)), fault: barelyMoved(profile, rep, drop) ? "ignored" : "too_small" });
             }
+            // A step or a shift of weight is not an attempt: nothing is said about it.
+            if (barelyMoved(profile, rep, drop)) return;
             // Too small to be a repetition: say so and why, and do not count it.
             lastProgressAt = performance.now();
             reachedThisRep = false;
@@ -853,7 +885,7 @@ export function CameraSession(p: Props) {
           // The rules name what they see; if they see nothing but the model is confident (about 9 in 10 such flags
           // are real, ml/operating_point.py), a gentle general cue instead.
           const fault = withModelFlag(
-            profile.fault({ rep, frames: slice, times: counter.times.slice(rep.startIndex, rep.endIndex + 1), liveFlags: flags }),
+            profile.fault({ rep, frames: slice, times: counter.times.slice(rep.startIndex, rep.endIndex + 1), liveFlags: flags, drop }),
             quality === null ? null : 1 - quality, model?.flag_threshold,
           );
           if (!model) quality = ruleQuality(fault);
@@ -861,13 +893,14 @@ export function CameraSession(p: Props) {
             // Development only: every finished movement with the numbers the rules judged it on.
             const w = window as unknown as { __jhealthReps?: object[] };
             (w.__jhealthReps ??= []).push({
-              measure: Math.round(profile.repMeasure(rep)), fault,
+              measure: Math.round(profile.repMeasure(rep)), drop: drop === null ? null : Number(drop.toFixed(2)), fault,
               hands: profile.handsShare ? Number(profile.handsShare({ rep, frames: slice, times: counter.times.slice(rep.startIndex, rep.endIndex + 1), liveFlags: flags }).toFixed(2)) : null,
               seconds: Number(rep.activeSeconds.toFixed(1)),
             });
           }
-          if (fault && NOT_COUNTED_FAULTS.includes(fault)) {
-            // Pushed up with the hands: the legs did not do the work, so it is named, shown, and not counted.
+          if (fault && NOT_COUNTED_FAULTS.includes(fault) && p.exerciseId === "sit_to_stand") {
+            // Standing up from a chair pushed with the hands: the legs did not do the work, so it is named, shown, and
+            // not counted. (In a squat the hands hang beside the legs anyway: there it is a cue, and the squat counts.)
             lastProgressAt = performance.now();
             reachedThisRep = false;
             cueSpokenThisRep = false;

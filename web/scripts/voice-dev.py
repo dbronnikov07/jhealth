@@ -43,7 +43,7 @@ if SMALL.exists() and os.environ.get("STT_MODEL", "small.en") == "small.en":
 elif (CACHE / "whisper" / "ggml-base.en.bin").exists():
     stt.MODEL_PATH = str(CACHE / "whisper" / "ggml-base.en.bin")
 tts.KEEP_WARM = True          # see api/tts.py stay_warm
-stt.USE_PROMPT = True          # the vocabulary hint: free on this computer, about 0.4 s on the hosted one
+stt.KEEP_WARM = True          # see api/stt.py stay_warm (the vocabulary hint stays off: see USE_PROMPT there)
 
 
 ALLOWED_ORIGINS = {"https://motiva-health.vercel.app", "https://jhealth-beta.vercel.app", "http://localhost:3100"}

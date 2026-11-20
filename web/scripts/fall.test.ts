@@ -131,3 +131,46 @@ test("after a fall: 'Should I call 911?' is answered by voice, and 'don't call' 
   assert.equal(matchCommand("I don't need help"), null);
   assert.equal(matchCommand("call 911"), "call_911");
 });
+
+test("lying on the floor is caught even when the camera keeps losing and finding the body", () => {
+  const stand = hold(3, { lean: 8, hip: 0.45, torso: 0.2, feet: 0.85 });
+  // goes down slowly (no fast drop), then the pose model blinks: three frames nobody, two frames lying, again and again
+  const down = [...hold(0.6, { lean: 40, hip: 0.55, torso: 0.2, feet: 0.6 }), ...hold(0.6, { lean: 70, hip: 0.68, torso: 0.2, feet: 0.3 })];
+  const blink = Array.from({ length: 12 }, () => [{ gone: true }, { gone: true }, { gone: true }, { lean: 86, hip: 0.8, torso: 0.2, feet: 0.05 }, { lean: 84, hip: 0.8, torso: 0.2, feet: 0.05 }]).flat();
+  assert.equal(run(new FallWatch(), [...stand, ...down, ...blink]).length, 1);
+  // never found again after going down slowly: asked after a few seconds of nobody
+  assert.equal(run(new FallWatch(), [...stand, ...down, ...hold(4, { gone: true })]).length, 1);
+  // a stray "standing" frame or two in between (the model guessing at furniture) does not cancel it
+  const stray = Array.from({ length: 12 }, () => [{ gone: true }, { gone: true }, { lean: 86, hip: 0.8, torso: 0.2, feet: 0.05 }, { lean: 10, hip: 0.46, torso: 0.2, feet: 0.8 }, { gone: true }]).flat();
+  assert.equal(run(new FallWatch(), [...stand, ...down, ...stray]).length, 1);
+});
+
+test("not a fall: lost while sitting on the chair, walking off, lying down briefly and getting up", () => {
+  const stand = hold(3, { lean: 8, hip: 0.45, torso: 0.2, feet: 0.85 });
+  // seated (hips 0.8 torso lengths down, trunk leaning in to stand up), then hidden for five seconds
+  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(2, { lean: 45, hip: 0.61, torso: 0.2, feet: 0.5 }), ...hold(5, { gone: true })]), []);
+  // walks out of the picture upright, comes back
+  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(5, { gone: true }), ...stand]), []);
+  // down on the floor for a second (a stumble caught, or picking something up), then standing again
+  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(1, { lean: 85, hip: 0.8, torso: 0.2, feet: 0.05 }), ...hold(0.3, { gone: true }), ...stand]), []);
+  // goes down, then walks up to the camera (the body grows): nothing
+  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(0.5, { lean: 70, hip: 0.68, torso: 0.2, feet: 0.3 }), ...hold(1, { lean: 20, hip: 0.6, torso: 0.3 }), ...hold(4, { gone: true })]), []);
+});
+
+test("only what is meant for the coach gets an answer; the room's talk is left alone", async () => {
+  const { meantForCoach } = await import("../src/lib/echo.ts");
+  const quiet = { justAsked: false, talkButton: false };
+  for (const yes of ["Hi, can you hear me?", "So what should I do right now?", "Does it count?", "what do you mean it doesn't count",
+    "Coach, that was a deep one", "I'm ready", "how many are left", "my knee feels stiff", "Let's start", "that was ten reps"]) {
+    assert.equal(meantForCoach(yes, quiet), true, yes);
+  }
+  // from the live log of 20 November: a friend in the room, half sentences, noise turned into words
+  for (const no of ["Roma cannot touch me.", "It's a mechanic.", "the book of antoi, my words.", "No kid scores now.", "Just come.", "-a, and he has", "Oh, oh, oh, oh.", "Well, it's."]) {
+    assert.equal(meantForCoach(no, quiet), false, no);
+  }
+  // right after the coach asked something, or after the Talk button, anything is an answer
+  assert.equal(meantForCoach("Pretty good.", { justAsked: true, talkButton: false }), true);
+  assert.equal(meantForCoach("Roma.", { justAsked: false, talkButton: true }), true);
+  assert.equal(matchCommand("Think I fall."), "help");
+  assert.equal(matchCommand("I think I fell"), "help");
+});

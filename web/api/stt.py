@@ -26,15 +26,23 @@ MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base
 MODEL_PATH = "/tmp/ggml-base.en.bin"
 MODEL_SHA256 = "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
 MAX_BYTES = 16000 * 2 * 30          # 30 s: a WhatsApp voice note (live phrases are at most 10 s)
-# Words Whisper should expect. Without it, a question about "the weather" at two metres from a laptop came back as
-# "the name of the map" (live log, 20 November). A short hint of the vocabulary, not sentences to copy.
-# The hint costs about 0.4 s on our small hosted server, so only the fast voice helper (scripts/voice-dev.py) uses it.
+# A hint of the words to expect. Off everywhere since 20 November: on noisy audio Whisper answered with the hint's
+# own phrases ("How are you, can you hear me?" and "You are a patient" appeared in the live log as things the patient
+# had said). The bigger model the fast helper uses hears "the weather" without it.
 USE_PROMPT = False
+# Set by the fast voice helper: keep the model warm between sentences (see stay_warm).
+KEEP_WARM = False
 # Only ever set on the team's own computer, to find out why something was misheard: the last utterances are kept
 # there as .wav files. Never set on the hosted site, where audio is transcribed in memory and dropped.
 DEBUG_DIR = os.environ.get("STT_DEBUG_DIR") or None
 PROMPT = ("A patient talks to Motiva, their rehab coach, during chair squats and sit-to-stand: repetitions, knee bend, "
           "form, the camera, the weather today, how are you, can you hear me.")
+# How Whisper decodes, for every request. Measured on 20 November on speech with room noise mixed in:
+#   - when unsure, Whisper decodes again at a higher "temperature", up to five times: single sentences took 2 to 6 s
+#     and came back as loops ("you are a patient, you are a patient, ..."). One pass only (temperature_inc 0): the
+#     same set of 22 clips took 4.6 s in total instead of 13.6 s, with the same words on clear speech;
+#   - a spoken sentence here is at most about 40 tokens, so a decode that runs on past 64 is a loop and is cut.
+DECODE = {"temperature_inc": 0.0, "max_tokens": 64}
 _model = None
 # One transcription at a time per instance: whisper.cpp is not safe to call from two threads at once, and two
 # overlapping requests crashed the function twice in the live log (20 November, 00:58).
@@ -68,7 +76,7 @@ def _load():
         # seconds of faint noise with the same settings as a real request. Silence is not enough: it returns early.
         noise = (np.random.default_rng(0).standard_normal(32000) * 0.02).astype(np.float32)
         m.transcribe(noise, language="en", single_segment=True, no_context=True, suppress_blank=True, audio_ctx=228,
-                     **({"initial_prompt": PROMPT} if USE_PROMPT else {}))
+                     **DECODE, **({"initial_prompt": PROMPT} if USE_PROMPT else {}))
         _model = m
     return _model
 
@@ -81,7 +89,7 @@ def stay_warm():
     2.5 s, then 0.2 s). The session page looks in every 25 s; if nothing was transcribed lately, half a second of
     faint noise is run through the model in the background, so the patient's next sentence is fast."""
     global _last_used
-    if not USE_PROMPT or time.time() - _last_used < 20:
+    if not KEEP_WARM or time.time() - _last_used < 20:
         return
     _last_used = time.time()
 
@@ -92,7 +100,7 @@ def stay_warm():
             m = model()
             with _lock:
                 m.transcribe(noise, language="en", single_segment=True, no_context=True, suppress_blank=True, audio_ctx=153,
-                             initial_prompt=PROMPT)
+                             **DECODE, **({"initial_prompt": PROMPT} if USE_PROMPT else {}))
         except Exception:
             pass
 
@@ -121,7 +129,16 @@ def clean(text):
     for p in parts:                       # "I am okay. I am okay." -> once
         if not out or p.lower() != out[-1].lower():
             out.append(p)
-    return " ".join(out)[:300]
+    text = " ".join(out)
+    # A decode that got stuck repeats a phrase ("you are a patient, you are a patient, you are a patient"): two or
+    # more words, three or more times in a row, is noise, not speech, and nothing is returned. A phrase said twice is
+    # kept once. Single words are left alone: people do say "no, no, no" and "wait, wait, wait".
+    if re.search(r"\b(\w+(?:\W+\w+){1,7})(?:\W+\1){2,}", text.lower()):
+        return ""
+    text = re.sub(r"\b(\w+(?:\W+\w+){2,7})\W+\1\b", r"\1", text, flags=re.IGNORECASE)
+    if not re.search(r"[a-zA-Z0-9]", text):   # only punctuation
+        return ""
+    return text[:300]
 
 
 def keep_for_debugging(audio, text):
@@ -188,7 +205,7 @@ class handler(BaseHTTPRequestHandler):
                 segments = m.transcribe(
                     audio, language="en", single_segment=True, no_context=True, suppress_blank=True,
                     audio_ctx=min(1500, int(seconds * 50) + 128),     # only as much context as there is audio: faster
-                    **({"initial_prompt": PROMPT} if USE_PROMPT else {}),
+                    **DECODE, **({"initial_prompt": PROMPT} if USE_PROMPT else {}),
                 )
             text = clean(" ".join(s.text for s in segments))
             if DEBUG_DIR:

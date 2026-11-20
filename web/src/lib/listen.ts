@@ -23,7 +23,7 @@ export function matchCommand(heard: string, contactName: string | null = null): 
   const first = contactName?.toLowerCase().replace(/[^a-z ]+/g, "").trim().split(" ")[0];
   if (first && first.length >= 2) names.push(first);
   if (new RegExp(` (call|phone|ring) (${names.join("|")}) `).test(t)) return "call_contact";
-  if (/ (help me|i need help|help|i fell|i've fallen|i have fallen|i fell down|i can't get up|i cannot get up) /.test(t)) return "help";
+  if (/ (help me|i need help|help|i fell|i fall|i'm falling|i am falling|i've fallen|i have fallen|i fell down|i fall down|i can't get up|i cannot get up) /.test(t)) return "help";
   if (/ (i'm|i am|im) (ok|okay|fine|all right|alright|good) /.test(t) || /^ (ok|okay|fine|i'm fine) $/.test(t)) return "okay";
   if (/ (it hurts|that hurts|it's hurting|ouch|pain) /.test(t)) return "pain";
   // Pause and resume only as a short phrase of their own, so "should I pause between reps?" stays a question.
@@ -52,7 +52,7 @@ export type Utterance = { audio: Float32Array; startMs: number; endMs: number };
 
 /**
  * Voice activity detection on 20 ms frames of 16 kHz audio: loud enough above the room's own noise for long enough
- * is speech; about a third of a second of quiet ends it. Pure (no browser APIs), unit-tested in scripts/listen.test.ts.
+ * is speech; 0.6 s of quiet ends it. Pure (no browser APIs), unit-tested in scripts/listen.test.ts.
  */
 export class Vad {
   static readonly FRAME = 320;                 // 20 ms at 16 kHz
@@ -65,7 +65,10 @@ export class Vad {
   private loudFrames = 0;
   private startMs = 0;
 
-  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 18, minLoudFrames: 10, maxFrames: 500 };   // 18 frames: 0.36 s of quiet ends a sentence
+  // 30 frames: 0.6 s of quiet ends a sentence. At 0.36 and 0.44 s a pause for breath or for a word (people speaking a
+  // second language pause more) ended it: the live log is full of halves ("Is a...", "Well, it's.", "-a, and he has"),
+  // each answered on its own, which the patient heard as being interrupted. Halves are also what Whisper gets wrong.
+  private o = { minRms: 0.008, ratio: 3.2, endQuietFrames: 30, minLoudFrames: 10, maxFrames: 500 };
 
   get active(): boolean {
     return this.speaking;
