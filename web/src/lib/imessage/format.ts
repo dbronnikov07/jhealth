@@ -49,3 +49,10 @@ export function matchQuickReply(text: string, offered: Button[]): Button | null 
 export function textUsLink(address: string, body = "Hi Motiva! My physio asked me to text you."): string {
   return `sms:${address}?&body=${encodeURIComponent(body)}`;
 }
+
+/**
+ * Someone new only becomes a patient when their first text mentions Motiva (the "Text Motiva" link and QR code type
+ * "Hi Motiva! My physio asked me to text you." for them). Everyone else is ignored and nothing they wrote is stored,
+ * so the bridge can even run on a personal Apple ID without friends and family talking to the coach.
+ */
+export const JOIN_WORD = /\bmotiva\b/i;

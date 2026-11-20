@@ -882,3 +882,10 @@ textarea { resize: vertical; min-height: 60px; }
 .motiva-word small { font-size: 0.42em; font-weight: 600; letter-spacing: 0.42em; text-transform: uppercase; color: #6b747d; padding-left: 0.1em; }
 .topbar .motiva-logo { color: #ffffff; }
 .topbar .motiva-word small { color: #b9c4d8; }
+
+/* Dashboard: the staff-only "text the coach" QR code */
+.imsg-invite { margin: 0 0 20px; background: #ffffff; border: 1px solid var(--line, #e3e7ef); border-radius: 16px; padding: 12px 16px; }
+.imsg-invite summary { cursor: pointer; font-weight: 650; color: var(--accent); }
+.imsg-invite .row { gap: 20px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.imsg-invite p { max-width: 420px; }
+

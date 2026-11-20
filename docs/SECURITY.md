@@ -26,13 +26,13 @@ What protects patient data in Motiva Health, how it was tested, and what must be
 
 ## How it was tested
 
-`bash web/scripts/attack.sh` (with the dev server running) makes 43 attacks from "outside", using the headers a Cloudflare tunnel adds: the dashboard and patient records, encoded and case-changed paths, path traversal to `.env.local` and source files, forged and unsigned webhooks, an oversized body, the reminder trigger with a made-up secret, made-up and SQL-injected patient tokens, and the demo phone (made-up keys, invented buttons, oversized bodies). All 43 are refused. Against the live site run it with `BASE=https://jhealth-beta.vercel.app DELAY=2`: Vercel's own firewall blocks this computer for a few minutes after the path-traversal probes, which is why they run last. `npm run test:unit` includes the access rules (lockout, constant-time compare, what counts as "this computer").
+`bash web/scripts/attack.sh` (with the dev server running) makes 43 attacks from "outside", using the headers a Cloudflare tunnel adds: the dashboard and patient records, encoded and case-changed paths, path traversal to `.env.local` and source files, forged and unsigned webhooks, an oversized body, the reminder trigger with a made-up secret, made-up and SQL-injected patient tokens, and the demo phone (made-up keys, invented buttons, oversized bodies). All 43 are refused. Against the live site run it with `BASE=https://motiva-health.vercel.app DELAY=2`: Vercel's own firewall blocks this computer for a few minutes after the path-traversal probes, which is why they run last. `npm run test:unit` includes the access rules (lockout, constant-time compare, what counts as "this computer").
 
 A dashboard action was also replayed exactly as the browser sends it: it works from this computer, is refused through the tunnel (503), and posted to the public landing or privacy page from outside, Next.js refuses it ("Failed to find Server Action") and nothing is written.
 
 ## The live deployment (Vercel + Supabase, 19 November 2026)
 
-https://jhealth-beta.vercel.app. Website on Vercel (functions in Montreal, `yul1`), database on Supabase's free plan in Canada (`ca-central-1`), created through Vercel's marketplace.
+https://motiva-health.vercel.app. Website on Vercel (functions in Montreal, `yul1`), database on Supabase's free plan in Canada (`ca-central-1`), created through Vercel's marketplace.
 
 - **Supabase's public web API is closed.** Supabase publishes every table, view and function through an automatic web API that anyone with the project's public key can call. Migration `20261120090000_lock_public_api.sql` removes every right the public roles had (and for anything created later). Then the API was attacked with both public keys and with none: reading all 12 tables and views, inserting a patient, running all 5 functions, 37 attempts in all. Every one was refused (401 or 404), and GraphQL is not enabled. `npm run cloud:check` re-checks this from the database side.
 - **Secrets** are stored on Vercel as *sensitive* (write-only: Vercel never displays them again) and in private files outside the project (`~/jhealth-cache/production-secrets.txt`, `~/jhealth-cache/production.env`, owner-only permissions). `DASHBOARD_PASSWORD` is 28 random characters; `CRON_SECRET` is 64 random hex characters. No value was printed or typed into a web page.
@@ -94,4 +94,10 @@ A chat page on our own site that stands in for WhatsApp (`/s/<token>/phone`, API
 - Pain and red-flag words in what the patient says go to the fixed safety rules (`lib/safety.ts`) before any AI: alert, remembered fact, fixed answer, session stopped.
 - What leaves the device: the browser's speech service (Apple's or Google's) turns speech into text; that text and the session numbers go to the AI that writes the answer (OpenAI when `OPENAI_API_KEY` is set, otherwise Adaption); the answer's text goes to OpenAI's text-to-speech. The video never leaves the device. Conversations are stored in `voice_turns` (row level security on, no web API rights) so the physiotherapist can read them.
 - The coach's voice is made on our own server (`web/api/tts.py`, Kokoro-82M, open model): no paid service and nothing sent to a third party for speech. It speaks only text signed by `/api/session/talk` (HMAC-SHA256 with `TTS_SECRET`, valid one minute, at most 400 characters), so it cannot be used to make the site say anything else. `scripts/attack.sh` checks that unsigned text is refused. The model file is downloaded from its GitHub release and checked against its SHA-256 before use.
+
+## iMessage on a personal Apple ID (added 20 November 2026)
+
+- A new sender only becomes a patient when their first text mentions "Motiva" (the invite link and QR code type it). Anyone else is ignored and nothing they wrote is stored (`JOIN_WORD` in `web/src/lib/imessage/format.ts`).
+- `npm run imessage:bridge -- --personal` keeps private messages on the Mac: a text leaves only if it says "Motiva" or comes from someone who already did (kept in `~/jhealth-cache/imessage-patients.json`, readable only by the user); replies go only to those people, at most 60 a day.
+- The iMessage address is printed on the public front page only with `IMESSAGE_PUBLIC=1`; otherwise the QR code is shown to signed-in staff on the dashboard, so a personal phone number or email is never public.
 

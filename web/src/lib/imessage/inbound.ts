@@ -4,11 +4,12 @@
 import { getDb } from "../db";
 import { quickReplyAction, TIME_BUTTONS, WHY_BUTTONS, type Button } from "../quick-replies";
 import { ingestMessage } from "../whatsapp/inbound";
-import { matchQuickReply, normalizeHandle } from "./format";
+import { JOIN_WORD, matchQuickReply, normalizeHandle } from "./format";
 
 const KNOWN: Button[] = [...TIME_BUTTONS, ...WHY_BUTTONS];
 
 export type IncomingIMessage = { handle: string; text: string; guid: string };
+
 
 export async function handleIMessage(raw: IncomingIMessage): Promise<{ patientId: string; coachMessageId: string | null } | null> {
   const handle = normalizeHandle(raw.handle);
@@ -19,6 +20,7 @@ export async function handleIMessage(raw: IncomingIMessage): Promise<{ patientId
   let [patient] = await db.query<{ id: string }>("select id from patients where imessage_handle = $1", [handle]);
   let isNew = false;
   if (!patient) {
+    if (!JOIN_WORD.test(text)) return null;
     const isPhone = handle.startsWith("+");
     // A phone number already used by another patient (say, on WhatsApp) stays with them; this record keeps only the handle.
     const [taken] = isPhone ? await db.query<{ n: number }>("select count(*)::int as n from patients where phone = $1", [handle]) : [{ n: 0 }];

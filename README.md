@@ -2,7 +2,7 @@
 
 Home rehab, coached by the phone camera. A physiotherapist prescribes exercises; the patient opens a link from a chat message; the phone or laptop camera counts every repetition, coaches it out loud while it happens, and scores it; the physiotherapist sees who is doing the work and who is stalling.
 
-Built for YHacks 2026 (Pillar 2, Healthcare). Live: **https://jhealth-beta.vercel.app**
+Built for YHacks 2026 (Pillar 2, Healthcare). Live: **https://motiva-health.vercel.app**
 
 ![A squat tracked by Motiva Health's pose model](web/public/photos/og-session.jpg)
 

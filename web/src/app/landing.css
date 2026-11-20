@@ -60,7 +60,10 @@
 .lp-btn .short { display: none; }
 
 /* ---------- floating pill navigation ---------- */
-.lp-nav-wrap { position: sticky; top: 0; z-index: 50; padding: 14px 16px 0; height: 0; overflow: visible; }
+/* The wrapper takes no height at all, so the sky starts at the very top of the page (with a 14 px top padding here,
+   a grey band showed above the sky). The pill itself is moved down 14 px instead. */
+.lp-nav-wrap { position: sticky; top: 0; z-index: 50; padding: 0 16px; height: 0; overflow: visible; }
+.lp-nav-wrap > .lp-nav { position: relative; top: 14px; }
 .lp-nav {
   display: flex; align-items: center; gap: 28px; max-width: 1080px; margin: 0 auto; min-height: 56px; padding: 0 8px 0 20px;
   border-radius: 999px; background: rgb(255 255 255 / 0.82); border: 1px solid rgb(255 255 255 / 0.9);

@@ -39,3 +39,11 @@ test("a reply is matched to the offered answer by number or by word", () => {
 test("the Text us link opens Messages with Motiva and a first message", () => {
   assert.equal(textUsLink("coach@example.com", "Hi Motiva!"), "sms:coach@example.com?&body=Hi%20Motiva!");
 });
+
+test("a stranger joins only by saying Motiva; everyone else is ignored", async () => {
+  const { JOIN_WORD } = await import("../src/lib/imessage/format.ts");
+  assert.ok(JOIN_WORD.test("Hi Motiva! My physio asked me to text you."));
+  assert.ok(JOIN_WORD.test("motiva"));
+  assert.ok(!JOIN_WORD.test("hey are you coming tonight?"));
+  assert.ok(!JOIN_WORD.test("motivation is low today"));
+});

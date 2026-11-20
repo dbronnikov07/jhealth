@@ -36,7 +36,9 @@ const PATIENTS = [
 ] as const;
 
 // Motiva Health's iMessage address (the bot's own Apple ID). Without it, the page simply has no "Text Motiva" parts.
-const IMESSAGE = process.env.IMESSAGE_ADDRESS?.trim() || null;
+// IMESSAGE_PUBLIC=1 is required too: on a personal Apple ID the address is someone's own phone number or email,
+// which must not be printed on a public page (the physio dashboard shows it to signed-in staff instead).
+const IMESSAGE = process.env.IMESSAGE_PUBLIC === "1" ? process.env.IMESSAGE_ADDRESS?.trim() || null : null;
 
 export default function Landing() {
   const textUs = IMESSAGE ? textUsLink(IMESSAGE) : null;

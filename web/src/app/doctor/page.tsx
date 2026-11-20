@@ -4,9 +4,13 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { Goniometer } from "@/components/Goniometer";
 import { Icon } from "@/components/Icon";
 import { StatusPill } from "@/components/StatusPill";
+import { QrCode } from "@/components/QrCode";
 import { TopBar } from "@/components/TopBar";
+import { textUsLink } from "@/lib/imessage/format";
 import { getDoctor, listPatients, sessionsThisWeek } from "@/lib/data";
 import { STATUS_LABEL, timeAgo } from "@/lib/format";
+
+const IMESSAGE = process.env.IMESSAGE_ADDRESS?.trim() || null;
 
 export default async function Dashboard() {
   await connection(); // always read fresh data, never a copy made at build time
@@ -37,6 +41,16 @@ export default async function Dashboard() {
           <span className="spacer" />
           <Link href="/doctor/patients/new" className="btn primary"><Icon name="plus" size={18} /> Add patient</Link>
         </div>
+        {IMESSAGE && (
+          // Shown only to signed-in staff: on a personal Apple ID this address is someone's own phone number or email.
+          <details className="imsg-invite">
+            <summary>Patients start on iMessage: show the QR code to scan</summary>
+            <div className="row">
+              <QrCode text={textUsLink(IMESSAGE)} size={168} label="QR code: scan with an iPhone camera to text the Motiva coach" />
+              <p>Scan with the iPhone camera, then press Send. The first text says &ldquo;Motiva&rdquo;, which is what lets a new patient in. <a href={textUsLink(IMESSAGE)}>Open Messages</a></p>
+            </div>
+          </details>
+        )}
 
         <section className="stats" aria-label="This week">
           <div className="stat">
