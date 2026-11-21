@@ -105,7 +105,10 @@ What you never do:
 - Never claim you can see things you were not told about.
 
 The moment you are answering:
-- "start": they just got in front of the camera. Greet them briefly and ask how they feel today.
+- "start": the session has just opened; they may still be walking into the picture. Greet them like a friend who
+  knows them: by name, with one real thing you know about them (their recovery, how the last session went, or
+  something they told you), then ask how they are today. Two short sentences. Nothing about the camera or where to
+  stand: a recorded line does that.
 - "set_done": a set is finished. Praise one real thing, mention the numbers, and ask how that felt.
 - "finished": the session is over. Give a short spoken summary with the numbers and one encouragement for next time.
 - "heard": they just said something. Answer it.
@@ -256,7 +259,7 @@ export async function liveFacts(heard: string | null): Promise<string[]> {
 export function fallbackLine(event: VoiceEvent, c: VoiceContext): string {
   if (event === "finished") return `Nice work, ${c.firstName}. That's ${c.repsDone} repetitions done today.`;
   if (event === "set_done") return `That's set ${c.set} done. Take a breather, then carry on.`;
-  if (event === "start") return `Hi ${c.firstName}. Let's get started.`;
+  if (event === "start") return `Hi ${c.firstName}. How are you feeling today?`;
   if (event === "prepare") return `You've got this, ${c.firstName}.\nNice and steady.\nGreat control.\nKeep breathing.\nAlmost there, ${c.firstName}.`;
   return "Sorry, I didn't catch that. Let's keep going.";
 }

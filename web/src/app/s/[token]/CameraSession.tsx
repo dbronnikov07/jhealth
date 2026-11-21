@@ -179,7 +179,9 @@ export function CameraSession(p: Props) {
     let lastFps = 0;
     const frameClock: number[] = [];
     // Talking the patient into the picture: what the camera check shows on screen is also said out loud, once when it
-    // changes and again every 9 s while it stays the same, so a patient standing 2 m away hears what to do.
+    // changes and again every 15 s while it stays the same, so a patient standing 2 m away hears what to do.
+    // The conversation comes first: nothing about the picture while the coach is greeting or answering, or within two
+    // seconds of it. (Live test, 20 November: a minute of "I can't see you" and only then a hello.)
     const SETUP_TEXT = {
       setup_find_you: "I can't see you yet. Stand in front of the camera.",
       setup_step_back: "Step back a little. I need to see you from your shoulders down to your knees.",
@@ -191,14 +193,20 @@ export function CameraSession(p: Props) {
     const coachSetup = (clip: keyof typeof SETUP_TEXT) => {
       const now = performance.now();
       if (!playingSince || now - playingSince < 2500) return;       // the camera is still waking up
-      const again = clip !== "setup_hold" && now - setupSaid.at > 9000;
+      if (talking || voiceBusy()) lastVoiceAt = now;
+      if (talking || now - lastVoiceAt < 2000 || holdSpeech()) return;
+      const again = clip !== "setup_hold" && now - setupSaid.at > 15000;
       if (clip === setupSaid.clip && !again) return;
       setupSaid = { clip, at: now };
-      say([clip], SETUP_TEXT[clip], "next");
+      say([clip], SETUP_TEXT[clip], "queue");
     };
     // ---- The spoken coach (api/session/talk): it answers what the patient says, greets them at the start, talks
     // after each set and gives a spoken summary at the end. The count and the form cues stay instant recordings.
     let talking = false;
+    let lastVoiceAt = 0;             // when the coach was last speaking or working on an answer
+    // The hello: asked for as soon as the session opens, so the coach talks like someone who knows the patient from
+    // the first second, while they are still walking into the picture. "none" = not yet, or it failed.
+    let greeting: "none" | "asked" | "said" = "none";
     let notCountedCount = 0;
     let handsCount = 0;
     let askedAt = 0;                 // when the coach last asked a question: a one-word answer is enough for a while
@@ -270,7 +278,9 @@ export function CameraSession(p: Props) {
           reply: string; action: "none" | "stop"; audio: string | null; tts: { text: string; exp: number; sig: string }[] | null;
         };
         if (stale(event, my)) return;                  // they carried on talking: the longer sentence gets the answer
+        if (event === "start" && cancelled) return;    // the session was closed before the hello arrived
         addTurn("coach", data.reply);
+        if (event === "start") greeting = "said";
         rememberSaid(data.reply);
         if (/\?\s*$/.test(data.reply.trim())) askedAt = Date.now();
         const when = event === "heard" ? "now" : "queue";
@@ -306,6 +316,8 @@ export function CameraSession(p: Props) {
         // no answer this time; the session carries on
       } finally {
         talking = false;
+        lastVoiceAt = performance.now();
+        if (event === "start" && greeting === "asked") greeting = "none";     // no hello came: try again once they are in view
         if (event === "heard" && my === heardSeq) {
           answerPendingUntil = 0;
           pendingHeard = null;
@@ -665,6 +677,8 @@ export function CameraSession(p: Props) {
       }
     };
 
+    greeting = "asked";
+    void talk("start");
     (async () => {
       try {
         const [loaded, vision] = await Promise.all([loadModel(p.modelKey), import("@mediapipe/tasks-vision")]);
@@ -802,7 +816,7 @@ export function CameraSession(p: Props) {
             lastProgressAt = performance.now();
             const own = `start_${p.exerciseId}`;
             say([voiceReady([own]) ? own : "start"], `Camera's ready. We'll do ${p.exerciseName}: ${target} repetitions. Take your time.`);
-            void talk("start");
+            if (greeting === "none") { greeting = "asked"; void talk("start"); }
           }
           const frame: Frame = world.map((l) => [l.x, l.y, l.z] as Vec);
           const signal = profile.repSignal(frame);
