@@ -16,7 +16,7 @@ import { coachVoice, repSpokenText } from "@/lib/speech";
 import { meantForCoach, isEcho, looksLikeNoise, rememberSaid } from "@/lib/echo";
 import { playUrl, playVoice, preloadVoice, repClips, sessionClips, spokeDuring, stopVoice, voiceBusy, voiceReady } from "@/lib/voice";
 import { captureMode, emergencyAnswer, fakeMicrophoneForTest, fastVoiceWanted, feedAudioForTest, findVoiceServer, getVoiceBase, isHearing, matchCommand, onHeard, pushing, setCoachSpeaking, stopListening, talkNow, voiceFetch, watchListening, type ListenState } from "@/lib/listen";
-import { FallWatch } from "@/lib/pose/fall";
+import { fallPicture, FallWatch } from "@/lib/pose/fall";
 
 export type RepResult = { quality: number | null; fault: Fault | null; knee_bend_deg: number | null; rom_deg: number | null; duration_s: number };
 export type SessionSummary = { reps: number; quality: number | null; knee_bend: number | null; previous_knee_bend: number | null };
@@ -239,6 +239,7 @@ export function CameraSession(p: Props) {
     // one's answer is thrown away (heardSeq), so the coach answers the whole thought once instead of cutting in.
     let heardSeq = 0;
     let pendingHeard: { text: string; at: number } | null = null;   // waiting for its answer to start
+    let heardPieces = 1;                                            // how many heard pieces the last question was joined from
     let cutReplyAt = 0;                                              // when the patient last talked over an answer
     const stale = (event: string, my: number) => event === "heard" && my !== heardSeq;
     const talk = async (event: "heard" | "start" | "set_done" | "finished", heard?: string, previous?: number | null) => {
@@ -381,9 +382,12 @@ export function CameraSession(p: Props) {
         // "okay" in the room does not start a conversation.
         const nowMs = Date.now();
         // The second piece of a sentence: its first piece still waits for an answer, or its answer was just talked over.
+        // Two pieces at most, and only close together: joining piece after piece grew one endless sentence
+        // ("sit down two degrees to go okay that didn't ... I can't", 20 November) that got answered again and again.
         let text = heard;
-        if (pendingHeard && nowMs - pendingHeard.at < 8000) text = `${pendingHeard.text} ${heard}`;
-        else if (cutReplyAt > lastAsked.at && nowMs - lastAsked.at < 8000 && lastAsked.text) text = `${lastAsked.text} ${heard}`;
+        let pieces = 1;
+        if (heardPieces < 2 && pendingHeard && nowMs - pendingHeard.at < 4000) { text = `${pendingHeard.text} ${heard}`; pieces = 2; }
+        else if (heardPieces < 2 && cutReplyAt > lastAsked.at && nowMs - lastAsked.at < 5000 && lastAsked.text) { text = `${lastAsked.text} ${heard}`; pieces = 2; }
         const words = text.split(/\s+/).filter(Boolean).length;
         // One word is enough right after the Talk button, or when the coach has just asked something ("Good.").
         const justAsked = nowMs - askedAt < 12000;
@@ -393,6 +397,7 @@ export function CameraSession(p: Props) {
         if (!meantForCoach(text, { justAsked, talkButton: pushing() })) return;
         if (text === lastAsked.text && nowMs - lastAsked.at < 5000) return;
         lastAsked = { text, at: nowMs };
+        heardPieces = pieces;
         askedAt = 0;
         answerPendingUntil = performance.now() + 5000;
         stopVoice();                                                                   // the patient talks: the coach stops
@@ -760,7 +765,10 @@ export function CameraSession(p: Props) {
           const hipWorldY = (world[23].y + world[24].y) / 2;
           const hipsAboveFeet = seenAt(27) || seenAt(28) ? (world[27].y + world[28].y) / 2 - hipWorldY
             : seenAt(25) || seenAt(26) ? ((world[25].y + world[26].y) / 2 - hipWorldY) * 2 : null;
-          if (fallWatch.seen(t, trunkLean(world.map((l) => [l.x, l.y, l.z] as Vec)), hipY, { torso, hipsAboveFeet })) raiseEmergency("fall");
+          // The main evidence: how far head, shoulders and hips are below where they are when standing (lib/pose/fall.ts).
+          const picture = fallPicture(screen, video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 1);
+          if (fallWatch.seen(t, trunkLean(world.map((l) => [l.x, l.y, l.z] as Vec)), hipY, { torso, hipsAboveFeet, picture })) raiseEmergency("fall");
+          if (process.env.NODE_ENV !== "production") (window as unknown as { __jhealthFall?: unknown }).__jhealthFall = { t, picture, ...fallWatch.debug };
           if (emergencyOn) { draw(screen, connections, null); return; }
           // Strict before the set starts (to be sure the framing is right), lenient once it is under way.
           const issue = poseSetupIssue(p.exerciseId, screen, startSpoken ? DURING_SET : {});

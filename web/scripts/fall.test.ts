@@ -152,7 +152,7 @@ test("not a fall: lost while sitting on the chair, walking off, lying down brief
   // walks out of the picture upright, comes back
   assert.deepEqual(run(new FallWatch(), [...stand, ...hold(5, { gone: true }), ...stand]), []);
   // down on the floor for a second (a stumble caught, or picking something up), then standing again
-  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(1, { lean: 85, hip: 0.8, torso: 0.2, feet: 0.05 }), ...hold(0.3, { gone: true }), ...stand]), []);
+  assert.deepEqual(run(new FallWatch(), [...stand, ...hold(0.7, { lean: 85, hip: 0.8, torso: 0.2, feet: 0.05 }), ...hold(0.3, { gone: true }), ...stand]), []);
   // goes down, then walks up to the camera (the body grows): nothing
   assert.deepEqual(run(new FallWatch(), [...stand, ...hold(0.5, { lean: 70, hip: 0.68, torso: 0.2, feet: 0.3 }), ...hold(1, { lean: 20, hip: 0.6, torso: 0.3 }), ...hold(4, { gone: true })]), []);
 });
@@ -173,4 +173,117 @@ test("only what is meant for the coach gets an answer; the room's talk is left a
   assert.equal(meantForCoach("Roma.", { justAsked: false, talkButton: true }), true);
   assert.equal(matchCommand("Think I fall."), "help");
   assert.equal(matchCommand("I think I fell"), "help");
+});
+
+// ---- The picture rules, on a stick figure seen through a pinhole camera (a phone standing upright, 65 degrees top
+// to bottom, picture 9:16). Heights and distances in metres; the figure is 1.7 m tall with a torso of about 0.5 m.
+import { fallPicture } from "../src/lib/pose/fall.ts";
+
+type J = [number, number, number];             // across, height above the floor, distance from the camera
+type Fig = { nose: J; sh: J; hip: J; knee: J; ankle: J };
+const FY = 0.5 / Math.tan((32.5 * Math.PI) / 180);
+const ASPECT = 9 / 16;
+const at = (d: number, x = 0) => ({
+  stand: { nose: [x, 1.6, d], sh: [x, 1.4, d], hip: [x, 0.92, d], knee: [x, 0.5, d], ankle: [x, 0.08, d] } as Fig,
+  chair: { nose: [x, 1.2, d], sh: [x, 1.0, d], hip: [x, 0.5, d], knee: [x, 0.5, d - 0.42], ankle: [x, 0.08, d - 0.42] } as Fig,
+  chairSide: { nose: [x + 0.1, 1.2, d], sh: [x, 1.0, d], hip: [x, 0.5, d], knee: [x + 0.42, 0.5, d], ankle: [x + 0.42, 0.08, d] } as Fig,
+  squat: { nose: [x, 1.05, d - 0.2], sh: [x, 0.9, d - 0.15], hip: [x, 0.5, d + 0.2], knee: [x, 0.5, d - 0.2], ankle: [x, 0.08, d] } as Fig,
+  bow: { nose: [x + 0.6, 0.5, d], sh: [x + 0.45, 0.7, d], hip: [x, 0.9, d], knee: [x, 0.5, d], ankle: [x, 0.08, d] } as Fig,
+  shoes: { nose: [x + 0.5, 0.45, d], sh: [x + 0.4, 0.62, d], hip: [x, 0.5, d], knee: [x + 0.42, 0.5, d], ankle: [x + 0.42, 0.08, d] } as Fig,
+  floorSit: { nose: [x, 0.78, d], sh: [x, 0.6, d], hip: [x, 0.1, d], knee: [x, 0.35, d - 0.35], ankle: [x, 0.08, d - 0.7] } as Fig,
+  floorSitSide: { nose: [x, 0.78, d], sh: [x, 0.6, d], hip: [x, 0.1, d], knee: [x + 0.42, 0.12, d], ankle: [x + 0.84, 0.08, d] } as Fig,
+  lieAcross: { nose: [x - 0.75, 0.15, d], sh: [x - 0.5, 0.15, d], hip: [x, 0.12, d], knee: [x + 0.42, 0.12, d], ankle: [x + 0.84, 0.08, d] } as Fig,
+  lieFeetFirst: { nose: [x, 0.15, d + 0.75], sh: [x, 0.15, d + 0.5], hip: [x, 0.12, d], knee: [x, 0.12, d - 0.42], ankle: [x, 0.08, d - 0.84] } as Fig,
+  lieHeadFirst: { nose: [x, 0.15, d - 0.75], sh: [x, 0.15, d - 0.5], hip: [x, 0.12, d], knee: [x, 0.12, d + 0.42], ankle: [x, 0.08, d + 0.84] } as Fig,
+});
+/** One frame for the fall watch: the figure as the pose model would report it, or null when it is out of the picture. */
+function shot(f: Fig, cam = 0.8, turned = false) {
+  const px = (j: J) => ({ x: 0.5 + (j[0] / j[2]) * FY / ASPECT, y: 0.5 + ((cam - j[1]) / j[2]) * FY, visibility: 1 });
+  const sh = px(f.sh), hip = px(f.hip), nose = px(f.nose), knee = px(f.knee), ankle = px(f.ankle);
+  if (sh.y > 1 || sh.y < 0 || f.sh[2] < 0.3) return null;                      // shoulders out of the picture: lost
+  const out = (q: { x: number; y: number; visibility: number }) => ({ ...q, visibility: q.y > 1.02 || q.y < -0.02 ? 0.1 : 1 });
+  const marks = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0 }));
+  const half = (j: J) => ((turned ? 0.05 : 0.18) / j[2]) * FY / ASPECT;   // half the shoulder width (facing the camera, or side-on)
+  marks[0] = out(nose);
+  for (const [l, r, q] of [[11, 12, sh], [23, 24, hip], [25, 26, knee], [27, 28, ankle]] as const) {
+    marks[l] = out({ ...q, x: q.x - half(q === sh ? f.sh : f.hip) }); marks[r] = out({ ...q, x: q.x + half(q === sh ? f.sh : f.hip) });
+  }
+  const v = [f.sh[0] - f.hip[0], f.sh[1] - f.hip[1], f.sh[2] - f.hip[2]];
+  const lean = (Math.acos(Math.max(-1, Math.min(1, v[1] / Math.hypot(v[0], v[1], v[2])))) * 180) / Math.PI;
+  return { lean, hipY: hip.y, torso: Math.hypot((sh.x - hip.x) * ASPECT, sh.y - hip.y), feet: f.hip[1] - f.ankle[1], picture: fallPicture(marks, ASPECT) };
+}
+/** Play poses through a fresh watch: [figure or null (nobody), seconds]. A move between two poses takes `move` s. */
+function play(steps: [Fig | null, number][], cam = 0.8, move = 0.5, fps = 25): number {
+  const w = new FallWatch();
+  let t = 0, hits = 0, prev: Fig | null = null;
+  const feed = (f: Fig | null) => {
+    const s = f ? shot(f, cam) : null;
+    if (s ? w.seen(t, s.lean, s.hipY, { torso: s.torso, hipsAboveFeet: s.feet, picture: s.picture }) : w.missing(t)) hits++;
+    t += 1 / fps;
+  };
+  for (const [fig, seconds] of steps) {
+    if (fig && prev) {
+      const n = Math.round(move * fps);
+      for (let i = 1; i < n; i++) {
+        const k = i / n;
+        const mix = (a: J, b: J): J => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+        feed({ nose: mix(prev.nose, fig.nose), sh: mix(prev.sh, fig.sh), hip: mix(prev.hip, fig.hip), knee: mix(prev.knee, fig.knee), ankle: mix(prev.ankle, fig.ankle) });
+      }
+    }
+    for (let i = 0; i < Math.round(seconds * fps); i++) feed(fig);
+    prev = fig;
+  }
+  return hits;
+}
+
+test("in the picture: lying or sitting on the floor asks, from any side and any camera height", () => {
+  for (const cam of [0.3, 0.8, 1.1]) {
+    for (const d of [2, 2.6, 3.2]) {
+      const p = at(d);
+      for (const [name, down] of Object.entries({ across: p.lieAcross, feetFirst: p.lieFeetFirst, headFirst: p.lieHeadFirst, sit: p.floorSit, sitSide: p.floorSitSide })) {
+        assert.equal(play([[p.stand, 3], [down, 4]], cam), 1, `${name} at ${d} m, camera at ${cam} m`);
+        // slowly, the way people lie down for a demo: three seconds on the way
+        assert.equal(play([[p.stand, 3], [down, 4]], cam, 3), 1, `${name} slowly at ${d} m, camera at ${cam} m`);
+      }
+    }
+  }
+});
+
+test("in the picture: a session that starts on the chair still catches the floor", () => {
+  const p = at(2.4);
+  // walks to the chair from next to the phone (the body is big at first), sits a long time, then ends up on the floor
+  const walk: [Fig | null, number][] = [[at(1.2).stand, 0.5], [at(1.8).stand, 0.3], [p.stand, 0.6], [p.chair, 20]];
+  assert.equal(play([...walk, [p.lieAcross, 4]]), 1);
+  assert.equal(play([...walk, [p.floorSit, 4]]), 1);
+  assert.equal(play([...walk, [p.stand, 1], [p.chair, 2], [p.stand, 1], [p.chair, 2]]), 0);
+});
+
+test("in the picture: going down out of the bottom of the picture and staying gone asks", () => {
+  // a laptop on a table, the feet cut off: the floor at the spot is below the picture
+  const p = at(1.3);
+  assert.equal(shot(p.lieAcross, 1.1), null);
+  assert.equal(play([[p.stand, 3], [p.lieAcross, 0.2], [null, 4]], 1.1), 1);
+  assert.equal(play([[p.stand, 3], [p.floorSit, 0.2], [null, 4]], 1.1, 1.5), 1);
+});
+
+test("in the picture, not a fall: exercises, chairs, bows, shoes, coming close, walking away or off", () => {
+  for (const cam of [0.3, 0.8, 1.1]) {
+    const p = at(2.4);
+    const reps = (down: Fig, hold: number): [Fig | null, number][] => Array.from({ length: 6 }, () => [[p.stand, 1], [down, hold]] as [Fig, number][]).flat();
+    assert.equal(play([[p.stand, 2], ...reps(p.chair, 2)], cam), 0, `sit-to-stand, camera ${cam}`);
+    assert.equal(play([[p.stand, 2], ...reps(p.chairSide, 2)], cam), 0, `sit-to-stand side-on, camera ${cam}`);
+    assert.equal(play([[p.stand, 2], ...reps(p.squat, 1.5)], cam), 0, `squats, camera ${cam}`);
+    assert.equal(play([[p.stand, 2], [p.chair, 30]], cam), 0, `a long rest on the chair, camera ${cam}`);
+    assert.equal(play([[p.stand, 2], [p.chair, 3], [null, 6], [p.chair, 2]], cam), 0, `hidden while seated, camera ${cam}`);
+    assert.equal(play([[p.stand, 2], [p.bow, 3], [p.stand, 1]], cam), 0, `picking something up, camera ${cam}`);
+    assert.equal(play([[p.stand, 2], [p.chairSide, 2], [p.shoes, 4], [p.chairSide, 1]], cam), 0, `tying shoes on the chair, camera ${cam}`);
+    // walks up to the phone, taps it, walks back
+    assert.equal(play([[p.stand, 2], [at(1.6).stand, 0.3], [at(0.9).stand, 0.3], [at(0.5).stand, 2], [null, 3], [at(0.9).stand, 0.3], [p.stand, 2]], cam, 0.7), 0, `to the phone and back, camera ${cam}`);
+    // walks away from the camera, out through a door at the back
+    assert.equal(play([[p.stand, 2], [at(4).stand, 0.5], [at(6).stand, 0.5], [null, 5]], cam, 1.5), 0, `walking away, camera ${cam}`);
+    // walks off to the side
+    assert.equal(play([[p.stand, 2], [at(2.4, 0.9).stand, 0.2], [null, 5]], cam, 1), 0, `walking off, camera ${cam}`);
+    // down for a moment, up again
+    assert.equal(play([[p.stand, 2], [p.floorSit, 0.4], [p.stand, 2]], cam), 0, `down and straight up, camera ${cam}`);
+  }
 });
